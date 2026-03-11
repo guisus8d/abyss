@@ -15,6 +15,7 @@ import { connectSocket } from '../services/socket';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { TouchableWithoutFeedback } from 'react-native';
 import PostComposer  from '../components/PostComposer';
+import AvatarWithFrame from '../components/AvatarWithFrame';
 
 function timeAgo(date) {
   const diff = (Date.now() - new Date(date)) / 1000;
@@ -62,6 +63,7 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
     const uid = r.user?._id || r.user;
     return uid?.toString() === currentUserId?.toString();
   });
+
   async function submitComment() {
     if (!commentText.trim() || sending) return;
     setSending(true);
@@ -76,17 +78,17 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
   return (
     <View style={s.card}>
       <View style={s.cardHead}>
-        {/* Avatar */}
+        {/* Avatar con marco */}
         <TouchableOpacity
           onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })}
+          style={{ marginRight: 10 }}
         >
-          <View style={s.avatar}>
-            {post.author.avatarUrl ? (
-              <Image source={{ uri: post.author.avatarUrl }} style={s.avatarImg} />
-            ) : (
-              <Text style={s.avatarTxt}>{post.author.username[0].toUpperCase()}</Text>
-            )}
-          </View>
+          <AvatarWithFrame
+            size={38}
+            avatarUrl={post.author.avatarUrl}
+            username={post.author.username}
+            profileFrame={post.author.profileFrame}
+          />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })}>
@@ -110,7 +112,6 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
 
       <Text style={s.cardBody}>{post.content}</Text>
 
-      {/* Imagen del post */}
       {post.imageUrl && (
         <Image source={{ uri: post.imageUrl }} style={s.postImage} />
       )}
@@ -122,13 +123,11 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
       )}
 
       <View style={s.cardActions}>
-        {/* Like */}
         <TouchableOpacity style={s.act} onPress={() => onReact(post._id, 'like')}>
           <Ionicons name={hasLiked ? 'heart' : 'heart-outline'} size={18} color={hasLiked ? colors.c3 : colors.textDim} />
           <Text style={s.actCount}>{likeCount}</Text>
         </TouchableOpacity>
 
-        {/* Emojis usados en este post */}
         {emojiGroups.map(g => (
           <TouchableOpacity key={g.emoji} style={s.act}
             onPress={() => onReact(post._id, g.emoji)}>
@@ -137,7 +136,6 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
           </TouchableOpacity>
         ))}
 
-        {/* + mini emoji picker */}
         <View>
           <TouchableOpacity style={s.act} onPress={() => setShowEmojiPicker(prev => prev === post._id ? null : post._id)}>
             <Ionicons name='add' size={18} color='#fff' />
@@ -173,12 +171,13 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
               const cReplies = replies.filter(r => r.replyTo.commentId?.toString() === c._id?.toString());
               return (
                 <View key={i}>
-                  {/* Comentario principal */}
                   <View style={s.comment}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{ flex: 1 }}>
                         <Text>
-                          <Text style={s.commentUser}>{c.user?.username || 'user'} </Text>
+                          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>
+                            <Text style={s.commentUser}>{c.user?.username || 'user'} </Text>
+                          </TouchableOpacity>
                           <Text style={s.commentText}>{c.text}</Text>
                         </Text>
                       </View>
@@ -187,7 +186,6 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
                       </TouchableOpacity>
                     </View>
                   </View>
-                  {/* Respuestas indentadas */}
                   {cReplies.map((r, j) => (
                     <View key={j} style={s.commentReply}>
                       <View style={s.commentReplyLine} />
@@ -195,7 +193,9 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <View style={{ flex: 1 }}>
                             <Text>
-                              <Text style={s.commentUser}>{r.user?.username || 'user'} </Text>
+                              <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: r.user?.username })}>
+                                <Text style={s.commentUser}>{r.user?.username || 'user'} </Text>
+                              </TouchableOpacity>
                               <Text style={s.commentText}>{r.text}</Text>
                             </Text>
                           </View>
@@ -248,6 +248,7 @@ export default function HomeScreen({ navigation }) {
       s.on('notification:new', () => setUnreadNotifs(prev => prev + 1));
     });
   }, []);
+
   const { user, logout } = useAuthStore();
   const [posts, setPosts]             = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -297,12 +298,11 @@ export default function HomeScreen({ navigation }) {
         if (p._id !== postId) return p;
         const myId = user._id?.toString();
         const isSame = p.reactions.find(r => (r.user?._id || r.user)?.toString() === myId && r.type === type);
-        // Quitar reacción del mismo tipo o cualquier emoji previo si es emoji nuevo
         const reactions = p.reactions.filter(r => {
           const uid = (r.user?._id || r.user)?.toString();
-          if (uid !== myId) return true; // otras personas siempre se quedan
-          if (type === 'like') return r.type !== 'like'; // toggle like
-          return r.type === 'like'; // si pone emoji, quitar emoji anterior pero mantener like
+          if (uid !== myId) return true;
+          if (type === 'like') return r.type !== 'like';
+          return r.type === 'like';
         });
         if (!isSame) reactions.push({ user: user._id, type });
         return { ...p, reactions };
@@ -354,16 +354,18 @@ export default function HomeScreen({ navigation }) {
 
       <SafeAreaView>
         <View style={s.header}>
-          <TouchableOpacity style={s.headerAvatar} onPress={() => setDrawerOpen(true)}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={s.headerAvatarImg} />
-            ) : (
-              <Text style={s.avatarTxt}>{user?.username?.[0]?.toUpperCase()}</Text>
-            )}
+          {/* Header avatar con marco */}
+          <TouchableOpacity style={s.headerAvatarWrap} onPress={() => setDrawerOpen(true)}>
+            <AvatarWithFrame
+              size={34}
+              avatarUrl={user?.avatarUrl}
+              username={user?.username}
+              profileFrame={user?.profileFrame}
+              bgColor='rgba(0,229,204,0.15)'
+            />
           </TouchableOpacity>
           <Text style={s.headerTitle}>ABBYS</Text>
           <View style={s.headerRight}>
-
             <TouchableOpacity style={s.iconBtn} onPress={() => { setUnreadNotifs(0); navigation.navigate('Notifications'); }}>
               <Ionicons name='notifications-outline' size={22} color={colors.textHi} />
               {unreadNotifs > 0 && (
@@ -381,7 +383,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Barra de búsqueda */}
         {searchOpen && (
           <View style={s.searchBar}>
             <TextInput
@@ -396,7 +397,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Resultados */}
         {searchOpen && searchResults.length > 0 && (
           <View style={s.searchResults}>
             {searchResults.map(u => (
@@ -405,13 +405,13 @@ export default function HomeScreen({ navigation }) {
                 style={s.searchItem}
                 onPress={() => { setSearchOpen(false); navigation.navigate('PublicProfile', { username: u.username }); }}
               >
-                <View style={s.searchAvatar}>
-                  {u.avatarUrl
-                    ? <Image source={{ uri: u.avatarUrl }} style={s.searchAvatarImg} />
-                    : <Text style={s.searchAvatarTxt}>{u.username[0].toUpperCase()}</Text>
-                  }
-                </View>
-                <View style={{ flex: 1 }}>
+                <AvatarWithFrame
+                  size={36}
+                  avatarUrl={u.avatarUrl}
+                  username={u.username}
+                  profileFrame={u.profileFrame}
+                />
+                <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={s.searchUser}>{u.username}</Text>
                   <Text style={s.searchXp}>XP {u.xp}</Text>
                 </View>
@@ -503,19 +503,11 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  headerTitle: { fontSize: 18, fontWeight: '900', letterSpacing: 8, color: colors.c1 },
-  headerAvatar: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: 'rgba(0,229,204,0.15)',
-    borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
+  headerTitle:     { fontSize: 18, fontWeight: '900', letterSpacing: 8, color: colors.c1 },
+  headerAvatarWrap:{ width: 34, height: 34 },
   headerAvatarImg: { width: 34, height: 34, borderRadius: 17 },
-
-
   headerRight:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtn:      { padding: 8 },
-  iconBtnTxt:   { fontSize: 20 },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
@@ -523,9 +515,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12, borderWidth: 1, borderColor: colors.borderC,
   },
-  searchInput: {
-    flex: 1, padding: 12, color: colors.textHi, fontSize: 14,
-  },
+  searchInput: { flex: 1, padding: 12, color: colors.textHi, fontSize: 14 },
   searchResults: {
     marginHorizontal: 16, marginBottom: 8,
     backgroundColor: colors.surface,
@@ -537,14 +527,6 @@ const s = StyleSheet.create({
     padding: 12, gap: 10,
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  searchAvatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(0,229,204,0.1)',
-    borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  searchAvatarImg: { width: 36, height: 36, borderRadius: 18 },
-  searchAvatarTxt: { color: colors.c1, fontWeight: 'bold', fontSize: 14 },
   searchUser:  { color: colors.textHi, fontSize: 13, fontWeight: '600' },
   searchXp:    { color: colors.textDim, fontSize: 10, marginTop: 1 },
   searchArrow: { color: colors.textDim, fontSize: 18 },
@@ -558,13 +540,6 @@ const s = StyleSheet.create({
     borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 16,
   },
   cardHead:   { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  avatar:     {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(0,229,204,0.1)',
-    borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center', marginRight: 10, overflow: 'hidden',
-  },
-  avatarImg:  { width: 38, height: 38, borderRadius: 19 },
   avatarTxt:  { color: colors.c1, fontWeight: 'bold', fontSize: 14 },
   cardUser:   { color: colors.textHi, fontWeight: '600', fontSize: 13 },
   cardMeta:   { color: colors.textDim, fontSize: 10, marginTop: 1 },
@@ -592,11 +567,8 @@ const s = StyleSheet.create({
   comment:      { flexDirection: 'row', marginBottom: 6 },
   commentUser:  { color: colors.c1, fontSize: 12, fontWeight: '600' },
   commentText:  { color: colors.textMid, fontSize: 12, flex: 1 },
-  commentReplyBtn:     { color: '#555', fontSize: 13, paddingLeft: 8 },
   commentReply:        { flexDirection: 'row', paddingLeft: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#111' },
   commentReplyLine:    { width: 2, backgroundColor: '#333', marginRight: 10, borderRadius: 2 },
-  commentReplyPreview: { backgroundColor: '#1e1e1e', borderLeftWidth: 3, borderLeftColor: '#555', paddingLeft: 8, paddingVertical: 5, paddingRight: 8, marginBottom: 5, borderRadius: 6, width: '100%' },
-  commentReplyTxt:     { color: '#888', fontSize: 11 },
   commentReplyBar:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', padding: 6, borderRadius: 8, marginBottom: 4 },
   commentReplyBarTxt:  { color: '#888', fontSize: 11, flex: 1 },
   commentInput: {
@@ -614,10 +586,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: colors.border,
     paddingVertical: 10, paddingBottom: 20,
   },
-  ni:          { alignItems: 'center', flex: 1 },
-  niIcon:      { fontSize: 20, color: colors.textDim, marginBottom: 3 },
-  niIconActive:{ fontSize: 20, color: colors.c1, marginBottom: 3 },
-  niLbl:       { fontSize: 9, color: colors.textDim, letterSpacing: 0.5 },
+  ni:       { alignItems: 'center', flex: 1 },
+  niLbl:    { fontSize: 9, color: colors.textDim, letterSpacing: 0.5 },
   niCreate: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', shadowColor: colors.c1, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
-  niCreateTxt: { color: colors.black, fontSize: 26, fontWeight: 'bold', lineHeight: 30 },
 });

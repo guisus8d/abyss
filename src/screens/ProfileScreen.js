@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, StatusBar, SafeAreaView, ActivityIndicator,
-  Animated, Alert,
+  Animated, Alert, Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,12 +11,16 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 
+const FRAME_URL = 'https://res.cloudinary.com/dlpdzgkeg/image/upload/frames/frame_001.webp';
+
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateUser } = useAuthStore();
   const [profile, setProfile]       = useState(null);
   const [loading, setLoading]       = useState(true);
   const [uploading, setUploading]   = useState(false);
   const [menuOpen, setMenuOpen]     = useState(false);
+  const [frameModal, setFrameModal] = useState(false);
+  const [equipping, setEquipping]   = useState(false);
   const menuAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -61,6 +65,26 @@ export default function ProfileScreen({ navigation }) {
     }
   }
 
+  async function handleEquipFrame() {
+    const xp = profile?.xp || 0;
+    if (xp < 10) {
+      Alert.alert('XP insuficiente', `Necesitas 10 XP para desbloquear este marco.\nTienes ${xp} XP.`);
+      return;
+    }
+    setEquipping(true);
+    try {
+      const newFrame = profile?.profileFrame === 'frame_001' ? 'default' : 'frame_001';
+      const { data } = await api.patch('/users/me/profile', { profileFrame: newFrame });
+      setProfile(data.user);
+      if (updateUser) updateUser(data.user);
+      setFrameModal(false);
+    } catch {
+      Alert.alert('Error', 'No se pudo actualizar el marco');
+    } finally {
+      setEquipping(false);
+    }
+  }
+
   if (loading) return (
     <View style={s.root}>
       <ActivityIndicator color={colors.c1} style={{ marginTop: 80 }} />
@@ -68,7 +92,8 @@ export default function ProfileScreen({ navigation }) {
   );
 
   const xpProgress = Math.min((profile?.xp || 0) % 100, 100);
-  const daysSince  = Math.floor((Date.now() - new Date(profile?.createdAt)) / 86400000);
+  const hasFrame   = profile?.profileFrame === 'frame_001';
+  const canUnlock  = (profile?.xp || 0) >= 10;
 
   return (
     <View style={s.root}>
@@ -96,6 +121,11 @@ export default function ProfileScreen({ navigation }) {
             <Text style={s.dropTxt}>{uploading ? 'Subiendo...' : 'Cambiar foto'}</Text>
           </TouchableOpacity>
           <View style={s.dropDivider} />
+          <TouchableOpacity style={s.dropItem} onPress={() => { toggleMenu(); setFrameModal(true); }}>
+            <Ionicons name='sparkles-outline' size={16} color={colors.textMid} />
+            <Text style={s.dropTxt}>Cambiar marco</Text>
+          </TouchableOpacity>
+          <View style={s.dropDivider} />
           <TouchableOpacity style={s.dropItem} onPress={() => { toggleMenu(); }}>
             <Ionicons name='settings-outline' size={16} color={colors.textMid} />
             <Text style={s.dropTxt}>Ajustes</Text>
@@ -115,9 +145,9 @@ export default function ProfileScreen({ navigation }) {
 
       <ScrollView>
         <View style={s.heroBox}>
-          {/* Avatar clickeable */}
+          {/* Avatar + Marco */}
           <TouchableOpacity onPress={handlePickAvatar} disabled={uploading} style={s.avatarArea}>
-            <LinearGradient colors={['#00e5cc','#2979ff']} style={s.avatarRing}>
+            {hasFrame ? (
               <View style={s.avatar}>
                 {profile?.avatarUrl ? (
                   <Image source={{ uri: profile.avatarUrl }} style={s.avatarImg} />
@@ -125,7 +155,20 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={s.avatarTxt}>{profile?.username?.[0]?.toUpperCase()}</Text>
                 )}
               </View>
-            </LinearGradient>
+            ) : (
+              <LinearGradient colors={['#00e5cc','#2979ff']} style={s.avatarRing}>
+                <View style={s.avatar}>
+                  {profile?.avatarUrl ? (
+                    <Image source={{ uri: profile.avatarUrl }} style={s.avatarImg} />
+                  ) : (
+                    <Text style={s.avatarTxt}>{profile?.username?.[0]?.toUpperCase()}</Text>
+                  )}
+                </View>
+              </LinearGradient>
+            )}
+            {hasFrame && (
+              <Image source={{ uri: FRAME_URL }} style={s.frameOverlay} resizeMode="contain" />
+            )}
             <View style={s.photoBtn}>
               <Text style={s.photoBtnTxt}>{uploading ? '⏳' : '📷'}</Text>
             </View>
@@ -183,6 +226,48 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Modal Marco */}
+      <Modal visible={frameModal} transparent animationType="fade" onRequestClose={() => setFrameModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitle}>MARCOS DE PERFIL</Text>
+
+            {/* Preview avatar + marco */}
+            <View style={s.previewArea}>
+              <View style={s.avatar}>
+                {profile?.avatarUrl ? (
+                  <Image source={{ uri: profile.avatarUrl }} style={s.avatarImg} />
+                ) : (
+                  <Text style={s.avatarTxt}>{profile?.username?.[0]?.toUpperCase()}</Text>
+                )}
+              </View>
+              <Image source={{ uri: FRAME_URL }} style={s.frameOverlay} resizeMode="contain" />
+            </View>
+
+            <Text style={s.frameName}>✨ Marco Dorado</Text>
+            <Text style={s.frameDesc}>
+              {canUnlock
+                ? (hasFrame ? 'Marco equipado actualmente.' : '¡Desbloqueado! Tienes suficiente XP.')
+                : `Requiere 10 XP — tienes ${profile?.xp || 0}`}
+            </Text>
+
+            <TouchableOpacity
+              style={[s.equipBtn, !canUnlock && s.equipBtnLocked]}
+              onPress={handleEquipFrame}
+              disabled={equipping || !canUnlock}
+            >
+              <Text style={s.equipBtnTxt}>
+                {equipping ? 'Guardando...' : hasFrame ? 'Quitar marco' : canUnlock ? 'Equipar marco' : '🔒 Bloqueado'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.closeBtn} onPress={() => setFrameModal(false)}>
+              <Text style={s.closeBtnTxt}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -198,9 +283,7 @@ const s = StyleSheet.create({
   back:        { color: colors.c1, fontSize: 22 },
   headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 6, color: colors.c1 },
   settingsBtn: { width: 40, alignItems: 'flex-end' },
-  settingsTxt: { fontSize: 20 },
 
-  // Dropdown menu
   dropMenu: {
     position: 'absolute', top: 60, right: 16, zIndex: 999,
     backgroundColor: colors.surface,
@@ -209,7 +292,6 @@ const s = StyleSheet.create({
     shadowColor: colors.c1, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10,
   },
   dropItem:    { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
-  dropIcon:    { fontSize: 16 },
   dropTxt:     { color: colors.textMid, fontSize: 14 },
   dropDivider: { height: 1, backgroundColor: colors.border },
   menuOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 },
@@ -223,13 +305,19 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: colors.black, overflow: 'hidden',
   },
-  avatarImg:   { width: 90, height: 90, borderRadius: 45 },
-  avatarTxt:   { color: colors.c1, fontSize: 36, fontWeight: 'bold' },
+  avatarImg:    { width: 90, height: 90, borderRadius: 45 },
+  avatarTxt:    { color: colors.c1, fontSize: 36, fontWeight: 'bold' },
+  frameOverlay: {
+    position: 'absolute', top: -6, left: -6,
+    width: 108, height: 108,
+    zIndex: 10, pointerEvents: 'none',
+  },
   photoBtn: {
     position: 'absolute', bottom: 0, right: -2,
     backgroundColor: colors.deep, borderRadius: 12,
     borderWidth: 1, borderColor: colors.borderC,
     width: 26, height: 26, alignItems: 'center', justifyContent: 'center',
+    zIndex: 20,
   },
   photoBtnTxt: { fontSize: 13 },
 
@@ -256,9 +344,33 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 10, letterSpacing: 3, color: colors.textDim, marginBottom: 16 },
   emptyTxt:     { color: colors.textDim, fontSize: 13, textAlign: 'center', paddingVertical: 20 },
   badgesGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,229,204,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 6, borderWidth: 1, borderColor: colors.borderC },
-  badgeCard: { alignItems: 'center', width: 70 },
-  badgeIcon: { fontSize: 32, marginBottom: 8 },
-  badgeName: { color: colors.textMid, fontSize: 9, textAlign: 'center', letterSpacing: 1 },
-  badgeDesc: { color: colors.textDim, fontSize: 10, textAlign: 'center' },
+  badgeCard:    { alignItems: 'center', width: 70 },
+  badgeIcon:    { fontSize: 32, marginBottom: 8 },
+  badgeName:    { color: colors.textMid, fontSize: 9, textAlign: 'center', letterSpacing: 1 },
+  badgeDesc:    { color: colors.textDim, fontSize: 10, textAlign: 'center' },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalBox: {
+    backgroundColor: colors.surface, borderRadius: 24,
+    borderWidth: 1, borderColor: colors.borderC,
+    padding: 28, width: '82%', alignItems: 'center',
+    shadowColor: colors.c1, shadowOpacity: 0.2, shadowRadius: 20, elevation: 15,
+  },
+  modalTitle: { fontSize: 12, letterSpacing: 4, color: colors.c1, fontWeight: '800', marginBottom: 24 },
+  previewArea: { position: 'relative', marginBottom: 20 },
+  frameName:   { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  frameDesc:   { color: colors.textDim, fontSize: 12, textAlign: 'center', marginBottom: 24 },
+  equipBtn: {
+    backgroundColor: colors.c1, borderRadius: 14,
+    paddingVertical: 13, paddingHorizontal: 36,
+    marginBottom: 12, width: '100%', alignItems: 'center',
+  },
+  equipBtnLocked: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  equipBtnTxt:    { color: colors.black, fontWeight: '800', fontSize: 14 },
+  closeBtn:       { paddingVertical: 10 },
+  closeBtnTxt:    { color: colors.textDim, fontSize: 13 },
 });

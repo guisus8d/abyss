@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, Image,
+  View, Text, FlatList, TouchableOpacity,
   StyleSheet, StatusBar, SafeAreaView, ActivityIndicator,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import api from '../services/api';
+import AvatarWithFrame from '../components/AvatarWithFrame';
 
 export default function FollowListScreen({ route, navigation }) {
   const { username, type } = route.params;
@@ -48,12 +49,13 @@ export default function FollowListScreen({ route, navigation }) {
               style={s.item}
               onPress={() => navigation.navigate('PublicProfile', { username: item.username })}
             >
-              <View style={s.avatar}>
-                {item.avatarUrl
-                  ? <Image source={{ uri: item.avatarUrl }} style={s.avatarImg} />
-                  : <Text style={s.avatarTxt}>{item.username[0].toUpperCase()}</Text>
-                }
-              </View>
+              <AvatarWithFrame
+                size={44}
+                avatarUrl={item.avatarUrl}
+                username={item.username}
+                profileFrame={item.profileFrame}
+                style={{ marginRight: 12 }}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={s.username}>@{item.username}</Text>
                 <Text style={s.xp}>XP {item.xp || 0}</Text>
@@ -78,19 +80,12 @@ const s = StyleSheet.create({
   backBtn:     { padding: 8, width: 40 },
   backTxt:     { color: colors.c1, fontSize: 22 },
   item:        {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    flexDirection: 'row', alignItems: 'center',
     padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  avatar:      {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  avatarImg:   { width: 44, height: 44, borderRadius: 22 },
-  avatarTxt:   { color: colors.c1, fontWeight: 'bold', fontSize: 16 },
-  username:    { color: colors.textHi, fontWeight: '600', fontSize: 14 },
-  xp:          { color: colors.textDim, fontSize: 11, marginTop: 2 },
-  arrow:       { color: colors.textDim, fontSize: 20 },
-  empty:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyTxt:    { color: colors.textDim, fontSize: 14 },
+  username: { color: colors.textHi, fontWeight: '600', fontSize: 14 },
+  xp:       { color: colors.textDim, fontSize: 11, marginTop: 2 },
+  arrow:    { color: colors.textDim, fontSize: 20 },
+  empty:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyTxt: { color: colors.textDim, fontSize: 14 },
 });

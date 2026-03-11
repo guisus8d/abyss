@@ -8,6 +8,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
+import AvatarWithFrame from '../components/AvatarWithFrame';
 
 export default function ChatsScreen({ navigation }) {
   const { user } = useAuthStore();
@@ -115,12 +116,13 @@ export default function ChatsScreen({ navigation }) {
             alreadyRequested: true,
           })}
         >
-          <View style={s.avatarWrap}>
-            {sr.to?.avatarUrl
-              ? <Image source={{ uri: sr.to.avatarUrl }} style={s.avatarImg} />
-              : <Text style={s.avatarTxt}>{sr.to?.username?.[0]?.toUpperCase()}</Text>
-            }
-          </View>
+          <AvatarWithFrame
+            size={46}
+            avatarUrl={sr.to?.avatarUrl}
+            username={sr.to?.username}
+            profileFrame={sr.to?.profileFrame}
+            style={{ marginRight: 12 }}
+          />
           <View style={{ flex: 1 }}>
             <Text style={s.chatUser}>{sr.to?.username}</Text>
             <Text style={s.chatPreview} numberOfLines={1}>
@@ -143,12 +145,13 @@ export default function ChatsScreen({ navigation }) {
         style={s.chatItem}
         onPress={() => navigation.navigate('ChatRoom', { chat, other })}
       >
-        <View style={s.avatarWrap}>
-          {other?.avatarUrl
-            ? <Image source={{ uri: other.avatarUrl }} style={s.avatarImg} />
-            : <Text style={s.avatarTxt}>{other?.username?.[0]?.toUpperCase()}</Text>
-          }
-        </View>
+        <AvatarWithFrame
+          size={46}
+          avatarUrl={other?.avatarUrl}
+          username={other?.username}
+          profileFrame={other?.profileFrame}
+          style={{ marginRight: 12 }}
+        />
         <View style={{ flex: 1 }}>
           <Text style={s.chatUser}>{other?.username}</Text>
           <Text style={[s.chatPreview, unread > 0 && s.chatPreviewUnread]} numberOfLines={1}>
@@ -192,12 +195,13 @@ export default function ChatsScreen({ navigation }) {
           ) : (
             requests.map(r => (
               <View key={r._id} style={s.reqItem}>
-                <View style={s.reqAvatar}>
-                  {r.from?.avatarUrl
-                    ? <Image source={{ uri: r.from.avatarUrl }} style={s.reqAvatarImg} />
-                    : <Text style={s.reqAvatarTxt}>{r.from?.username?.[0]?.toUpperCase()}</Text>
-                  }
-                </View>
+                <AvatarWithFrame
+                  size={40}
+                  avatarUrl={r.from?.avatarUrl}
+                  username={r.from?.username}
+                  profileFrame={r.from?.profileFrame}
+                  style={{ marginRight: 10 }}
+                />
                 <View style={{ flex: 1 }}>
                   <Text style={s.reqUser}>{r.from?.username}</Text>
                   <Text style={s.reqXp}>XP {r.from?.xp}</Text>
@@ -260,16 +264,9 @@ const s = StyleSheet.create({
   reqPanelTitle: { fontSize: 9, letterSpacing: 3, color: colors.textDim, marginBottom: 12 },
   reqEmpty:      { color: colors.textDim, fontSize: 13, textAlign: 'center', paddingVertical: 8 },
   reqItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  reqAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  reqAvatarImg: { width: 40, height: 40, borderRadius: 20 },
-  reqAvatarTxt: { color: colors.c1, fontWeight: 'bold' },
   reqUser:  { color: colors.textHi, fontWeight: '600', fontSize: 13 },
   reqXp:    { color: colors.textDim, fontSize: 10 },
   btnAccept: {
@@ -286,16 +283,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  avatarWrap: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden',
-  },
-  avatarImg:          { width: 46, height: 46, borderRadius: 23 },
-  avatarTxt:          { color: colors.c1, fontWeight: 'bold', fontSize: 16 },
-  chatUser:           { color: colors.textHi, fontWeight: '600', fontSize: 14, marginBottom: 3 },
-  chatPreview:        { color: colors.textDim, fontSize: 12 },
-  chatPreviewUnread:  { color: colors.textMid, fontWeight: '700' },
+  chatUser:          { color: colors.textHi, fontWeight: '600', fontSize: 14, marginBottom: 3 },
+  chatPreview:       { color: colors.textDim, fontSize: 12 },
+  chatPreviewUnread: { color: colors.textMid, fontWeight: '700' },
   unreadBadge: {
     backgroundColor: colors.c1, borderRadius: 12,
     minWidth: 22, height: 22, alignItems: 'center', justifyContent: 'center',
