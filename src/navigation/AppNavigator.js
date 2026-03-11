@@ -8,16 +8,16 @@ import HomeScreen          from '../screens/HomeScreen';
 import ChatsScreen         from '../screens/ChatsScreen';
 import ChatRoomScreen      from '../screens/ChatRoomScreen';
 import ProfileScreen       from '../screens/ProfileScreen';
-import PublicProfileScreen    from '../screens/PublicProfileScreen';
-import NotificationsScreen   from '../screens/NotificationsScreen';
-import FollowListScreen      from '../screens/FollowListScreen';
-import PostDetailScreen     from '../screens/PostDetailScreen';
+import PublicProfileScreen from '../screens/PublicProfileScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import FollowListScreen    from '../screens/FollowListScreen';
+import PostDetailScreen    from '../screens/PostDetailScreen';
+import TopScreen           from '../screens/TopScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   const { user, isRestoring, restoreSession } = useAuthStore();
-
   useEffect(() => { restoreSession(); }, []);
 
   if (isRestoring) {
@@ -37,10 +37,11 @@ export default function AppNavigator() {
             <Stack.Screen name="Chats"         component={ChatsScreen} />
             <Stack.Screen name="ChatRoom"      component={ChatRoomScreen} />
             <Stack.Screen name="Profile"       component={ProfileScreen} />
-            <Stack.Screen name="PublicProfile"    component={PublicProfileScreen} />
-            <Stack.Screen name="Notifications"   component={NotificationsScreen} />
-            <Stack.Screen name="FollowList"      component={FollowListScreen} />
-            <Stack.Screen name="PostDetail"     component={PostDetailScreen} />
+            <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="FollowList"    component={FollowListScreen} />
+            <Stack.Screen name="PostDetail"    component={PostDetailScreen} />
+            <Stack.Screen name="Top"           component={TopScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

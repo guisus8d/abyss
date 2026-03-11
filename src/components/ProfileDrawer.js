@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import api from '../services/api';
+import AvatarWithFrame from './AvatarWithFrame';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.62, 320);
@@ -53,7 +54,6 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
     try {
       const asset = result.assets[0];
       const formData = new FormData();
-      // Web necesita Blob, nativo acepta objeto {uri,type,name}
       if (asset.uri.startsWith('data:') || asset.uri.startsWith('blob:') || asset.uri.startsWith('http')) {
         const response = await fetch(asset.uri);
         const blob = await response.blob();
@@ -94,16 +94,15 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               <Text style={s.closeTxt}>✕</Text>
             </TouchableOpacity>
 
+            {/* Avatar con marco */}
             <TouchableOpacity onPress={() => { onClose(); onNavigate('Profile'); }} style={s.avatarArea}>
-              <LinearGradient colors={['#00e5cc','#2979ff']} style={s.avatarRing}>
-                <View style={s.avatar}>
-                  {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} style={s.avatarImg} />
-                  ) : (
-                    <Text style={s.avatarTxt}>{user?.username?.[0]?.toUpperCase()}</Text>
-                  )}
-                </View>
-              </LinearGradient>
+              <AvatarWithFrame
+                size={64}
+                avatarUrl={avatarUrl}
+                username={user?.username}
+                profileFrame={user?.profileFrame}
+                bgColor={colors.surface}
+              />
               <View style={s.photoBtn}>
                 <Ionicons name={uploading ? 'time-outline' : 'camera'} size={12} color={colors.textMid} />
               </View>
@@ -163,7 +162,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               <Text style={s.menuTxt}>Mi Colección</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem}>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Top'); }}>
               <Ionicons name='trophy-outline' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Top Semanal</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
@@ -204,22 +203,12 @@ const s = StyleSheet.create({
   closeBtn:     { position: 'absolute', top: 40, right: 12, padding: 6 },
   closeTxt:     { color: colors.textDim, fontSize: 14 },
   avatarArea:   { position: 'relative', marginBottom: 10 },
-  avatarRing:   { padding: 2.5, borderRadius: 38 },
-  avatar: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: colors.surface,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.black, overflow: 'hidden',
-  },
-  avatarImg:   { width: 64, height: 64, borderRadius: 32 },
-  avatarTxt:   { color: colors.c1, fontSize: 26, fontWeight: 'bold' },
   photoBtn: {
     position: 'absolute', bottom: 0, right: -2,
     backgroundColor: colors.deep, borderRadius: 10,
     borderWidth: 1, borderColor: colors.borderC,
     width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
   },
-  photoBtnTxt:    { fontSize: 11 },
   drawerUsername: { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 1 },
   drawerEmail:    { color: colors.textDim, fontSize: 10, marginBottom: 12 },
   xpRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, width: '100%' },
@@ -251,10 +240,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10,
   },
-  menuIcon:  { fontSize: 16, width: 22, textAlign: 'center' },
   menuIconV: { width: 22 },
   menuTxt:   { flex: 1, color: colors.textMid, fontSize: 13 },
-  menuArrow: { color: colors.textDim, fontSize: 16 },
   logoutBtn: {
     marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 10,
     borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center',

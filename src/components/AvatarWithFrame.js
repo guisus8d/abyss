@@ -21,15 +21,20 @@ export default function AvatarWithFrame({
   bgColor = 'rgba(0,229,204,0.1)',
   style,
 }) {
-  const hasFrame  = profileFrame === 'frame_001';
-  const radius    = size / 2;
-  const frameSize = size * 1.28;
-  const offset    = -((frameSize - size) / 2);
+  const hasFrame   = profileFrame === 'frame_001';
+  const radius     = size / 2;
+  // The inner circle of frame.webp is ~60% of the total image size
+  // So frameSize = size / 0.60 makes the circle fit exactly around the avatar
+  const frameSize    = hasFrame ? size / 0.70 : size;
+  const wrapSize     = frameSize;
+  const avatarOffset = (frameSize - size) / 2;
 
   return (
-    <View style={[{ width: size, height: size, position: 'relative' }, style]}>
-      {/* Avatar circle */}
+    <View style={[{ width: wrapSize, height: wrapSize, alignItems: 'center', justifyContent: 'center' }, style]}>
+      {/* Avatar circle — centered inside wrapper */}
       <View style={{
+        position: 'absolute',
+        top: avatarOffset, left: avatarOffset,
         width: size, height: size, borderRadius: radius,
         backgroundColor: bgColor,
         alignItems: 'center', justifyContent: 'center',
@@ -47,13 +52,13 @@ export default function AvatarWithFrame({
         )}
       </View>
 
-      {/* Frame overlay */}
+      {/* Frame — same size as wrapper, sits on top */}
       {hasFrame && (
         <Image
           source={{ uri: FRAME_URL }}
           style={{
             position: 'absolute',
-            top: offset, left: offset,
+            top: 0, left: 0,
             width: frameSize, height: frameSize,
             zIndex: 10,
           }}
