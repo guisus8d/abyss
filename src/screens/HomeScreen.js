@@ -16,6 +16,7 @@ import ProfileDrawer from '../components/ProfileDrawer';
 import { TouchableWithoutFeedback } from 'react-native';
 import PostComposer  from '../components/PostComposer';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import OrbitUsers from '../components/OrbitUsers';
 
 function timeAgo(date) {
   const diff = (Date.now() - new Date(date)) / 1000;
@@ -436,6 +437,7 @@ export default function HomeScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPosts(); }} tintColor={colors.c1} />}
         >
+         
           {posts.length === 0 && (
             <View style={s.center}><Text style={s.emptyTxt}>Sin posts aún. ¡Sé el primero!</Text></View>
           )}
