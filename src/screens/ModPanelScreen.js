@@ -30,7 +30,7 @@ export default function ModPanelScreen({ navigation, route }) {
     setLoading(true);
     try {
       const { data } = await api.get(`/users/mod/users${q ? `?q=${q}` : ''}`);
-      setUsers(data.users);
+      setUsers(data.users || []);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo cargar');
     } finally {
@@ -174,14 +174,16 @@ export default function ModPanelScreen({ navigation, route }) {
 
               {/* Acciones */}
               <View style={s.actions}>
-                {u.banned ? (
-                  <TouchableOpacity style={s.actionBtn} onPress={() => handleUnban(u._id)}>
-                    <Ionicons name="checkmark-circle-outline" size={20} color={colors.c1} />
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={s.actionBtn} onPress={() => { setBanModal(u); setBanReason(''); }}>
-                    <Ionicons name="ban-outline" size={20} color="rgba(239,68,68,0.7)" />
-                  </TouchableOpacity>
+                {u.role !== 'admin' && !(u.role === 'mod' && currentUser?.role !== 'admin') && (
+                  u.banned ? (
+                    <TouchableOpacity style={s.actionBtn} onPress={() => handleUnban(u._id)}>
+                      <Ionicons name="checkmark-circle-outline" size={20} color={colors.c1} />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={s.actionBtn} onPress={() => { setBanModal(u); setBanReason(''); }}>
+                      <Ionicons name="ban-outline" size={20} color="rgba(239,68,68,0.7)" />
+                    </TouchableOpacity>
+                  )
                 )}
                 {currentUser?.role === 'admin' && u.role !== 'admin' && (
                   <TouchableOpacity style={s.actionBtn} onPress={() =>
