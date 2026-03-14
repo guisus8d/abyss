@@ -10,11 +10,12 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import PostCard from '../components/PostCard';
 
 const W = Dimensions.get('window').width;
 const POST_TILE = (W - 32 - 4) / 3;
 
-const TABS = [
+const TABS_BASE = [
   { key: 'profile', icon: 'person-outline'  },
   { key: 'posts',   icon: 'grid-outline'    },
   { key: 'badges',  icon: 'ribbon-outline'  },
@@ -31,6 +32,27 @@ export default function PublicProfileScreen({ route, navigation }) {
   const [loadingBtn, setLoadingBtn] = useState(false);
   const [chatStatus, setChatStatus] = useState('none');
   const [tab, setTab]               = useState('profile');
+  const [openPickerId, setOpenPickerId] = useState(null);
+
+  async function handleReact(postId, type) {
+    try {
+      await api.post(`/posts/${postId}/react`, { type });
+      setPosts(prev => prev.map(p => {
+        if (p._id !== postId) return p;
+        const already = p.reactions.find(r => (r.user?._id||r.user) === me?._id && r.type === type);
+        return { ...p, reactions: already
+          ? p.reactions.filter(r => !((r.user?._id||r.user) === me?._id && r.type === type))
+          : [...p.reactions, { user: me?._id, type }] };
+      }));
+    } catch {}
+  }
+
+  async function handleComment(postId, text, replyTo) {
+    try {
+      const { data } = await api.post(`/posts/${postId}/comment`, { text, replyTo });
+      setPosts(prev => prev.map(p => p._id === postId ? { ...p, comments: data.comments } : p));
+    } catch {}
+  }
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -120,9 +142,11 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   const isMe      = profile?._id === me._id;
   const daysSince = Math.floor((Date.now() - new Date(profile?.createdAt)) / 86400000);
-  const TAB_W     = (W - 32) / TABS.length;
   const isImageBg = profile?.profileBgType === 'image';
   const hasBg     = !!profile?.profileBg;
+  const prefs     = { showXp: true, showFollowers: true, showFollowing: true, showPosts: true, ...(profile?.profilePrefs || {}) };
+  const TABS = TABS_BASE.filter(t => t.key !== "posts" || prefs.showPosts);
+  const TAB_W     = (W - 32) / TABS.length;
 
   return (
     <View style={s.root}>
@@ -161,6 +185,15 @@ export default function PublicProfileScreen({ route, navigation }) {
             bgColor="rgba(0,229,204,0.12)"
           />
           <Text style={s.username}>{profile?.username}</Text>
+          {prefs.showXp && (
+            <View style={s.xpRow}>
+              <Text style={s.xpLabel}>XP</Text>
+              <View style={s.xpBarBg}>
+                <LinearGradient colors={['#006b63','#00e5cc']} style={[s.xpBarFill, { width: `${Math.min((profile?.xp||0)%100,100)}%` }]} start={{x:0,y:0}} end={{x:1,y:0}} />
+              </View>
+              <Text style={s.xpVal}>{profile?.xp || 0}</Text>
+            </View>
+          )}
 
           {!isMe && !blocked && (
             <View style={s.actionRow}>
@@ -194,22 +227,30 @@ export default function PublicProfileScreen({ route, navigation }) {
         </LinearGradient>
 
         {/* Stats */}
+        {(prefs.showFollowing || prefs.showFollowers || prefs.showPosts) && (
         <View style={s.statsRow}>
-          <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
-            <Text style={s.statVal}>{profile?.following?.length || 0}</Text>
-            <Text style={s.statLbl}>SIGUIENDO</Text>
-          </TouchableOpacity>
-          <View style={s.statDiv} />
-          <View style={s.stat}>
-            <Text style={[s.statVal, { color: colors.c1 }]}>{posts.length}</Text>
-            <Text style={s.statLbl}>POSTS</Text>
-          </View>
-          <View style={s.statDiv} />
-          <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
-            <Text style={s.statVal}>{profile?.followers?.length || 0}</Text>
-            <Text style={s.statLbl}>SEGUIDORES</Text>
-          </TouchableOpacity>
+          {prefs.showFollowing && (
+            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
+              <Text style={s.statVal}>{profile?.following?.length || 0}</Text>
+              <Text style={s.statLbl}>SIGUIENDO</Text>
+            </TouchableOpacity>
+          )}
+          {prefs.showFollowing && (prefs.showPosts || prefs.showFollowers) && <View style={s.statDiv} />}
+          {prefs.showPosts && (
+            <View style={s.stat}>
+              <Text style={[s.statVal, { color: colors.c1 }]}>{posts.length}</Text>
+              <Text style={s.statLbl}>POSTS</Text>
+            </View>
+          )}
+          {prefs.showPosts && prefs.showFollowers && <View style={s.statDiv} />}
+          {prefs.showFollowers && (
+            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
+              <Text style={s.statVal}>{profile?.followers?.length || 0}</Text>
+              <Text style={s.statLbl}>SEGUIDORES</Text>
+            </TouchableOpacity>
+          )}
         </View>
+        )}
 
         {/* Tabs */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
@@ -224,7 +265,14 @@ export default function PublicProfileScreen({ route, navigation }) {
         {/* Tab: Perfil */}
         {tab === 'profile' && (
           <View style={s.padded}>
-
+            <View style={[s.profileSection, profile?.profileBgType === 'image' && { overflow: 'hidden' }]}>
+              {profile?.profileBgType === 'image' && profile?.profileBg
+                ? <><Image source={{ uri: profile.profileBg }} style={s.sectionBgImage} resizeMode="cover" blurRadius={1} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }]} /></>
+                : null}
+              {profile?.profileBgType !== 'image' && profile?.profileBg
+                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg, borderRadius: 16 }]} />
+                : null}
               <View style={s.blocksContainer}>
                 {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
                   <View style={s.emptyPage}>
@@ -254,27 +302,31 @@ export default function PublicProfileScreen({ route, navigation }) {
                   );
                   return null;
                 })}
+              </View>
             </View>
           </View>
         )}
 
-        {/* Posts grid */}
-        {tab === 'posts' && (
-          <View style={s.postsGrid}>
+        {/* Posts feed */}
+        {tab === 'posts' && prefs.showPosts && (
+          <View>
             {posts.length === 0 ? (
               <View style={s.emptyTab}>
                 <Ionicons name="document-text-outline" size={40} color={colors.textDim} />
                 <Text style={s.emptyTxt}>Sin publicaciones aún</Text>
               </View>
             ) : posts.map(p => (
-              <TouchableOpacity key={p._id} style={[s.postTile, { width: POST_TILE, height: POST_TILE }]}
-                onPress={() => navigation.navigate('PostDetail', { postId: p._id })}>
-                {p.imageUrl ? (
-                  <Image source={{ uri: p.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                ) : (
-                  <Text style={s.postTileTxt} numberOfLines={4}>{p.content}</Text>
-                )}
-              </TouchableOpacity>
+              <PostCard
+                key={p._id}
+                post={p}
+                currentUserId={me?._id}
+                onReact={handleReact}
+                onComment={handleComment}
+                onDelete={() => {}}
+                navigation={navigation}
+                openPickerId={openPickerId}
+                setOpenPickerId={setOpenPickerId}
+              />
             ))}
           </View>
         )}
@@ -318,6 +370,11 @@ const s = StyleSheet.create({
   hero:     { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 },
   username: { color: colors.textHi, fontSize: 22, fontWeight: '700', marginTop: 14, marginBottom: 6 },
   bio:      { color: colors.textDim, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18, maxWidth: 260 },
+  xpRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%', marginBottom: 12 },
+  xpLabel:  { color: colors.textDim, fontSize: 10, letterSpacing: 2, width: 24 },
+  xpBarBg:  { flex: 1, height: 5, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
+  xpBarFill:{ height: '100%', borderRadius: 3, minWidth: 4 },
+  xpVal:    { color: colors.c1, fontSize: 12, fontWeight: '700', width: 36, textAlign: 'right' },
 
   actionRow:      { flexDirection: 'row', gap: 12, width: '100%', marginTop: 4 },
   btnFollow:      { borderRadius: 12, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },

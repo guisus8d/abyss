@@ -12,6 +12,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import PostCard from '../components/PostCard';
 
 const W         = Dimensions.get('window').width;
 const POST_TILE = (W - 32 - 4) / 3;
@@ -47,9 +48,38 @@ export default function ProfileScreen({ navigation }) {
   const [bgModal, setBgModal]       = useState(false);
   const [equipping, setEquipping]   = useState(false);
   const [saving, setSaving]         = useState(false);
+  const [openPickerId, setOpenPickerId] = useState(null);
+
+  async function handleReact(postId, type) {
+    try {
+      await api.post(`/posts/${postId}/react`, { type });
+      setPosts(prev => prev.map(p => {
+        if (p._id !== postId) return p;
+        const already = p.reactions.find(r => (r.user?._id||r.user) === user?._id && r.type === type);
+        return { ...p, reactions: already
+          ? p.reactions.filter(r => !((r.user?._id||r.user) === user?._id && r.type === type))
+          : [...p.reactions, { user: user?._id, type }] };
+      }));
+    } catch {}
+  }
+
+  async function handleComment(postId, text, replyTo) {
+    try {
+      const { data } = await api.post(`/posts/${postId}/comment`, { text, replyTo });
+      setPosts(prev => prev.map(p => p._id === postId ? { ...p, comments: data.comments } : p));
+    } catch {}
+  }
+
+  async function handleDelete(postId) {
+    try {
+      await api.delete(`/posts/${postId}`);
+      setPosts(prev => prev.filter(p => p._id !== postId));
+    } catch {}
+  }
 
   const [editBioMode, setEditBioMode]   = useState(false);
   const [editBio, setEditBio]           = useState('');
+  const [prefs, setPrefs]               = useState({ showXp: true, showFollowers: true, showFollowing: true, showPosts: true });
 
   const tabIndicator = useRef(new Animated.Value(0)).current;
 
@@ -61,6 +91,7 @@ export default function ProfileScreen({ navigation }) {
       const u = profileRes.data.user;
       setProfile(u);
       setEditBio(u.bio || '');
+      if (u.profilePrefs) setPrefs({ showXp: true, showFollowers: true, showFollowing: true, showPosts: true, ...u.profilePrefs });
       setPosts(postsRes.data.posts || []);
     }).finally(() => setLoading(false));
   }, []);
@@ -174,18 +205,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <View style={s.root}>
-      {/* Fondo pantalla completa — fijo detrás de todo */}
-      {isImageBg && profile?.profileBg
-        ? <Image source={{ uri: profile.profileBg }} style={s.fullBgImage} resizeMode="cover" />
-        : null}
-      {isImageBg && profile?.profileBg
-        ? <View style={s.fullBgOverlay} />
-        : null}
-      {!isImageBg && hasBg
-        ? <View style={[s.fullBgColor, { backgroundColor: profile.profileBg }]} />
-        : null}
-
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
@@ -214,6 +234,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </TouchableOpacity>
           <Text style={s.username}>{profile?.username}</Text>
+          {prefs.showXp && (
           <View style={s.xpRow}>
             <Text style={s.xpLabel}>XP</Text>
             <View style={s.xpBarBg}>
@@ -221,25 +242,34 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <Text style={s.xpVal}>{profile?.xp}</Text>
           </View>
+          )}
         </LinearGradient>
 
         {/* Stats */}
+        {(prefs.showFollowing || prefs.showFollowers || prefs.showPosts) && (
         <View style={s.statsRow}>
-          <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
-            <Text style={s.statVal}>{profile?.following?.length || 0}</Text>
-            <Text style={s.statLbl}>SIGUIENDO</Text>
-          </TouchableOpacity>
-          <View style={s.statDiv} />
-          <View style={s.stat}>
-            <Text style={[s.statVal, { color: colors.c1 }]}>{posts.length}</Text>
-            <Text style={s.statLbl}>POSTS</Text>
-          </View>
-          <View style={s.statDiv} />
-          <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
-            <Text style={s.statVal}>{profile?.followers?.length || 0}</Text>
-            <Text style={s.statLbl}>SEGUIDORES</Text>
-          </TouchableOpacity>
+          {prefs.showFollowing && (
+            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
+              <Text style={s.statVal}>{profile?.following?.length || 0}</Text>
+              <Text style={s.statLbl}>SIGUIENDO</Text>
+            </TouchableOpacity>
+          )}
+          {prefs.showFollowing && (prefs.showPosts || prefs.showFollowers) && <View style={s.statDiv} />}
+          {prefs.showPosts && (
+            <View style={s.stat}>
+              <Text style={[s.statVal, { color: colors.c1 }]}>{posts.length}</Text>
+              <Text style={s.statLbl}>POSTS</Text>
+            </View>
+          )}
+          {prefs.showPosts && prefs.showFollowers && <View style={s.statDiv} />}
+          {prefs.showFollowers && (
+            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
+              <Text style={s.statVal}>{profile?.followers?.length || 0}</Text>
+              <Text style={s.statLbl}>SEGUIDORES</Text>
+            </TouchableOpacity>
+          )}
         </View>
+        )}
 
         {/* Tabs */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
@@ -257,8 +287,17 @@ export default function ProfileScreen({ navigation }) {
         {/* ── Tab: Perfil ── */}
         {tab === 'profile' && (
           <View style={s.padded}>
-            {/* Bloques */}
-            <View style={s.blocksContainer}>
+            {/* Sección con fondo personalizable */}
+            <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }]}>
+              {isImageBg && profile?.profileBg
+                ? <><Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }]} /></>
+                : null}
+              {!isImageBg && hasBg
+                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg, borderRadius: 16 }]} />
+                : null}
+              {/* Bloques */}
+              <View style={s.blocksContainer}>
               {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
                 <View style={s.emptyPage}>
                   <Ionicons name="brush-outline" size={28} color={colors.textDim} />
@@ -294,24 +333,30 @@ export default function ProfileScreen({ navigation }) {
             <TouchableOpacity style={s.editFab} onPress={() => navigation.navigate('EditProfilePage', { profile })}>
               <Ionicons name="pencil" size={16} color={colors.black} />
             </TouchableOpacity>
+            </View>{/* end pageSection */}
           </View>
         )}
 
         {/* ── Tab: Posts ── */}
         {tab === 'posts' && (
-          <View style={s.postsGrid}>
+          <View>
             {posts.length === 0 ? (
               <View style={s.emptyTab}>
                 <Ionicons name="document-text-outline" size={40} color={colors.textDim} />
                 <Text style={s.emptyTxt}>Aún no has publicado nada</Text>
               </View>
             ) : posts.map(p => (
-              <TouchableOpacity key={p._id} style={[s.postTile, { width: POST_TILE, height: POST_TILE }]}
-                onPress={() => navigation.navigate('PostDetail', { postId: p._id })}>
-                {p.imageUrl
-                  ? <Image source={{ uri: p.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                  : <Text style={s.postTileTxt} numberOfLines={4}>{p.content}</Text>}
-              </TouchableOpacity>
+              <PostCard
+                key={p._id}
+                post={p}
+                currentUserId={user?._id}
+                onReact={handleReact}
+                onComment={handleComment}
+                onDelete={handleDelete}
+                navigation={navigation}
+                openPickerId={openPickerId}
+                setOpenPickerId={setOpenPickerId}
+              />
             ))}
           </View>
         )}
@@ -365,6 +410,33 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
             </View>
+
+            {/* Visibilidad del perfil */}
+            <View style={[s.settingsGroup, { marginTop: 20 }]}>
+              <Text style={s.settingsGroupLabel}>VISIBILIDAD DEL PERFIL</Text>
+              {[
+                { key: 'showXp',        label: 'Mostrar XP',         icon: 'flash-outline' },
+                { key: 'showFollowers', label: 'Mostrar seguidores',  icon: 'people-outline' },
+                { key: 'showFollowing', label: 'Mostrar siguiendo',   icon: 'person-add-outline' },
+                { key: 'showPosts',    label: 'Mostrar posts',        icon: 'grid-outline' },
+              ].map(item => (
+                <TouchableOpacity key={item.key} style={s.settingsRow} onPress={async () => {
+                  const newPrefs = { ...prefs, [item.key]: !prefs[item.key] };
+                  setPrefs(newPrefs);
+                  try {
+                    const { data } = await api.patch('/users/me/profile', { profilePrefs: newPrefs });
+                    if (updateUser) updateUser(data.user);
+                  } catch {}
+                }}>
+                  <Ionicons name={item.icon} size={20} color={colors.textMid} />
+                  <Text style={s.settingsRowTxt}>{item.label}</Text>
+                  <View style={[s.toggle, prefs[item.key] && s.toggleOn]}>
+                    <View style={[s.toggleThumb, prefs[item.key] && s.toggleThumbOn]} />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <View style={[s.settingsGroup, { marginTop: 20 }]}>
               <Text style={s.settingsGroupLabel}>SESIÓN</Text>
               <TouchableOpacity style={s.settingsRow} onPress={logout}>
@@ -469,6 +541,12 @@ const s = StyleSheet.create({
   padded: { paddingHorizontal: 16 },
 
   profileSection: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 140, marginBottom: 8 },
+  pageSection:    { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120, marginBottom: 8 },
+  pageBgImage:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+  toggle:         { width: 40, height: 22, borderRadius: 11, backgroundColor: colors.border, justifyContent: 'center', padding: 2 },
+  toggleOn:       { backgroundColor: 'rgba(0,229,204,0.3)' },
+  toggleThumb:    { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.textDim },
+  toggleThumbOn:  { backgroundColor: colors.c1, alignSelf: 'flex-end' },
   sectionBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
   blocksContainer: { paddingBottom: 48, gap: 8 },
   emptyPage:       { alignItems: 'center', paddingVertical: 32, gap: 10 },
