@@ -15,8 +15,9 @@ const W = Dimensions.get('window').width;
 const POST_TILE = (W - 32 - 4) / 3;
 
 const TABS = [
-  { key: 'posts',  icon: 'grid-outline'    },
-  { key: 'badges', icon: 'ribbon-outline'  },
+  { key: 'profile', icon: 'person-outline'  },
+  { key: 'posts',   icon: 'grid-outline'    },
+  { key: 'badges',  icon: 'ribbon-outline'  },
 ];
 
 export default function PublicProfileScreen({ route, navigation }) {
@@ -29,7 +30,7 @@ export default function PublicProfileScreen({ route, navigation }) {
   const [blocked, setBlocked]       = useState(false);
   const [loadingBtn, setLoadingBtn] = useState(false);
   const [chatStatus, setChatStatus] = useState('none');
-  const [tab, setTab]               = useState('posts');
+  const [tab, setTab]               = useState('profile');
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -120,10 +121,21 @@ export default function PublicProfileScreen({ route, navigation }) {
   const isMe      = profile?._id === me._id;
   const daysSince = Math.floor((Date.now() - new Date(profile?.createdAt)) / 86400000);
   const TAB_W     = (W - 32) / TABS.length;
+  const isImageBg = profile?.profileBgType === 'image';
+  const hasBg     = !!profile?.profileBg;
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      {isImageBg && profile?.profileBg
+        ? <Image source={{ uri: profile.profileBg }} style={s.fullBgImage} resizeMode="cover" />
+        : null}
+      {isImageBg && profile?.profileBg
+        ? <View style={s.fullBgOverlay} />
+        : null}
+      {!isImageBg && hasBg
+        ? <View style={[s.fullBgColor, { backgroundColor: profile.profileBg }]} />
+        : null}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -149,7 +161,6 @@ export default function PublicProfileScreen({ route, navigation }) {
             bgColor="rgba(0,229,204,0.12)"
           />
           <Text style={s.username}>{profile?.username}</Text>
-          {profile?.bio ? <Text style={s.bio}>{profile.bio}</Text> : null}
 
           {!isMe && !blocked && (
             <View style={s.actionRow}>
@@ -210,6 +221,43 @@ export default function PublicProfileScreen({ route, navigation }) {
           ))}
         </View>
 
+        {/* Tab: Perfil */}
+        {tab === 'profile' && (
+          <View style={s.padded}>
+
+              <View style={s.blocksContainer}>
+                {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
+                  <View style={s.emptyPage}>
+                    <Text style={s.emptyPageTxt}>Sin contenido todavía</Text>
+                  </View>
+                )}
+                {(profile?.profileBlocks || []).map((block, i) => {
+                  if (block.type === 'text') return (
+                    <Text key={block.id || i} style={{ fontSize: block.fontSize || 14, fontWeight: block.bold ? '700' : '400', textAlign: block.align || 'left', color: colors.textHi, lineHeight: (block.fontSize || 14) * 1.5, marginBottom: 8 }}>
+                      {block.content}
+                    </Text>
+                  );
+                  if (block.type === 'image' && block.imageUrl) return (
+                    <Image key={block.id || i} source={{ uri: block.imageUrl }} style={{ width: '100%', height: 180, borderRadius: 12, marginBottom: 8 }} resizeMode="cover" />
+                  );
+                  if (block.type === 'mention') return (
+                    <TouchableOpacity key={block.id || i} style={s.mentionBlockView}
+                      onPress={() => navigation.navigate('PublicProfile', { username: block.mentionUsername })}>
+                      <View style={s.mentionBlockAv}>
+                        {block.mentionAvatar
+                          ? <Image source={{ uri: block.mentionAvatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+                          : <Text style={{ color: colors.c1, fontWeight: '700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
+                      </View>
+                      <Text style={s.mentionBlockAt}>@{block.mentionUsername}</Text>
+                      <Ionicons name="arrow-forward" size={14} color={colors.c1} />
+                    </TouchableOpacity>
+                  );
+                  return null;
+                })}
+            </View>
+          </View>
+        )}
+
         {/* Posts grid */}
         {tab === 'posts' && (
           <View style={s.postsGrid}>
@@ -261,6 +309,9 @@ export default function PublicProfileScreen({ route, navigation }) {
 
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.black },
+  fullBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
+  fullBgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 0 },
+  fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 4, color: colors.c1 },
 
@@ -293,6 +344,18 @@ const s = StyleSheet.create({
   postTileTxt: { color: colors.textDim, fontSize: 10, lineHeight: 14 },
 
   padded:     { paddingHorizontal: 16 },
+  bioCard:    { backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 20, minHeight: 100 },
+  bioCardLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, marginBottom: 12 },
+  bioText:    { color: colors.textHi, fontSize: 14, lineHeight: 22 },
+
+  profileSection:  { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120 },
+  sectionBgImage:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+  blocksContainer: { gap: 8, paddingBottom: 8 },
+  emptyPage:       { alignItems: 'center', paddingVertical: 24 },
+  emptyPageTxt:    { color: colors.textDim, fontSize: 12 },
+  mentionBlockView:{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,229,204,0.07)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', padding: 12 },
+  mentionBlockAv:  { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  mentionBlockAt:  { flex: 1, color: colors.c1, fontWeight: '700', fontSize: 14 },
   emptyTab:   { alignItems: 'center', paddingVertical: 48, gap: 12, width: '100%' },
   emptyTxt:   { color: colors.textDim, fontSize: 14 },
 

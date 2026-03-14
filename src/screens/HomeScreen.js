@@ -14,7 +14,8 @@ import api from '../services/api';
 import { connectSocket } from '../services/socket';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { TouchableWithoutFeedback } from 'react-native';
-import PostComposer  from '../components/PostComposer';
+import PostComposer    from '../components/PostComposer';
+import CreatePostMenu from '../components/CreatePostMenu';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import OrbitUsers from '../components/OrbitUsers';
 
@@ -111,11 +112,26 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
         )}
       </View>
 
-      <Text style={s.cardBody}>{post.content}</Text>
-
-      {post.imageUrl && (
-        <Image source={{ uri: post.imageUrl }} style={s.postImage} />
+      {post.postType === 'news' && console.log('POST:', post.postType, post.title) === null ? (
+        <TouchableOpacity style={s.newsCard} onPress={() => navigation.navigate('PostDetail', { postId: post._id })}>
+          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" />}
+          <View style={s.newsBody}>
+            <View style={s.newsBadge}>
+              <Ionicons name="newspaper-outline" size={10} color="rgba(251,191,36,1)" />
+              <Text style={s.newsBadgeTxt}>NOTICIA</Text>
+            </View>
+            {post.title ? <Text style={s.newsTitle}>{post.title}</Text> : null}
+            <Text style={s.newsContent} numberOfLines={3}>{post.content}</Text>
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: post._id })}>
+          <Text style={s.cardBody}>{post.content}</Text>
+          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.postImage} />}
+        </TouchableOpacity>
       )}
+
+
 
       {post.tags?.length > 0 && (
         <View style={s.tagsRow}>
@@ -255,6 +271,7 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
   const [showCompose, setShowCompose] = useState(false);
+  const [showMenu, setShowMenu]       = useState(false);
   const [toastBadge, setToastBadge]   = useState(null);
   const [drawerOpen, setDrawerOpen]   = useState(false);
   const [searchOpen, setSearchOpen]   = useState(false);
@@ -346,6 +363,17 @@ export default function HomeScreen({ navigation }) {
         onNavigate={(screen) => navigation.navigate(screen)}
       />
 
+      {showMenu && (
+        <CreatePostMenu
+          visible={showMenu}
+          onClose={() => setShowMenu(false)}
+          onSelect={key => {
+            if (key === 'quick') setShowCompose(true);
+            else if (key === 'image') navigation.navigate('PostImage', { onPostCreated: handlePostCreated });
+            else if (key === 'news') navigation.navigate('PostNoticia', { onPostCreated: handlePostCreated });
+          }}
+        />
+      )}
       {showCompose && (
         <PostComposer
           onClose={() => setShowCompose(false)}
@@ -441,7 +469,7 @@ export default function HomeScreen({ navigation }) {
           {posts.length === 0 && (
             <View style={s.center}><Text style={s.emptyTxt}>Sin posts aún. ¡Sé el primero!</Text></View>
           )}
-          {posts.map(p => (
+          {posts.filter(p => p && p._id).map(p => (
             <PostCard
               key={p._id} post={p}
               currentUserId={user?._id}
@@ -466,7 +494,7 @@ export default function HomeScreen({ navigation }) {
           <Ionicons name='search-outline' size={22} color={colors.textDim} />
           <Text style={s.niLbl}>Buscar</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowCompose(true)}>
+        <TouchableOpacity onPress={() => setShowMenu(true)}>
           <View style={s.niCreate}>
             <Ionicons name='add' size={28} color='#001a18' />
           </View>
@@ -546,6 +574,13 @@ const s = StyleSheet.create({
   cardUser:   { color: colors.textHi, fontWeight: '600', fontSize: 13 },
   cardMeta:   { color: colors.textDim, fontSize: 10, marginTop: 1 },
   cardBody:   { color: colors.textMid, fontSize: 13, lineHeight: 20, marginBottom: 10 },
+  newsCard:   { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', overflow: 'hidden', marginBottom: 10 },
+  newsCover:  { width: '100%', height: 160 },
+  newsBody:   { padding: 12, gap: 8 },
+  newsBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(234,179,8,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
+  newsBadgeTxt: { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  newsTitle:  { color: colors.textHi, fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  newsContent:{ color: colors.textDim, fontSize: 13, lineHeight: 20 },
   emojiPicker: {
     position: 'absolute', bottom: 36, left: -60, zIndex: 99,
     backgroundColor: colors.surface, borderRadius: 12,

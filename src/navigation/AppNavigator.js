@@ -9,6 +9,9 @@ import ChatsScreen         from '../screens/ChatsScreen';
 import ChatRoomScreen      from '../screens/ChatRoomScreen';
 import ProfileScreen       from '../screens/ProfileScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
+import EditProfilePageScreen from '../screens/EditProfilePageScreen';
+import PostImageScreen       from '../screens/PostImageScreen';
+import PostNoticiaScreen     from '../screens/PostNoticiaScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import FollowListScreen    from '../screens/FollowListScreen';
 import PostDetailScreen    from '../screens/PostDetailScreen';
@@ -38,6 +41,9 @@ export default function AppNavigator() {
             <Stack.Screen name="ChatRoom"      component={ChatRoomScreen} />
             <Stack.Screen name="Profile"       component={ProfileScreen} />
             <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+            <Stack.Screen name="EditProfilePage"  component={EditProfilePageScreen} />
+            <Stack.Screen name="PostImage"       component={PostImageScreen} />
+            <Stack.Screen name="PostNoticia"     component={PostNoticiaScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="FollowList"    component={FollowListScreen} />
             <Stack.Screen name="PostDetail"    component={PostDetailScreen} />

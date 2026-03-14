@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, StatusBar, SafeAreaView, ActivityIndicator,
@@ -7,6 +7,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -22,6 +23,19 @@ const TABS = [
   { key: 'settings', icon: 'settings-outline'  },
 ];
 
+const BG_COLORS = [
+  { id: 'none',    value: '',                label: 'Ninguno' },
+  { id: 'teal',    value: 'rgba(0,229,204,0.12)',  label: 'Teal' },
+  { id: 'purple',  value: 'rgba(147,51,234,0.15)', label: 'Púrpura' },
+  { id: 'red',     value: 'rgba(239,68,68,0.12)',  label: 'Rojo' },
+  { id: 'blue',    value: 'rgba(41,121,255,0.15)', label: 'Azul' },
+  { id: 'orange',  value: 'rgba(249,115,22,0.15)', label: 'Naranja' },
+  { id: 'pink',    value: 'rgba(236,72,153,0.15)', label: 'Rosa' },
+  { id: 'green',   value: 'rgba(34,197,94,0.12)',  label: 'Verde' },
+  { id: 'yellow',  value: 'rgba(234,179,8,0.15)',  label: 'Amarillo' },
+  { id: 'white',   value: 'rgba(255,255,255,0.06)',label: 'Blanco' },
+];
+
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateUser } = useAuthStore();
   const [profile, setProfile]       = useState(null);
@@ -30,10 +44,12 @@ export default function ProfileScreen({ navigation }) {
   const [uploading, setUploading]   = useState(false);
   const [tab, setTab]               = useState('profile');
   const [frameModal, setFrameModal] = useState(false);
+  const [bgModal, setBgModal]       = useState(false);
   const [equipping, setEquipping]   = useState(false);
   const [saving, setSaving]         = useState(false);
-  const [editMode, setEditMode]     = useState(false);
-  const [editBio, setEditBio]       = useState('');
+
+  const [editBioMode, setEditBioMode]   = useState(false);
+  const [editBio, setEditBio]           = useState('');
 
   const tabIndicator = useRef(new Animated.Value(0)).current;
 
@@ -49,11 +65,15 @@ export default function ProfileScreen({ navigation }) {
     }).finally(() => setLoading(false));
   }, []);
 
+  useFocusEffect(useCallback(() => {
+    api.get('/users/me').then(r => setProfile(r.data.user)).catch(() => {});
+  }, []));
+
   function switchTab(key) {
     const idx = TABS.findIndex(t => t.key === key);
     Animated.spring(tabIndicator, { toValue: idx, friction: 8, useNativeDriver: true }).start();
     setTab(key);
-    setEditMode(false);
+    setEditBioMode(false);
   }
 
   async function handlePickAvatar() {
@@ -82,13 +102,39 @@ export default function ProfileScreen({ navigation }) {
     }
   }
 
-  async function handleSaveBio() {
+  async function handlePickBgImage() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [4,2], quality: 0.7,
+    });
+    if (result.canceled) return;
+    try {
+      const asset = result.assets[0];
+      const formData = new FormData();
+      if (asset.uri.startsWith('blob:') || asset.uri.startsWith('data:') || asset.uri.startsWith('http')) {
+        const res  = await fetch(asset.uri);
+        const blob = await res.blob();
+        formData.append('avatar', blob, 'bg.jpg');
+      } else {
+        formData.append('avatar', { uri: asset.uri, type: 'image/jpeg', name: 'bg.jpg' });
+      }
+      // Subir como avatar temporal para obtener URL
+      const { data } = await api.post('/users/me/avatar', formData);
+      const bgUrl = data.avatarUrl;
+      const patchRes = await api.patch('/users/me/profile', { profileBg: bgUrl, profileBgType: 'image' });
+      setProfile(patchRes.data.user);
+      if (updateUser) updateUser(patchRes.data.user);
+      setBgModal(false);
+    } catch {
+      Alert.alert('Error', 'No se pudo subir la imagen');
+    }
+  }
+
+  async function savePatch(payload) {
     setSaving(true);
     try {
-      const { data } = await api.patch('/users/me/profile', { bio: editBio });
+      const { data } = await api.patch('/users/me/profile', payload);
       setProfile(data.user);
       if (updateUser) updateUser(data.user);
-      setEditMode(false);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo guardar');
     } finally {
@@ -97,9 +143,8 @@ export default function ProfileScreen({ navigation }) {
   }
 
   async function handleEquipFrame() {
-    const xp = profile?.xp || 0;
-    if (xp < 10) {
-      Alert.alert('XP insuficiente', `Necesitas 10 XP.\nTienes ${xp} XP.`);
+    if ((profile?.xp || 0) < 10) {
+      Alert.alert('XP insuficiente', `Necesitas 10 XP.\nTienes ${profile?.xp || 0} XP.`);
       return;
     }
     setEquipping(true);
@@ -124,10 +169,23 @@ export default function ProfileScreen({ navigation }) {
   const hasFrame   = profile?.profileFrame === 'frame_001';
   const canUnlock  = (profile?.xp || 0) >= 10;
   const TAB_W      = (W - 32) / TABS.length;
+  const hasBg      = !!profile?.profileBg;
+  const isImageBg  = profile?.profileBgType === 'image';
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      {/* Fondo pantalla completa — fijo detrás de todo */}
+      {isImageBg && profile?.profileBg
+        ? <Image source={{ uri: profile.profileBg }} style={s.fullBgImage} resizeMode="cover" />
+        : null}
+      {isImageBg && profile?.profileBg
+        ? <View style={s.fullBgOverlay} />
+        : null}
+      {!isImageBg && hasBg
+        ? <View style={[s.fullBgColor, { backgroundColor: profile.profileBg }]} />
+        : null}
+
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
@@ -155,17 +213,11 @@ export default function ProfileScreen({ navigation }) {
                 : <Ionicons name="camera" size={13} color={colors.c1} />}
             </View>
           </TouchableOpacity>
-
           <Text style={s.username}>{profile?.username}</Text>
-
           <View style={s.xpRow}>
             <Text style={s.xpLabel}>XP</Text>
             <View style={s.xpBarBg}>
-              <LinearGradient
-                colors={['#006b63','#00e5cc']}
-                style={[s.xpBarFill, { width: `${xpProgress}%` }]}
-                start={{x:0,y:0}} end={{x:1,y:0}}
-              />
+              <LinearGradient colors={['#006b63','#00e5cc']} style={[s.xpBarFill, { width: `${xpProgress}%` }]} start={{x:0,y:0}} end={{x:1,y:0}} />
             </View>
             <Text style={s.xpVal}>{profile?.xp}</Text>
           </View>
@@ -198,60 +250,54 @@ export default function ProfileScreen({ navigation }) {
           ))}
           <Animated.View style={[s.tabIndicator, {
             width: TAB_W,
-            transform: [{ translateX: tabIndicator.interpolate({
-              inputRange: [0,1,2,3],
-              outputRange: [0, TAB_W, TAB_W*2, TAB_W*3],
-            })}],
+            transform: [{ translateX: tabIndicator.interpolate({ inputRange:[0,1,2,3], outputRange:[0,TAB_W,TAB_W*2,TAB_W*3] }) }],
           }]} />
         </View>
 
-        {/* Tab: Perfil */}
+        {/* ── Tab: Perfil ── */}
         {tab === 'profile' && (
           <View style={s.padded}>
-            <View style={s.bioCard}>
-              {/* Bio contenido */}
-              {!editMode ? (
-                <>
-                  <Text style={s.bioCardLabel}>BIO</Text>
-                  <Text style={s.bioText}>
-                    {profile?.bio || <Text style={{ color: colors.textDim, fontStyle: 'italic' }}>Sin bio todavía...</Text>}
-                  </Text>
-                  {/* Botón lápiz */}
-                  <TouchableOpacity style={s.editFab} onPress={() => setEditMode(true)}>
-                    <Ionicons name="pencil" size={16} color={colors.black} />
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <Text style={s.bioCardLabel}>EDITANDO BIO</Text>
-                  <TextInput
-                    style={s.bioInput}
-                    value={editBio}
-                    onChangeText={setEditBio}
-                    placeholder="Cuéntale algo al mundo..."
-                    placeholderTextColor={colors.textDim}
-                    multiline
-                    maxLength={160}
-                    autoFocus
-                  />
-                  <Text style={s.charCount}>{editBio.length}/160</Text>
-                  <View style={s.editActions}>
-                    <TouchableOpacity style={s.cancelBtn} onPress={() => { setEditBio(profile?.bio || ''); setEditMode(false); }}>
-                      <Text style={s.cancelBtnTxt}>Cancelar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.saveBtn} onPress={handleSaveBio} disabled={saving}>
-                      <LinearGradient colors={['#006b63','#00e5cc']} style={s.saveBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
-                        <Text style={s.saveBtnTxt}>{saving ? 'Guardando...' : 'Guardar'}</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                </>
+            {/* Bloques */}
+            <View style={s.blocksContainer}>
+              {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
+                <View style={s.emptyPage}>
+                  <Ionicons name="brush-outline" size={28} color={colors.textDim} />
+                  <Text style={s.emptyPageTxt}>Página vacía — toca el lápiz para editar</Text>
+                </View>
               )}
+              {(profile?.profileBlocks || []).map((block, i) => {
+                if (block.type === 'text') return (
+                  <Text key={block.id || i} style={{ fontSize: block.fontSize || 14, fontWeight: block.bold ? '700' : '400', textAlign: block.align || 'left', color: colors.textHi, lineHeight: (block.fontSize || 14) * 1.5, marginBottom: 8 }}>
+                    {block.content}
+                  </Text>
+                );
+                if (block.type === 'image' && block.imageUrl) return (
+                  <Image key={block.id || i} source={{ uri: block.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 14, marginBottom: 8 }} resizeMode="cover" />
+                );
+                if (block.type === 'mention') return (
+                  <TouchableOpacity key={block.id || i} style={s.mentionBlockView}
+                    onPress={() => navigation.navigate('PublicProfile', { username: block.mentionUsername })}>
+                    <View style={s.mentionBlockAv}>
+                      {block.mentionAvatar
+                        ? <Image source={{ uri: block.mentionAvatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+                        : <Text style={{ color: colors.c1, fontWeight: '700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
+                    </View>
+                    <Text style={s.mentionBlockAt}>@{block.mentionUsername}</Text>
+                    <Ionicons name="arrow-forward" size={14} color={colors.c1} />
+                  </TouchableOpacity>
+                );
+                return null;
+              })}
             </View>
+
+            {/* Lápiz editar */}
+            <TouchableOpacity style={s.editFab} onPress={() => navigation.navigate('EditProfilePage', { profile })}>
+              <Ionicons name="pencil" size={16} color={colors.black} />
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Tab: Posts */}
+        {/* ── Tab: Posts ── */}
         {tab === 'posts' && (
           <View style={s.postsGrid}>
             {posts.length === 0 ? (
@@ -260,25 +306,20 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={s.emptyTxt}>Aún no has publicado nada</Text>
               </View>
             ) : posts.map(p => (
-              <TouchableOpacity
-                key={p._id}
-                style={[s.postTile, { width: POST_TILE, height: POST_TILE }]}
-                onPress={() => navigation.navigate('PostDetail', { postId: p._id })}
-              >
-                {p.imageUrl ? (
-                  <Image source={{ uri: p.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                ) : (
-                  <Text style={s.postTileTxt} numberOfLines={4}>{p.content}</Text>
-                )}
+              <TouchableOpacity key={p._id} style={[s.postTile, { width: POST_TILE, height: POST_TILE }]}
+                onPress={() => navigation.navigate('PostDetail', { postId: p._id })}>
+                {p.imageUrl
+                  ? <Image source={{ uri: p.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  : <Text style={s.postTileTxt} numberOfLines={4}>{p.content}</Text>}
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* Tab: Badges */}
+        {/* ── Tab: Badges ── */}
         {tab === 'badges' && (
           <View style={s.padded}>
-            {profile?.badges?.length === 0 ? (
+            {!profile?.badges?.length ? (
               <View style={s.emptyTab}>
                 <Ionicons name="ribbon-outline" size={40} color={colors.textDim} />
                 <Text style={s.emptyTxt}>Aún no tienes emblemas</Text>
@@ -286,7 +327,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
             ) : (
               <View style={s.badgesGrid}>
-                {profile?.badges?.map((b, i) => (
+                {profile.badges.map((b, i) => (
                   <View key={i} style={s.badgeCard}>
                     <Text style={s.badgeIcon}>{b.icon}</Text>
                     <Text style={s.badgeName}>{b.name}</Text>
@@ -298,7 +339,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
-        {/* Tab: Ajustes */}
+        {/* ── Tab: Ajustes ── */}
         {tab === 'settings' && (
           <View style={s.padded}>
             <View style={s.settingsGroup}>
@@ -324,7 +365,6 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
             </View>
-
             <View style={[s.settingsGroup, { marginTop: 20 }]}>
               <Text style={s.settingsGroupLabel}>SESIÓN</Text>
               <TouchableOpacity style={s.settingsRow} onPress={logout}>
@@ -338,33 +378,54 @@ export default function ProfileScreen({ navigation }) {
         <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* Modal Marco */}
+      {/* ── Modal Fondo ── */}
+      <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.bgModalBox}>
+            <Text style={s.modalTitle}>FONDO DEL PERFIL</Text>
+
+            <View style={s.colorGrid}>
+              {BG_COLORS.map(c => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[s.colorSwatch,
+                    c.value ? { backgroundColor: c.value, borderWidth: 2 } : { borderWidth: 1 },
+                    profile?.profileBg === c.value && { borderColor: colors.c1, borderWidth: 2 },
+                  ]}
+                  onPress={() => savePatch({ profileBg: c.value, profileBgType: 'color' }).then(() => setBgModal(false))}
+                >
+                  {!c.value && <Ionicons name="close" size={16} color={colors.textDim} />}
+                </TouchableOpacity>
+              ))}
+
+              {/* Botón imagen */}
+              <TouchableOpacity style={s.colorSwatchImg} onPress={handlePickBgImage}>
+                <Ionicons name="image-outline" size={20} color={colors.c1} />
+                <Text style={{ color: colors.c1, fontSize: 9, marginTop: 3 }}>Imagen</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={s.closeBtn} onPress={() => setBgModal(false)}>
+              <Text style={s.closeBtnTxt}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal Marco ── */}
       <Modal visible={frameModal} transparent animationType="fade" onRequestClose={() => setFrameModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Text style={s.modalTitle}>MARCOS DE PERFIL</Text>
             <View style={{ marginBottom: 20 }}>
-              <AvatarWithFrame
-                size={90}
-                avatarUrl={profile?.avatarUrl}
-                username={profile?.username}
-                profileFrame="frame_001"
-              />
+              <AvatarWithFrame size={90} avatarUrl={profile?.avatarUrl} username={profile?.username} profileFrame="frame_001" />
             </View>
             <Text style={s.frameName}>Marco Estelar</Text>
             <Text style={s.frameDesc}>
-              {canUnlock
-                ? (hasFrame ? 'Marco equipado actualmente.' : 'Desbloqueado. Tienes suficiente XP.')
-                : `Requiere 10 XP — tienes ${profile?.xp || 0}`}
+              {canUnlock ? (hasFrame ? 'Marco equipado.' : 'Desbloqueado.') : `Requiere 10 XP — tienes ${profile?.xp || 0}`}
             </Text>
-            <TouchableOpacity
-              style={[s.equipBtn, !canUnlock && s.equipBtnLocked]}
-              onPress={handleEquipFrame}
-              disabled={equipping || !canUnlock}
-            >
-              <Text style={s.equipBtnTxt}>
-                {equipping ? 'Guardando...' : hasFrame ? 'Quitar marco' : canUnlock ? 'Equipar marco' : 'Bloqueado'}
-              </Text>
+            <TouchableOpacity style={[s.equipBtn, !canUnlock && s.equipBtnLocked]} onPress={handleEquipFrame} disabled={equipping || !canUnlock}>
+              <Text style={s.equipBtnTxt}>{equipping ? 'Guardando...' : hasFrame ? 'Quitar marco' : canUnlock ? 'Equipar marco' : 'Bloqueado'}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setFrameModal(false)}>
               <Text style={s.closeBtnTxt}>Cerrar</Text>
@@ -378,6 +439,9 @@ export default function ProfileScreen({ navigation }) {
 
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.black },
+  fullBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
+  fullBgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 0 },
+  fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   backBtn:     { width: 40 },
   headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 6, color: colors.c1 },
@@ -404,27 +468,38 @@ const s = StyleSheet.create({
 
   padded: { paddingHorizontal: 16 },
 
-  bioCard: {
-    backgroundColor: colors.card, borderRadius: 16, borderWidth: 1,
-    borderColor: colors.border, padding: 20, position: 'relative', minHeight: 120,
-  },
-  bioCardLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, marginBottom: 12 },
-  bioText:      { color: colors.textHi, fontSize: 14, lineHeight: 22 },
-  editFab: {
-    position: 'absolute', bottom: 14, right: 14,
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: colors.c1,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.c1, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4,
-  },
-  bioInput:    { color: colors.textHi, fontSize: 14, lineHeight: 22, minHeight: 80, textAlignVertical: 'top' },
-  charCount:   { color: colors.textDim, fontSize: 10, textAlign: 'right', marginTop: 6 },
-  editActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  cancelBtn:   { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, alignItems: 'center' },
-  cancelBtnTxt:{ color: colors.textDim, fontSize: 13 },
-  saveBtn:     { flex: 1, borderRadius: 10, overflow: 'hidden' },
-  saveBtnGrad: { paddingVertical: 11, alignItems: 'center' },
-  saveBtnTxt:  { color: '#001a18', fontWeight: '800', fontSize: 13 },
+  profileSection: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 140, marginBottom: 8 },
+  sectionBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+  blocksContainer: { paddingBottom: 48, gap: 8 },
+  emptyPage:       { alignItems: 'center', paddingVertical: 32, gap: 10 },
+  emptyPageTxt:    { color: colors.textDim, fontSize: 12, textAlign: 'center' },
+  mentionBlockView:{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,229,204,0.07)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', padding: 12 },
+  mentionBlockAv:  { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  mentionBlockAt:  { flex: 1, color: colors.c1, fontWeight: '700', fontSize: 14 },
+
+  bioBlock:   { marginBottom: 16 },
+  bioCardLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, marginBottom: 10 },
+  bioText:    { color: colors.textHi, fontSize: 14, lineHeight: 22 },
+  editFab:    { position: 'absolute', bottom: 24, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', shadowColor: colors.c1, shadowOpacity: 0.5, shadowRadius: 10, elevation: 8, zIndex: 20 },
+  bgBtn:      { position: 'absolute', bottom: 14, right: 58, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center', zIndex: 10 },
+
+  sectionDivider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
+
+  textBlock:      { position: 'relative', paddingBottom: 36 },
+  profileFreeText:{ color: colors.textMid, fontSize: 14, lineHeight: 22 },
+  editFabText:    { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center' },
+
+  bgBtn: { position: 'absolute', top: 12, right: 56, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center' },
+
+  bioInput:      { color: colors.textHi, fontSize: 14, lineHeight: 22, minHeight: 60, textAlignVertical: 'top' },
+  freeTextInput: { color: colors.textMid, fontSize: 14, lineHeight: 22, minHeight: 80, textAlignVertical: 'top', padding: 0 },
+  charCount:     { color: colors.textDim, fontSize: 10, textAlign: 'right', marginTop: 4 },
+  editActions:   { flexDirection: 'row', gap: 10, marginTop: 12 },
+  cancelBtn:     { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, alignItems: 'center' },
+  cancelBtnTxt:  { color: colors.textDim, fontSize: 13 },
+  saveBtn:       { flex: 1, borderRadius: 10, overflow: 'hidden' },
+  saveBtnGrad:   { paddingVertical: 11, alignItems: 'center' },
+  saveBtnTxt:    { color: '#001a18', fontWeight: '800', fontSize: 13 },
 
   postsGrid:   { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 2 },
   postTile:    { backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'center', padding: 6 },
@@ -449,11 +524,17 @@ const s = StyleSheet.create({
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
   modalBox:     { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 28, width: '82%', alignItems: 'center' },
-  modalTitle:   { fontSize: 12, letterSpacing: 4, color: colors.c1, fontWeight: '800', marginBottom: 24 },
+  modalTitle:   { fontSize: 12, letterSpacing: 4, color: colors.c1, fontWeight: '800', marginBottom: 20 },
   frameName:    { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 6 },
   frameDesc:    { color: colors.textDim, fontSize: 12, textAlign: 'center', marginBottom: 24 },
   equipBtn:     { backgroundColor: colors.c1, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 36, marginBottom: 12, width: '100%', alignItems: 'center' },
   equipBtnLocked: { backgroundColor: 'rgba(255,255,255,0.08)' },
   equipBtnTxt:  { color: colors.black, fontWeight: '800', fontSize: 14 },
-  closeBtnTxt:  { color: colors.textDim, fontSize: 13, paddingVertical: 10 },
+  closeBtn:     { paddingVertical: 12 },
+  closeBtnTxt:  { color: colors.textDim, fontSize: 13 },
+
+  bgModalBox:  { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 24, width: '90%', alignItems: 'center' },
+  colorGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginVertical: 16 },
+  colorSwatch: { width: 48, height: 48, borderRadius: 12, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  colorSwatchImg: { width: 48, height: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,229,204,0.05)' },
 });
