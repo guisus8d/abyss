@@ -179,6 +179,12 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             </TouchableOpacity>
           </View>
 
+          {(user?.role === 'mod' || user?.role === 'admin') && (
+            <TouchableOpacity style={s.modPanelBtn} onPress={() => { onClose(); onNavigate('ModPanel'); }}>
+              <Ionicons name='shield-checkmark-outline' size={16} color='rgba(251,191,36,1)' />
+              <Text style={s.modPanelTxt}>Panel de Moderación</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={s.logoutBtn} onPress={onLogout}>
             <Text style={s.logoutTxt}>Cerrar sesión</Text>
           </TouchableOpacity>
@@ -247,4 +253,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center',
   },
   logoutTxt: { color: 'rgba(239,68,68,0.8)', fontSize: 12, letterSpacing: 1 },
+  modPanelBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 10, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)', backgroundColor: 'rgba(251,191,36,0.07)' },
+  modPanelTxt: { color: 'rgba(251,191,36,1)', fontSize: 12, fontWeight: '700' },
 });
