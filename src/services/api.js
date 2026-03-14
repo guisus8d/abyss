@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
-  baseURL: 'https://abyss-production-7171.up.railway.app/api',
+  baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://abyss-production-7171.up.railway.app/api',
 });
 
 api.interceptors.request.use(async (config) => {

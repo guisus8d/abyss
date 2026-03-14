@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Image } from 'react-native';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
@@ -303,6 +304,7 @@ export default function HomeScreen({ navigation }) {
   }
 
   useEffect(() => { fetchPosts(); }, []);
+  useFocusEffect(useCallback(() => { fetchPosts(); }, []));
 
   function handlePostCreated(post, newBadges) {
     setPosts(prev => [post, ...prev]);
@@ -369,8 +371,8 @@ export default function HomeScreen({ navigation }) {
           onClose={() => setShowMenu(false)}
           onSelect={key => {
             if (key === 'quick') setShowCompose(true);
-            else if (key === 'image') navigation.navigate('PostImage', { onPostCreated: handlePostCreated });
-            else if (key === 'news') navigation.navigate('PostNoticia', { onPostCreated: handlePostCreated });
+            else if (key === 'image') navigation.navigate('PostImage');
+            else if (key === 'news') navigation.navigate('PostNoticia');
           }}
         />
       )}

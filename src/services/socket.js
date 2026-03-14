@@ -6,7 +6,7 @@ let socket = null;
 export async function connectSocket() {
   if (socket?.connected) return socket;
   const token = await AsyncStorage.getItem('token');
-  socket = io('https://abyss-production-7171.up.railway.app', {
+  socket = io(process.env.EXPO_PUBLIC_SOCKET_URL || 'https://abyss-production-7171.up.railway.app', {
     auth: { token },
     transports: ['websocket'],
   });

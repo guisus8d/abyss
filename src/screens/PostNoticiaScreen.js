@@ -9,9 +9,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import api from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 export default function PostNoticiaScreen({ navigation, route }) {
-  const { onPostCreated } = route.params || {};
+  const { token } = useAuthStore();
+  
   const [title, setTitle]     = useState('');
   const [body, setBody]       = useState('');
   const [image, setImage]     = useState(null);
@@ -44,11 +46,11 @@ export default function PostNoticiaScreen({ navigation, route }) {
           formData.append('image', { uri: image.uri, type: 'image/jpeg', name: 'cover.jpg' });
         }
       }
-      await api.post('/posts', formData);
-      if (onPostCreated) onPostCreated();
+      await api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo publicar');
+      console.error('POST ERROR:', err); Alert.alert('Error', err.message || err.response?.data?.error || 'No se pudo publicar');
     } finally {
       setPosting(false);
     }

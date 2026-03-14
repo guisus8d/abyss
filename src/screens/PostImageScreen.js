@@ -9,9 +9,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import api from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 export default function PostImageScreen({ navigation, route }) {
-  const { onPostCreated } = route.params || {};
+  const { token } = useAuthStore();
+  
   const [image, setImage]     = useState(null);
   const [caption, setCaption] = useState('');
   const [posting, setPosting] = useState(false);
@@ -39,8 +41,8 @@ export default function PostImageScreen({ navigation, route }) {
       const tags = caption.match(/#\w+/g) || [];
       if (tags.length) formData.append('tags', JSON.stringify(tags));
       formData.append('postType', 'image');
-      await api.post('/posts', formData);
-      if (onPostCreated) onPostCreated();
+      await api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      
       navigation.goBack();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo publicar');
