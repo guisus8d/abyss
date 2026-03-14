@@ -113,7 +113,7 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
         )}
       </View>
 
-      {post.postType === 'news' && console.log('POST:', post.postType, post.title) === null ? (
+      {post.postType === 'news' ? (
         <TouchableOpacity style={s.newsCard} onPress={() => navigation.navigate('PostDetail', { postId: post._id })}>
           {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" />}
           <View style={s.newsBody}>
