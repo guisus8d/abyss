@@ -172,7 +172,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               <Text style={s.menuTxt}>Crear</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem}>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Settings'); }}>
               <Ionicons name='settings-outline' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Ajustes</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />

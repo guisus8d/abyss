@@ -12,6 +12,7 @@ import PublicProfileScreen from '../screens/PublicProfileScreen';
 import EditProfilePageScreen from '../screens/EditProfilePageScreen';
 import PostImageScreen       from '../screens/PostImageScreen';
 import PostNoticiaScreen     from '../screens/PostNoticiaScreen';
+import SettingsScreen        from '../screens/SettingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import FollowListScreen    from '../screens/FollowListScreen';
 import PostDetailScreen    from '../screens/PostDetailScreen';
@@ -44,6 +45,7 @@ export default function AppNavigator() {
             <Stack.Screen name="EditProfilePage"  component={EditProfilePageScreen} />
             <Stack.Screen name="PostImage"       component={PostImageScreen} />
             <Stack.Screen name="PostNoticia"     component={PostNoticiaScreen} />
+            <Stack.Screen name="Settings"         component={SettingsScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="FollowList"    component={FollowListScreen} />
             <Stack.Screen name="PostDetail"    component={PostDetailScreen} />
