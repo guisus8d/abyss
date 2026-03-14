@@ -31,26 +31,29 @@ export default function PostNoticiaScreen({ navigation, route }) {
     if (!body.trim())  return Alert.alert('Falta contenido', 'Escribe el cuerpo de la noticia.');
     setPosting(true);
     try {
-      const formData = new FormData();
-      formData.append('content', body.trim());
-      formData.append('title', title.trim());
-      formData.append('postType', 'news');
       const tags = body.match(/#\w+/g) || [];
-      if (tags.length) formData.append('tags', JSON.stringify(tags));
       if (image) {
-        if (image.uri.startsWith('blob:') || image.uri.startsWith('data:') || image.uri.startsWith('http')) {
-          const res  = await fetch(image.uri);
-          const blob = await res.blob();
-          formData.append('image', blob, 'cover.jpg');
-        } else {
-          formData.append('image', { uri: image.uri, type: 'image/jpeg', name: 'cover.jpg' });
-        }
+        const formData = new FormData();
+        formData.append('content', body.trim());
+        formData.append('title', title.trim());
+        formData.append('postType', 'news');
+        if (tags.length) formData.append('tags', JSON.stringify(tags));
+        const res2  = await fetch(image.uri);
+        const blob = await res2.blob();
+        formData.append('image', blob, 'cover.jpg');
+        await api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else {
+        await api.post('/posts', {
+          content: body.trim(),
+          title: title.trim(),
+          postType: 'news',
+          tags,
+        });
       }
-      await api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      
       navigation.goBack();
     } catch (err) {
-      console.error('POST ERROR:', err); Alert.alert('Error', err.message || err.response?.data?.error || 'No se pudo publicar');
+      console.error('POST ERROR:', err);
+      Alert.alert('Error', err.message || err.response?.data?.error || 'No se pudo publicar');
     } finally {
       setPosting(false);
     }
