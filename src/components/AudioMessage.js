@@ -18,6 +18,8 @@ function fmtTime(secs) {
   return `${m}:${r.toString().padStart(2, '0')}`;
 }
 
+let _activeSound = null;
+
 export default function AudioMessage({ uri, isMe, duration = 0 }) {
   const [sound, setSound]       = useState(null);
   const [playing, setPlaying]   = useState(false);
@@ -65,6 +67,10 @@ export default function AudioMessage({ uri, isMe, duration = 0 }) {
         startBarAnim();
         return;
       }
+      // Pausar cualquier otro audio activo
+      if (_activeSound && _activeSound !== sound) {
+        try { await _activeSound.pauseAsync(); } catch (_) {}
+      }
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
       const { sound: s } = await Audio.Sound.createAsync(
         { uri },
@@ -85,6 +91,7 @@ export default function AudioMessage({ uri, isMe, duration = 0 }) {
           }
         }
       );
+      _activeSound = s;
       setSound(s);
       setPlaying(true);
       startBarAnim();
@@ -96,7 +103,8 @@ export default function AudioMessage({ uri, isMe, duration = 0 }) {
   const accent = isMe ? colors.c1 : 'rgba(160,190,255,0.9)';
   const dimmed = isMe ? 'rgba(0,229,204,0.2)' : 'rgba(160,190,255,0.15)';
   const btnBg  = isMe ? 'rgba(0,229,204,0.12)' : 'rgba(160,190,255,0.1)';
-  const display = playing ? fmtTime(elapsed) : fmtTime(totalDur);
+  const remaining = totalDur > 0 ? Math.max(0, totalDur - elapsed) : totalDur;
+  const display = fmtTime(remaining || totalDur);
 
   return (
     <View style={s.wrap}>
