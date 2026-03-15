@@ -399,9 +399,11 @@ export default function ChatRoomScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
-      {Platform.OS === 'web' ? (
-        <View style={{ flex: 1 }}>
-      
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={80}
+      >
         <FlatList
           ref={flatRef}
           data={messages}
@@ -552,7 +554,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.black },
+  root: { flex: 1, backgroundColor: colors.black, overflow: 'hidden', maxWidth: '100%' },
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
@@ -600,6 +602,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10,
     borderTopWidth: 1, borderTopColor: colors.border,
     backgroundColor: colors.deep,
+    overflow: 'hidden',
   },
   input: {
     flex: 1, minWidth: 0, flexShrink: 1,
