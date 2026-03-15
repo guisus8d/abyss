@@ -17,7 +17,15 @@ export const useAuthStore = create((set) => ({
       await AsyncStorage.setItem('token', token);
       // Refrescar datos completos del usuario
       const refresh = await api.get('/users/me');
-      set({ user: refresh.data.user, token, isRestoring: false });
+      const freshUser = refresh.data.user;
+      set({ user: freshUser, token, isRestoring: false });
+      // Actualizar localStorage en web
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('auth-storage') || '{}');
+          if (stored.state) { stored.state.user = freshUser; localStorage.setItem('auth-storage', JSON.stringify(stored)); }
+        } catch (_) {}
+      }
     } catch {
       // Token expirado o inválido — limpiar
       await AsyncStorage.removeItem('token');
