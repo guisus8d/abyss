@@ -596,17 +596,19 @@ const s = StyleSheet.create({
   audioPreviewCancel: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center', justifyContent: 'center' },
   audioPreviewSend:   { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,229,204,0.8)', alignItems: 'center', justifyContent: 'center' },
   inputRow:    {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 12, borderTopWidth: 1, borderTopColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: colors.border,
     backgroundColor: colors.deep,
   },
   input: {
-    flex: 1, backgroundColor: 'rgba(8,20,36,0.95)',
+    flex: 1, minWidth: 0, flexShrink: 1,
+    backgroundColor: 'rgba(8,20,36,0.95)',
     borderWidth: 1, borderColor: colors.border, borderRadius: 22,
     paddingHorizontal: 16, paddingVertical: 10,
     color: colors.textHi, fontSize: 14,
   },
-  sendBtn:       { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 42, height: 42, minWidth: 42, maxWidth: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sendTxt:       { color: colors.black, fontSize: 18, fontWeight: 'bold' },
   reqBanner: {
     flexDirection: 'row', alignItems: 'center',
