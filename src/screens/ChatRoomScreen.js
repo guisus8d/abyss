@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
+import AudioMessage from '../components/AudioMessage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
@@ -55,6 +57,11 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { user }                = useAuthStore();
   const [messages, setMessages] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const recordingRef = useRef(null);
+  const recTimerRef = useRef(null);
   const [fullImg, setFullImg] = useState(null);
   const [text, setText]         = useState('');
   const [typing, setTyping]     = useState(false);
@@ -199,6 +206,37 @@ export default function ChatRoomScreen({ route, navigation }) {
     finally { setUploading(false); }
   }
 
+
+  async function startRecording() {
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      setIsRecording(true);
+      setRecSeconds(0);
+      recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+    } catch (e) { console.log('startRecording error:', e.message); }
+  }
+
+  async function stopRecording() {
+    try {
+      setIsRecording(false);
+      clearInterval(recTimerRef.current);
+      setRecSeconds(0);
+      await recordingRef.current?.stopAndUnloadAsync();
+      const uri = recordingRef.current?.getURI();
+      if (!uri) return;
+      setUploading(true);
+      const blob = await fetch(uri).then(r => r.blob());
+      const formData = new FormData();
+      formData.append('file', blob, 'audio.m4a');
+      const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data', 'x-file-type': 'audio' } });
+      socketRef.current?.emit('chat:send', { chatId: chat._id.toString(), text: '', type: 'audio', mediaUrl: data.url, audioDuration: recSeconds });
+    } catch (e) { console.log('stopRecording error:', e.message); }
+    finally { setUploading(false); recordingRef.current = null; }
+  }
+
   function handleTyping(val) {
     setText(val);
     // Detectar @ para menciones
@@ -265,9 +303,11 @@ export default function ChatRoomScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
           {item.type === 'image' && item.mediaUrl
-            ? <TouchableOpacity onPress={() => setFullImg(item.mediaUrl)} activeOpacity={0.9}>
-              <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
-            </TouchableOpacity>
+            ? item.type === 'audio'
+              ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
+              : <TouchableOpacity onPress={() => setFullImg(item.mediaUrl)} activeOpacity={0.9}>
+                  <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+                </TouchableOpacity>
             : <Text style={s.bubbleTxt}>{renderTextWithMentions(item.text, navigation)}</Text>}
           <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>
           {item.reactions?.length > 0 && (
@@ -411,9 +451,22 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
         <View style={s.inputRow}>
-          <TouchableOpacity onPress={sendImage} disabled={uploading} style={s.mediaBtn}>
+          <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
             {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
           </TouchableOpacity>
+          {isRecording ? (
+            <View style={s.recRow}>
+              <View style={s.recDot} />
+              <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
+              <TouchableOpacity onPress={stopRecording} style={s.recStop}>
+                <Ionicons name="stop" size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
+              <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+            </TouchableOpacity>
+          )}
           <TextInput
             style={s.input}
             placeholder="Mensaje..."
@@ -501,6 +554,11 @@ const s = StyleSheet.create({
   bubbleTxt:   { color: '#ffffff', fontSize: 14, lineHeight: 20 },
   bubbleTime:  { color: colors.textDim, fontSize: 9, marginTop: 4, textAlign: 'right' },
   mediaBtn:    { padding: 8, justifyContent: 'center', alignItems: 'center' },
+  mediaBtnActive: { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 20 },
+  recRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8 },
+  recDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(239,68,68,0.9)' },
+  recTimer: { color: colors.c1, fontSize: 13, fontWeight: '700', minWidth: 38 },
+  recStop:  { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.8)', alignItems: 'center', justifyContent: 'center' },
   inputRow:    {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     padding: 12, borderTopWidth: 1, borderTopColor: colors.border,
