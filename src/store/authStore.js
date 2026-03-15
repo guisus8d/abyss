@@ -14,7 +14,10 @@ export const useAuthStore = create((set) => ({
       if (!token) { set({ isRestoring: false }); return; }
       // Verificar que el token sigue válido
       const { data } = await api.get('/users/me');
-      set({ user: data.user, token, isRestoring: false });
+      await AsyncStorage.setItem('token', token);
+      // Refrescar datos completos del usuario
+      const refresh = await api.get('/users/me');
+      set({ user: refresh.data.user, token, isRestoring: false });
     } catch {
       // Token expirado o inválido — limpiar
       await AsyncStorage.removeItem('token');
