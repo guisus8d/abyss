@@ -4,6 +4,8 @@ import {
   StyleSheet, StatusBar, SafeAreaView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -52,6 +54,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { chat, other, requestMode = false, alreadyRequested = false } = route.params;
   const { user }                = useAuthStore();
   const [messages, setMessages] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [text, setText]         = useState('');
   const [typing, setTyping]     = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -179,6 +182,22 @@ export default function ChatRoomScreen({ route, navigation }) {
     setReplyTo(null);
   }
 
+
+  async function sendImage() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
+      if (result.canceled) return;
+      setUploading(true);
+      const asset = result.assets[0];
+      const formData = new FormData();
+      const blob = await fetch(asset.uri).then(r => r.blob());
+      formData.append('file', blob, 'chat.jpg');
+      const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      socketRef.current?.emit('chat:send', { chatId: chat._id.toString(), text: '', type: 'image', mediaUrl: data.url });
+    } catch (e) { console.log('sendImage error:', e.message); }
+    finally { setUploading(false); }
+  }
+
   function handleTyping(val) {
     setText(val);
     // Detectar @ para menciones
@@ -244,7 +263,9 @@ export default function ChatRoomScreen({ route, navigation }) {
               <Text style={s.replyText} numberOfLines={1}>{item.replyTo.text}</Text>
             </TouchableOpacity>
           )}
-          <Text style={s.bubbleTxt}>{renderTextWithMentions(item.text, navigation)}</Text>
+          {item.type === 'image' && item.mediaUrl
+            ? <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+            : <Text style={s.bubbleTxt}>{renderTextWithMentions(item.text, navigation)}</Text>}
           <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>
           {item.reactions?.length > 0 && (
             <View style={s.msgReactions}>
@@ -380,6 +401,9 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
         <View style={s.inputRow}>
+          <TouchableOpacity onPress={sendImage} disabled={uploading} style={s.mediaBtn}>
+            {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
+          </TouchableOpacity>
           <TextInput
             style={s.input}
             placeholder="Mensaje..."
@@ -466,6 +490,7 @@ const s = StyleSheet.create({
   bubbleThem:  { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius: 4 },
   bubbleTxt:   { color: '#ffffff', fontSize: 14, lineHeight: 20 },
   bubbleTime:  { color: colors.textDim, fontSize: 9, marginTop: 4, textAlign: 'right' },
+  mediaBtn:    { padding: 8, justifyContent: 'center', alignItems: 'center' },
   inputRow:    {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     padding: 12, borderTopWidth: 1, borderTopColor: colors.border,
