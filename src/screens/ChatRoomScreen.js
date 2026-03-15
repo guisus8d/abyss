@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable,
+  View, ActivityIndicator, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable,
   StyleSheet, StatusBar, SafeAreaView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -55,6 +55,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { user }                = useAuthStore();
   const [messages, setMessages] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [fullImg, setFullImg] = useState(null);
   const [text, setText]         = useState('');
   const [typing, setTyping]     = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -264,7 +265,9 @@ export default function ChatRoomScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
           {item.type === 'image' && item.mediaUrl
-            ? <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+            ? <TouchableOpacity onPress={() => setFullImg(item.mediaUrl)} activeOpacity={0.9}>
+              <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+            </TouchableOpacity>
             : <Text style={s.bubbleTxt}>{renderTextWithMentions(item.text, navigation)}</Text>}
           <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>
           {item.reactions?.length > 0 && (
@@ -307,6 +310,13 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
+      {/* Visor imagen fullscreen */}
+      <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
+        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
+          {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
+          <Text style={{ color:'rgba(255,255,255,0.4)', marginTop:16, fontSize:12 }}>Toca para cerrar</Text>
+        </Pressable>
+      </Modal>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <SafeAreaView>
         <View style={s.header}>
