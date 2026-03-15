@@ -322,12 +322,12 @@ export default function ChatRoomScreen({ route, navigation }) {
               <Text style={s.replyText} numberOfLines={1}>{item.replyTo.text}</Text>
             </TouchableOpacity>
           )}
-          {item.type === 'image' && item.mediaUrl
-            ? item.type === 'audio'
-              ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
-              : <TouchableOpacity onPress={() => setFullImg(item.mediaUrl)} activeOpacity={0.9}>
-                  <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
-                </TouchableOpacity>
+          {item.mediaUrl && item.type === 'audio'
+            ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
+            : item.mediaUrl && item.type === 'image'
+            ? <TouchableOpacity onPress={() => setFullImg(item.mediaUrl)} activeOpacity={0.9}>
+                <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+              </TouchableOpacity>
             : <Text style={s.bubbleTxt}>{renderTextWithMentions(item.text, navigation)}</Text>}
           <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>
           {item.reactions?.length > 0 && (
