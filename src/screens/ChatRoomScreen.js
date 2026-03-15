@@ -399,11 +399,9 @@ export default function ChatRoomScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={80}
-      >
+      {Platform.OS === 'web' ? (
+        <View style={{ flex: 1 }}>
+      
         <FlatList
           ref={flatRef}
           data={messages}

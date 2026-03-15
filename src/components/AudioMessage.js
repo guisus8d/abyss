@@ -37,8 +37,8 @@ export default function AudioMessage({ uri, isMe, duration = 0 }) {
     animLoops.current = barAnims.map((anim, i) => {
       const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(anim, { toValue: 0.3 + Math.random() * 0.7, duration: 250 + Math.random() * 300, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: BAR_HEIGHTS[i], duration: 250 + Math.random() * 300, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0.3 + Math.random() * 0.7, duration: 250 + Math.random() * 300, useNativeDriver: false }),
+          Animated.timing(anim, { toValue: BAR_HEIGHTS[i], duration: 250 + Math.random() * 300, useNativeDriver: false }),
         ])
       );
       loop.start();
@@ -49,7 +49,7 @@ export default function AudioMessage({ uri, isMe, duration = 0 }) {
   function stopBarAnim() {
     animLoops.current.forEach(l => l?.stop());
     barAnims.forEach((anim, i) =>
-      Animated.timing(anim, { toValue: BAR_HEIGHTS[i], duration: 200, useNativeDriver: true }).start()
+      Animated.timing(anim, { toValue: BAR_HEIGHTS[i], duration: 200, useNativeDriver: false }).start()
     );
   }
 
