@@ -4,31 +4,51 @@ import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
-export default function AudioMessage({ uri, isMe, duration }) {
+const BARS = 30;
+const BAR_HEIGHTS = Array.from({ length: BARS }, (_, i) => {
+  const v = Math.sin(i * 0.8) * 0.35 + Math.sin(i * 1.7) * 0.25 + Math.sin(i * 0.3) * 0.2 + 0.35;
+  return Math.max(0.12, Math.min(1, v));
+});
+
+function fmtTime(secs) {
+  if (!secs || isNaN(secs) || !isFinite(secs)) return '0:00';
+  const s = Math.max(0, Math.floor(secs));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
+export default function AudioMessage({ uri, isMe, duration = 0 }) {
   const [sound, setSound]       = useState(null);
   const [playing, setPlaying]   = useState(false);
-  const [pos, setPos]           = useState(0);       // 0-1
-  const [dur, setDur]           = useState(duration || 0);
-  const pulseAnim               = useRef(new Animated.Value(1)).current;
-  const pulseLoop               = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const [elapsed, setElapsed]   = useState(0);
+  const [totalDur, setTotalDur] = useState(duration || 0);
+  const barAnims = useRef(BAR_HEIGHTS.map(() => new Animated.Value(1))).current;
+  const animLoops = useRef([]);
 
   useEffect(() => {
-    return () => { sound?.unloadAsync(); };
+    return () => { sound?.unloadAsync(); stopBarAnim(); };
   }, [sound]);
 
-  function startPulse() {
-    pulseLoop.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.15, duration: 500, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 500, useNativeDriver: true }),
-      ])
-    );
-    pulseLoop.current.start();
+  function startBarAnim() {
+    animLoops.current = barAnims.map((anim, i) => {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, { toValue: 0.3 + Math.random() * 0.7, duration: 250 + Math.random() * 300, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: BAR_HEIGHTS[i], duration: 250 + Math.random() * 300, useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+      return loop;
+    });
   }
 
-  function stopPulse() {
-    pulseLoop.current?.stop();
-    Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+  function stopBarAnim() {
+    animLoops.current.forEach(l => l?.stop());
+    barAnims.forEach((anim, i) =>
+      Animated.timing(anim, { toValue: BAR_HEIGHTS[i], duration: 200, useNativeDriver: true }).start()
+    );
   }
 
   async function togglePlay() {
@@ -36,13 +56,13 @@ export default function AudioMessage({ uri, isMe, duration }) {
       if (playing) {
         await sound?.pauseAsync();
         setPlaying(false);
-        stopPulse();
+        stopBarAnim();
         return;
       }
       if (sound) {
         await sound.playAsync();
         setPlaying(true);
-        startPulse();
+        startBarAnim();
         return;
       }
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
@@ -50,118 +70,81 @@ export default function AudioMessage({ uri, isMe, duration }) {
         { uri },
         { shouldPlay: true },
         (status) => {
-          if (status.isLoaded) {
-            const total = status.durationMillis || 1;
-            setDur(Math.round(total / 1000));
-            setPos(status.positionMillis / total);
-            if (status.didJustFinish) {
-              setPlaying(false);
-              setPos(0);
-              stopPulse();
-            }
+          if (!status.isLoaded) return;
+          const total = status.durationMillis;
+          if (total && total > 0) {
+            setTotalDur(Math.round(total / 1000));
+            setProgress(status.positionMillis / total);
+            setElapsed(Math.round(status.positionMillis / 1000));
+          }
+          if (status.didJustFinish) {
+            setPlaying(false);
+            setProgress(0);
+            setElapsed(0);
+            stopBarAnim();
           }
         }
       );
       setSound(s);
       setPlaying(true);
-      startPulse();
+      startBarAnim();
     } catch (e) {
       console.log('AudioMessage error:', e.message);
     }
   }
 
-  function fmtTime(secs) {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
-
-  const accent = isMe ? 'rgba(0,229,204,1)' : 'rgba(150,180,255,0.9)';
-  const barBg  = isMe ? 'rgba(0,229,204,0.15)' : 'rgba(150,180,255,0.12)';
-
-  // Generar barras de onda decorativas (fijas, no waveform real)
-  const BARS = 28;
-  const heights = Array.from({ length: BARS }, (_, i) => {
-    const wave = Math.sin(i * 0.7) * 0.4 + Math.sin(i * 1.3) * 0.3 + 0.3;
-    return Math.max(0.15, Math.min(1, wave));
-  });
+  const accent = isMe ? colors.c1 : 'rgba(160,190,255,0.9)';
+  const dimmed = isMe ? 'rgba(0,229,204,0.2)' : 'rgba(160,190,255,0.15)';
+  const btnBg  = isMe ? 'rgba(0,229,204,0.12)' : 'rgba(160,190,255,0.1)';
+  const display = playing ? fmtTime(elapsed) : fmtTime(totalDur);
 
   return (
-    <View style={[s.container, isMe ? s.containerMe : s.containerThem]}>
-      {/* Botón play/pause */}
-      <TouchableOpacity onPress={togglePlay} activeOpacity={0.8}>
-        <Animated.View style={[s.playBtn, { borderColor: accent, transform: [{ scale: pulseAnim }] }]}>
-          <Ionicons
-            name={playing ? 'pause' : 'play'}
-            size={16}
-            color={accent}
-            style={playing ? {} : { marginLeft: 2 }}
-          />
-        </Animated.View>
+    <View style={s.wrap}>
+      <TouchableOpacity onPress={togglePlay} activeOpacity={0.7}
+        style={[s.playBtn, { backgroundColor: btnBg, borderColor: accent }]}>
+        <Ionicons name={playing ? 'pause' : 'play'} size={15} color={accent}
+          style={!playing ? { marginLeft: 2 } : {}} />
       </TouchableOpacity>
 
-      {/* Waveform */}
-      <View style={s.waveform}>
-        {heights.map((h, i) => {
-          const filled = pos > 0 && (i / BARS) < pos;
+      <View style={s.waveWrap}>
+        {BAR_HEIGHTS.map((h, i) => {
+          const filled = progress > 0 && (i / BARS) <= progress;
           return (
-            <View
-              key={i}
-              style={[
-                s.bar,
-                {
-                  height: 4 + h * 20,
-                  backgroundColor: filled ? accent : barBg,
-                  borderRadius: 2,
-                }
-              ]}
-            />
+            <Animated.View key={i} style={{
+              width: 2.5,
+              height: 6 + h * 18,
+              borderRadius: 2,
+              backgroundColor: filled ? accent : dimmed,
+              transform: playing ? [{ scaleY: barAnims[i] }] : [{ scaleY: 1 }],
+            }} />
           );
         })}
       </View>
 
-      {/* Duración */}
-      <Text style={[s.duration, { color: accent }]}>
-        {fmtTime(dur)}
-      </Text>
+      <Text style={[s.timer, { color: accent }]}>{display}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-    minWidth: 200,
+  wrap: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 8, paddingVertical: 2,
+    minWidth: 190, maxWidth: 220,
   },
-  containerMe:   {},
-  containerThem: {},
-
   playBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    borderWidth: 1.5,
+    width: 32, height: 32, borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    flexShrink: 0,
   },
-
-  waveform: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    height: 28,
+  waveWrap: {
+    flex: 1, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'space-between',
+    height: 28, gap: 1,
   },
-  bar: {
-    width: 3,
-    borderRadius: 2,
-  },
-
-  duration: {
-    fontSize: 10,
-    fontWeight: '700',
-    minWidth: 30,
-    textAlign: 'right',
+  timer: {
+    fontSize: 10, fontWeight: '700',
+    minWidth: 32, textAlign: 'right', flexShrink: 0,
   },
 });
