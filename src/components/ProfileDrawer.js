@@ -110,6 +110,12 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
             <Text style={s.drawerUsername}>{user?.username}</Text>
             <Text style={s.drawerEmail}>{user?.email}</Text>
+            {/* Monedas */}
+            <View style={s.coinsRow}>
+              <View style={s.coinIcon}><Text style={s.coinEmoji}>✦</Text></View>
+              <Text style={s.coinsAmt}>{user?.coins ?? 50}</Text>
+              <Text style={s.coinsLbl}> monedas</Text>
+            </View>
 
             <View style={s.xpRow}>
               <Text style={s.xpLbl}>XP</Text>
