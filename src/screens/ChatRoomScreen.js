@@ -239,26 +239,16 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   async function sendAudioPreview() {
     if (!audioPreview) return;
+    const preview = audioPreview;
+    setAudioPreview(null);
     try {
       setUploading(true);
-      const tempAudio = {
-        _id: 'temp_' + Date.now(),
-        sender: { _id: user._id },
-        text: '',
-        type: 'audio',
-        mediaUrl: audioPreview.uri,
-        audioDuration: audioPreview.duration,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, tempAudio]);
-      scrollToBottom();
-      const blob = await fetch(audioPreview.uri).then(r => r.blob());
+      const blob = await fetch(preview.uri).then(r => r.blob());
       const formData = new FormData();
       formData.append('file', blob, 'audio.m4a');
       const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data', 'x-file-type': 'audio' } });
-      socketRef.current?.emit('chat:send', { chatId: chat._id.toString(), text: '', type: 'audio', mediaUrl: data.url, audioDuration: audioPreview.duration });
-      setAudioPreview(null);
-    } catch (e) { console.log('sendAudioPreview error:', e.message); }
+      socketRef.current?.emit('chat:send', { chatId: chat._id.toString(), text: '', type: 'audio', mediaUrl: data.url, audioDuration: preview.duration });
+    } catch (e) { console.log('sendAudioPreview error:', e.message); Alert.alert('Error', 'No se pudo enviar el audio'); }
     finally { setUploading(false); }
   }
 
