@@ -60,6 +60,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [recording, setRecording] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioPreview, setAudioPreview] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [recSeconds, setRecSeconds] = useState(0);
   const recordingRef = useRef(null);
   const recTimerRef = useRef(null);
@@ -198,14 +199,22 @@ export default function ChatRoomScreen({ route, navigation }) {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
       if (result.canceled) return;
+      setImagePreview(result.assets[0].uri);
+    } catch (e) { console.log('sendImage error:', e.message); }
+  }
+
+  async function confirmSendImage() {
+    if (!imagePreview) return;
+    const uri = imagePreview;
+    setImagePreview(null);
+    try {
       setUploading(true);
-      const asset = result.assets[0];
       const formData = new FormData();
-      const blob = await fetch(asset.uri).then(r => r.blob());
+      const blob = await fetch(uri).then(r => r.blob());
       formData.append('file', blob, 'chat.jpg');
       const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       socketRef.current?.emit('chat:send', { chatId: chat._id.toString(), text: '', type: 'image', mediaUrl: data.url });
-    } catch (e) { console.log('sendImage error:', e.message); }
+    } catch (e) { console.log('confirmSendImage error:', e.message); }
     finally { setUploading(false); }
   }
 
@@ -370,6 +379,26 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
+      {/* Preview imagen antes de enviar */}
+      <Modal visible={!!imagePreview} transparent animationType="fade" onRequestClose={() => setImagePreview(null)}>
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding: 20 }}>
+          {imagePreview && <Image source={{ uri: imagePreview }} style={{ width:'100%', height:'60%', borderRadius:16 }} resizeMode="contain" />}
+          <View style={{ flexDirection:'row', gap:16, marginTop:20 }}>
+            <TouchableOpacity onPress={() => setImagePreview(null)}
+              style={{ flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:24, paddingVertical:12, borderRadius:24, borderWidth:1, borderColor:'rgba(239,68,68,0.4)', backgroundColor:'rgba(239,68,68,0.1)' }}>
+              <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.9)" />
+              <Text style={{ color:'rgba(239,68,68,0.9)', fontWeight:'700', fontSize:13 }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={confirmSendImage} disabled={uploading}
+              style={{ flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:24, paddingVertical:12, borderRadius:24, backgroundColor:'rgba(0,229,204,0.85)' }}>
+              {uploading
+                ? <ActivityIndicator size={16} color="#000" />
+                : <Ionicons name="send" size={18} color="#000" />}
+              <Text style={{ color:'#000', fontWeight:'800', fontSize:13 }}>Enviar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       {/* Visor imagen fullscreen */}
       <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
         <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
