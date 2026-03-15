@@ -268,7 +268,14 @@ export default function HomeScreen({ navigation }) {
     });
   }, []);
 
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
+
+  // Refrescar datos del usuario (coins, xp, etc) al montar
+  useEffect(() => {
+    api.get('/users/me').then(({ data }) => {
+      if (data.user) updateUser(data.user);
+    }).catch(() => {});
+  }, []);
   const [posts, setPosts]             = useState([]);
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
