@@ -110,13 +110,6 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
             <Text style={s.drawerUsername}>{user?.username}</Text>
             <Text style={s.drawerEmail}>{user?.email}</Text>
-            {/* Monedas */}
-            <View style={s.coinsRow}>
-              <View style={s.coinIcon}><Text style={s.coinEmoji}>✦</Text></View>
-              <Text style={s.coinsAmt}>{user?.coins ?? 50}</Text>
-              <Text style={s.coinsLbl}> monedas</Text>
-            </View>
-
             <View style={s.xpRow}>
               <Text style={s.xpLbl}>XP</Text>
               <View style={s.xpBarBg}>
@@ -137,33 +130,22 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             </View>
             <View style={s.statDiv} />
             <View style={s.stat}>
-              <Text style={s.statVal}>{user?.badges?.length || 0}</Text>
-              <Text style={s.statLbl}>BADGES</Text>
-            </View>
-            <View style={s.statDiv} />
-            <View style={s.stat}>
               <Text style={s.statVal}>{daysSince}</Text>
               <Text style={s.statLbl}>DÍAS</Text>
             </View>
           </View>
 
-          {user?.badges?.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>EMBLEMAS</Text>
-              <View style={s.badgesRow}>
-                {user.badges.map((b, i) => (
-                  <View key={i} style={s.badgePill}>
-                    <Text style={s.badgeIcon}>{b.icon}</Text>
-                    <Text style={s.badgeName}>{b.name}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
 
           <View style={s.section}>
+            <Text style={s.sectionTitle}>MONEDAS</Text>
+            <View style={s.coinsRow}>
+              <View style={s.coinIcon}><Text style={s.coinEmoji}>✦</Text></View>
+              <Text style={s.coinsAmt}>{user?.coins ?? 50}</Text>
+            </View>
+          </View>
+          <View style={s.section}>
             <Text style={s.sectionTitle}>MENÚ</Text>
-            <TouchableOpacity style={s.menuItem}>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Collection'); }}>
               <Ionicons name='albums-outline' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Mi Colección</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
