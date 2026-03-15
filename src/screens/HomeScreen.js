@@ -18,7 +18,8 @@ import { TouchableWithoutFeedback } from 'react-native';
 import PostComposer    from '../components/PostComposer';
 import CreatePostMenu from '../components/CreatePostMenu';
 import AvatarWithFrame from '../components/AvatarWithFrame';
-import OrbitUsers from '../components/OrbitUsers';
+import OrbitUsers    from '../components/OrbitUsers';
+import RandomUsers  from '../components/RandomUsers';
 
 function timeAgo(date) {
   const diff = (Date.now() - new Date(date)) / 1000;
@@ -468,6 +469,7 @@ export default function HomeScreen({ navigation }) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPosts(); }} tintColor={colors.c1} />}
         >
          
+          <RandomUsers navigation={navigation} />
           {posts.length === 0 && (
             <View style={s.center}><Text style={s.emptyTxt}>Sin posts aún. ¡Sé el primero!</Text></View>
           )}
