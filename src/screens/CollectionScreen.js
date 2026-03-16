@@ -22,6 +22,28 @@ const TABS = [
 ];
 const TAB_W = (W - 32) / TABS.length;
 
+function FrameCard({ frame, units, index, onPress }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue:1, duration:400, delay:index*60, useNativeDriver:true }).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity: fadeAnim }}>
+      <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
+        <View style={s.cardPreview}>
+          {frame.imageUrl
+            ? <Image source={{ uri: frame.imageUrl }} style={s.cardFrame} resizeMode="contain" />
+            : <View style={s.cardFramePlaceholder}><Ionicons name="sparkles-outline" size={28} color={colors.c1} /></View>}
+          {units !== null && <View style={s.unitsBadge}><Text style={s.unitsTxt}>×{units}</Text></View>}
+          {units === null && frame.price && <View style={s.priceBadge}><Text style={s.priceTxt}>✦{frame.price}</Text></View>}
+        </View>
+        <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
+        {frame.creator?.username && <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator.username}</Text>}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function CollectionScreen({ navigation }) {
   const { user, updateUser } = useAuthStore();
   const [tab, setTab]           = useState('frames');
@@ -80,21 +102,12 @@ export default function CollectionScreen({ navigation }) {
   function renderFrameCard({ item, index }) {
     const frame = item.frame || item;
     const units = item.units !== undefined ? item.units : null;
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 1, duration: 400, delay: index * 60, useNativeDriver: true,
-      }).start();
-    }, []);
-
     return (
-      <Animated.View style={{ opacity: fadeAnim }}>
-        <TouchableOpacity
-          style={s.card}
-          onPress={() => setSelected({ frame, units })}
-          activeOpacity={0.8}
-        >
+      <FrameCard frame={frame} units={units} index={index} onPress={() => setSelected({ frame, units })} />
+    );
+  }
+
+
           {/* Preview del marco */}
           <View style={s.cardPreview}>
             {frame.imageUrl ? (
