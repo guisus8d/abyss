@@ -136,6 +136,21 @@ export default function PublicProfileScreen({ route, navigation }) {
     });
   }
 
+  async function handleFramePress() {
+    const frameId = profile?.profileFrame;
+    if (!frameId || frameId === 'default' || frameId === 'frame_001') return;
+    try {
+      const { data } = await api.get(`/frames/${frameId}`);
+      navigation.navigate('FrameDetail', {
+        frame: data.frame,
+        units: null,
+        mode: 'viewer',
+      });
+    } catch {
+      // si falla, el avatar queda sin acción
+    }
+  }
+
   if (loading) return (
     <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 80 }} /></View>
   );
@@ -177,15 +192,20 @@ export default function PublicProfileScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient colors={['rgba(0,110,100,0.2)','rgba(2,5,9,1)']} style={s.hero}>
-          <AvatarWithFrame
-            size={88}
-            avatarUrl={profile?.avatarUrl}
-            username={profile?.username}
-            profileFrame={profile?.profileFrame}
+          <TouchableOpacity
+            onPress={handleFramePress}
+            activeOpacity={profile?.profileFrame && profile.profileFrame !== 'default' && profile.profileFrame !== 'frame_001' ? 0.8 : 1}
+            disabled={!profile?.profileFrame || profile.profileFrame === 'default' || profile.profileFrame === 'frame_001'}
+          >
+            <AvatarWithFrame
+              size={88}
+              avatarUrl={profile?.avatarUrl}
+              username={profile?.username}
+              profileFrame={profile?.profileFrame}
               frameUrl={profile?.profileFrameUrl}
-              frameUrl={profile?.profileFrameUrl}
-            bgColor="rgba(0,229,204,0.12)"
-          />
+              bgColor="rgba(0,229,204,0.12)"
+            />
+          </TouchableOpacity>
           <Text style={s.username}>{profile?.username}</Text>
           {prefs.showXp && (
             <View style={s.xpRow}>
