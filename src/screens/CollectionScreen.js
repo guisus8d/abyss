@@ -411,3 +411,4 @@ const s = StyleSheet.create({
   modalBuy:     { flex: 1, paddingVertical: 12, borderRadius: 16, backgroundColor: 'rgba(251,191,36,0.85)', alignItems: 'center' },
   modalBuyTxt:  { color: '#000', fontSize: 14, fontWeight: '800' },
 });
+
