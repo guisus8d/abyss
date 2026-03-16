@@ -67,6 +67,7 @@ export default function FrameSelectorScreen({ navigation }) {
     if (!selected || equipping) return;
     setEquipping(true);
     try {
+      console.log('SELECTED:', JSON.stringify({ id: selected._id, imageUrl: selected.imageUrl, name: selected.name }));
       const frameId = selected._id === activeFrameId ? 'default' : selected._id;
       const frameUrl = frameId === 'default' ? null : (selected.imageUrl || null);
       const { data } = await api.patch('/users/me/profile', { profileFrame: frameId, profileFrameUrl: frameUrl });
