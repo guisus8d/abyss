@@ -104,39 +104,6 @@ export default function CollectionScreen({ navigation }) {
   }
 
 
-          {/* Preview del marco */}
-          <View style={s.cardPreview}>
-            {frame.imageUrl ? (
-              <Image source={{ uri: frame.imageUrl }} style={s.cardFrame} resizeMode="contain" />
-            ) : (
-              <View style={s.cardFramePlaceholder}>
-                <Ionicons name="sparkles-outline" size={28} color={colors.c1} />
-              </View>
-            )}
-            {/* Badge unidades */}
-            {units !== null && (
-              <View style={s.unitsBadge}>
-                <Text style={s.unitsTxt}>×{units}</Text>
-              </View>
-            )}
-            {/* Badge precio en catálogo */}
-            {units === null && frame.price && (
-              <View style={s.priceBadge}>
-                <Text style={s.priceTxt}>✦{frame.price}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Nombre */}
-          <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
-          {frame.creator?.username && (
-            <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator.username}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   function renderEmpty(icon, title, sub) {
     return (
       <View style={s.empty}>
