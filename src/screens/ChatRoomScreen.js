@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import AudioMessage from '../components/AudioMessage';
+import AvatarWithFrame from '../components/AvatarWithFrame';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
@@ -313,11 +314,14 @@ export default function ChatRoomScreen({ route, navigation }) {
         )}
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
         {!isMe && (
-          <View style={[s.msgAvatar, !showAvatar && { opacity: 0 }]}>
-            {other.avatarUrl
-              ? <Image source={{ uri: other.avatarUrl }} style={s.msgAvatarImg} />
-              : <Text style={s.msgAvatarTxt}>{other.username[0].toUpperCase()}</Text>
-            }
+          <View style={[{ opacity: showAvatar ? 1 : 0 }]}>
+            <AvatarWithFrame
+              size={28}
+              avatarUrl={other.avatarUrl}
+              username={other.username}
+              profileFrame={other.profileFrame}
+              frameUrl={other.profileFrameUrl}
+            />
           </View>
         )}
         <TouchableOpacity
@@ -413,13 +417,15 @@ export default function ChatRoomScreen({ route, navigation }) {
             <Text style={s.backTxt}>←</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={s.headerAv}
             onPress={() => navigation.navigate('PublicProfile', { username: other.username })}
           >
-            {other.avatarUrl
-              ? <Image source={{ uri: other.avatarUrl }} style={s.headerAvImg} />
-              : <Text style={s.headerAvTxt}>{other.username[0].toUpperCase()}</Text>
-            }
+            <AvatarWithFrame
+              size={36}
+              avatarUrl={other.avatarUrl}
+              username={other.username}
+              profileFrame={other.profileFrame}
+              frameUrl={other.profileFrameUrl}
+            />
           </TouchableOpacity>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
             <Text style={s.headerName}>{other.username}</Text>
