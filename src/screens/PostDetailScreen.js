@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Image,
+  View, Text, ScrollView, Modal, TouchableOpacity, Image,
   StyleSheet, StatusBar, SafeAreaView, ActivityIndicator,
   TextInput, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
@@ -27,18 +27,26 @@ export default function PostDetailScreen({ route, navigation }) {
   const [comment, setComment]     = useState('');
   const [sending, setSending]     = useState(false);
   const [replyTo, setReplyTo]     = useState(null);
+  const [deleteCommentModal, setDeleteCommentModal] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    loadPost();
-  }, []);
+    let mounted = true;
+    api.get(`/posts/${postId}`)
+      .then(({ data }) => {
+        if (mounted && data.post) setPost(data.post);
+      })
+      .catch(e => console.log('PostDetail err:', e.message))
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [postId]);
 
   async function loadPost() {
     try {
       const { data } = await api.get(`/posts/${postId}`);
       if (data.post) setPost(data.post);
     } catch (e) {
-      console.log('loadPost error:', e.response?.status, e.message);
+      console.log('loadPost error:', e.message);
     } finally {
       setLoading(false);
     }
@@ -61,6 +69,14 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   }
 
+  async function handleDeleteComment(commentId) {
+    try {
+      const { data } = await api.delete(`/posts/${postId}/comment/${commentId}`);
+      if (data.comments) setPost(prev => ({ ...prev, comments: data.comments }));
+    } catch (e) { Alert.alert('Error', 'No se pudo eliminar'); }
+    finally { setDeleteCommentModal(null); }
+  }
+
   if (loading) return (
     <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 60 }} /></View>
   );
@@ -70,6 +86,24 @@ export default function PostDetailScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
+      <Modal visible={!!deleteCommentModal} transparent animationType="fade" onRequestClose={() => setDeleteCommentModal(null)}>
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', alignItems:'center', justifyContent:'center', padding:24 }}>
+          <View style={{ backgroundColor:'#0d1f2d', borderRadius:20, padding:24, width:'100%', borderWidth:1, borderColor:'rgba(255,255,255,0.08)' }}>
+            <Text style={{ color:'#fff', fontSize:16, fontWeight:'700', textAlign:'center', marginBottom:8 }}>¿Borrar comentario?</Text>
+            <Text style={{ color:'rgba(255,255,255,0.4)', fontSize:13, textAlign:'center', marginBottom:24 }}>Esta acción no se puede deshacer</Text>
+            <View style={{ flexDirection:'row', gap:12 }}>
+              <TouchableOpacity onPress={() => setDeleteCommentModal(null)}
+                style={{ flex:1, paddingVertical:12, borderRadius:14, borderWidth:1, borderColor:'rgba(255,255,255,0.12)', alignItems:'center' }}>
+                <Text style={{ color:'rgba(255,255,255,0.5)', fontWeight:'600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDeleteComment(deleteCommentModal)}
+                style={{ flex:1, paddingVertical:12, borderRadius:14, backgroundColor:'rgba(239,68,68,0.8)', alignItems:'center' }}>
+                <Text style={{ color:'#fff', fontWeight:'700' }}>Borrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <SafeAreaView>
         <View style={s.header}>
@@ -118,7 +152,7 @@ export default function PostDetailScreen({ route, navigation }) {
             <View style={s.quickWrap}>
               {post.content ? <Text style={s.postContent}>{post.content}</Text> : null}
               {post.imageUrl && (
-                <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="cover" />
+                <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="contain" />
               )}
             </View>
           )}
@@ -156,6 +190,10 @@ export default function PostDetailScreen({ route, navigation }) {
               <View key={c._id || Math.random()} style={[s.commentWrap, isReply && s.commentWrapReply]}>
                 {isReply && <View style={s.replyLine} />}
                 <TouchableOpacity style={s.comment}
+                  onLongPress={() => {
+                    const uid = c.user?._id?.toString() || c.user?.toString();
+                    if (uid === user?._id?.toString()) setDeleteCommentModal(c._id);
+                  }}
                   onPress={() => {
                     // Si es reply, apunta al padre original del hilo
                     const parentId = isReply ? c.replyTo?.commentId : c._id;
@@ -248,7 +286,7 @@ const s = StyleSheet.create({
 
   quickWrap:  { paddingHorizontal: 16, marginBottom: 12 },
   postContent:{ color: colors.textHi, fontSize: 16, lineHeight: 24, marginBottom: 12 },
-  postImage:  { width: '100%', maxHeight: 400, borderRadius: 14 },
+  postImage:  { width: '100%', aspectRatio: 1, borderRadius: 14 },
 
   tagsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, marginBottom: 12 },
   tag:        { color: colors.c1, fontSize: 12, backgroundColor: 'rgba(0,229,204,0.08)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
