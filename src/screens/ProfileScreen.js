@@ -219,20 +219,24 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient colors={['rgba(0,110,100,0.2)','rgba(2,5,9,1)']} style={s.hero}>
-          <TouchableOpacity onPress={handlePickAvatar} disabled={uploading} style={s.avatarWrap}>
-            <AvatarWithFrame
-              size={88}
-              avatarUrl={profile?.avatarUrl}
-              username={profile?.username}
-              profileFrame={profile?.profileFrame}
-              bgColor="rgba(0,229,204,0.12)"
-            />
-            <View style={s.cameraBtn}>
+          <View style={s.avatarWrap}>
+            {/* Tap en avatar → selector de marcos */}
+            <TouchableOpacity onPress={() => navigation.navigate('FrameSelector')} activeOpacity={0.85}>
+              <AvatarWithFrame
+                size={88}
+                avatarUrl={profile?.avatarUrl}
+                username={profile?.username}
+                profileFrame={profile?.profileFrame}
+                bgColor="rgba(0,229,204,0.12)"
+              />
+            </TouchableOpacity>
+            {/* Ícono cámara → cambiar foto */}
+            <TouchableOpacity onPress={handlePickAvatar} disabled={uploading} style={s.cameraBtn}>
               {uploading
                 ? <ActivityIndicator size="small" color={colors.c1} />
                 : <Ionicons name="camera" size={13} color={colors.c1} />}
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
           <Text style={s.username}>{profile?.username}</Text>
           {prefs.showXp && (
           <View style={s.xpRow}>
@@ -394,16 +398,7 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={s.settingsRowTxt}>Cambiar foto de perfil</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
-              <TouchableOpacity style={s.settingsRow} onPress={() => setFrameModal(true)}>
-                <Ionicons name="sparkles-outline" size={20} color={colors.textMid} />
-                <Text style={s.settingsRowTxt}>Marco de perfil</Text>
-                <View style={[s.frameStatus, hasFrame && s.frameStatusOn]}>
-                  <Text style={{ color: hasFrame ? colors.c1 : colors.textDim, fontSize: 10 }}>
-                    {hasFrame ? 'Activo' : 'Inactivo'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
-              </TouchableOpacity>
+
               <TouchableOpacity style={s.settingsRow} onPress={() => navigation.navigate('Top')}>
                 <Ionicons name="trophy-outline" size={20} color={colors.textMid} />
                 <Text style={s.settingsRowTxt}>Top Semanal</Text>

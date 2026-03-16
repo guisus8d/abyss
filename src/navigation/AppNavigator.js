@@ -3,23 +3,25 @@ import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
-import LoginScreen         from '../screens/LoginScreen';
-import HomeScreen          from '../screens/HomeScreen';
-import ChatsScreen         from '../screens/ChatsScreen';
-import ChatRoomScreen      from '../screens/ChatRoomScreen';
-import ProfileScreen       from '../screens/ProfileScreen';
-import PublicProfileScreen from '../screens/PublicProfileScreen';
+import LoginScreen           from '../screens/LoginScreen';
+import HomeScreen            from '../screens/HomeScreen';
+import ChatsScreen           from '../screens/ChatsScreen';
+import ChatRoomScreen        from '../screens/ChatRoomScreen';
+import ProfileScreen         from '../screens/ProfileScreen';
+import PublicProfileScreen   from '../screens/PublicProfileScreen';
 import EditProfilePageScreen from '../screens/EditProfilePageScreen';
 import PostImageScreen       from '../screens/PostImageScreen';
 import PostNoticiaScreen     from '../screens/PostNoticiaScreen';
 import SettingsScreen        from '../screens/SettingsScreen';
-import CollectionScreen     from '../screens/CollectionScreen';
-import CreateFrameScreen    from '../screens/CreateFrameScreen';
-import ModPanelScreen       from '../screens/ModPanelScreen';
-import NotificationsScreen from '../screens/NotificationsScreen';
-import FollowListScreen    from '../screens/FollowListScreen';
-import PostDetailScreen    from '../screens/PostDetailScreen';
-import TopScreen           from '../screens/TopScreen';
+import CollectionScreen      from '../screens/CollectionScreen';
+import CreateFrameScreen     from '../screens/CreateFrameScreen';
+import ModPanelScreen        from '../screens/ModPanelScreen';
+import NotificationsScreen   from '../screens/NotificationsScreen';
+import FollowListScreen      from '../screens/FollowListScreen';
+import PostDetailScreen      from '../screens/PostDetailScreen';
+import TopScreen             from '../screens/TopScreen';
+import FrameDetailScreen     from '../screens/FrameDetailScreen';
+import FrameSelectorScreen   from '../screens/FrameSelectorScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,22 +42,24 @@ export default function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            <Stack.Screen name="Home"          component={HomeScreen} />
-            <Stack.Screen name="Chats"         component={ChatsScreen} />
-            <Stack.Screen name="ChatRoom"      component={ChatRoomScreen} />
-            <Stack.Screen name="Profile"       component={ProfileScreen} />
-            <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
-            <Stack.Screen name="EditProfilePage"  component={EditProfilePageScreen} />
+            <Stack.Screen name="Home"            component={HomeScreen} />
+            <Stack.Screen name="Chats"           component={ChatsScreen} />
+            <Stack.Screen name="ChatRoom"        component={ChatRoomScreen} />
+            <Stack.Screen name="Profile"         component={ProfileScreen} />
+            <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
+            <Stack.Screen name="EditProfilePage" component={EditProfilePageScreen} />
             <Stack.Screen name="PostImage"       component={PostImageScreen} />
             <Stack.Screen name="PostNoticia"     component={PostNoticiaScreen} />
-            <Stack.Screen name="Settings"         component={SettingsScreen} />
-            <Stack.Screen name="Collection"       component={CollectionScreen} />
-            <Stack.Screen name="CreateFrame"      component={CreateFrameScreen} />
-            <Stack.Screen name="ModPanel"         component={ModPanelScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="FollowList"    component={FollowListScreen} />
-            <Stack.Screen name="PostDetail"    component={PostDetailScreen} />
-            <Stack.Screen name="Top"           component={TopScreen} />
+            <Stack.Screen name="Settings"        component={SettingsScreen} />
+            <Stack.Screen name="Collection"      component={CollectionScreen} />
+            <Stack.Screen name="CreateFrame"     component={CreateFrameScreen} />
+            <Stack.Screen name="ModPanel"        component={ModPanelScreen} />
+            <Stack.Screen name="Notifications"   component={NotificationsScreen} />
+            <Stack.Screen name="FollowList"      component={FollowListScreen} />
+            <Stack.Screen name="PostDetail"      component={PostDetailScreen} />
+            <Stack.Screen name="Top"             component={TopScreen} />
+            <Stack.Screen name="FrameDetail"     component={FrameDetailScreen} />
+            <Stack.Screen name="FrameSelector"   component={FrameSelectorScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

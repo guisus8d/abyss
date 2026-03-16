@@ -98,8 +98,22 @@ export default function CollectionScreen({ navigation }) {
   function renderFrameCard({ item, index }) {
     const frame = item.frame || item;
     const units = item.units !== undefined ? item.units : null;
+    const isOwned = tab === 'frames';
     return (
-      <FrameCard frame={frame} units={units} index={index} onPress={() => setSelected({ frame, units })} />
+      <FrameCard
+        frame={frame}
+        units={units}
+        index={index}
+        onPress={() => {
+          if (isOwned) {
+            // Pantalla completa con ponérselo / venderlo
+            navigation.navigate('FrameDetail', { frame, units });
+          } else {
+            // Catálogo: modal de compra
+            setSelected({ frame, units });
+          }
+        }}
+      />
     );
   }
 
