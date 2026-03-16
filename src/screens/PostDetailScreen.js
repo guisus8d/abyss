@@ -36,7 +36,7 @@ export default function PostDetailScreen({ route, navigation }) {
   async function loadPost() {
     try {
       const { data } = await api.get(`/posts/${postId}`);
-      console.log("PostDetail data:", JSON.stringify(data)); if (data.post) setPost(data.post);
+      if (data.post) setPost(data.post);
     } catch (e) {
       console.log('loadPost error:', e.response?.status, e.message);
     } finally {
@@ -81,14 +81,7 @@ export default function PostDetailScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
-      {(loading || !post) ? (
-        <View style={{ flex:1, alignItems:'center', justifyContent:'center' }}>
-          {loading
-            ? <ActivityIndicator color={colors.c1} size="large" />
-            : <Text style={{ color: colors.textDim, fontSize: 14 }}>Post no disponible</Text>}
-        </View>
-      ) : null}
-      {!loading && post && <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
 
           {/* Autor */}
@@ -230,7 +223,7 @@ export default function PostDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>}
+      </KeyboardAvoidingView>
     </View>
   );
 }
