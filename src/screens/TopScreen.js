@@ -77,13 +77,6 @@ export default function TopScreen({ navigation }) {
                     style={s.podiumSlot}
                     onPress={() => navigation.navigate('PublicProfile', { username: u.username })}
                   >
-                    <Ionicons
-                      name={RANK_ICONS[rank].name}
-                      size={RANK_ICONS[rank].size}
-                      color={RANK_ICONS[rank].color}
-                      style={{ marginBottom: isFirst ? 8 : 6 }}
-                    />
-
                     <AvatarWithFrame
                       size={isFirst ? 80 : 58}
                       avatarUrl={u.avatarUrl}
