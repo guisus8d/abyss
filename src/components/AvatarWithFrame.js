@@ -1,23 +1,28 @@
 import React from 'react';
 import { View, Image, Text } from 'react-native';
-const FRAME_URL = 'https://res.cloudinary.com/dlpdzgkeg/image/upload/frames/frame_001.webp';
+
+const FRAME_001_URL = 'https://res.cloudinary.com/dlpdzgkeg/image/upload/frames/frame_001.webp';
 
 export default function AvatarWithFrame({
   size = 40,
   avatarUrl,
   username,
-  profileFrame,
+  profileFrame,   // ID del marco ('frame_001', un _id de mongo, 'default', null)
+  frameUrl,       // URL directa del marco (para marcos custom)
   bgColor = 'rgba(0,229,204,0.1)',
   style,
 }) {
-  const hasFrame  = profileFrame === 'frame_001';
+  const isSystem  = profileFrame === 'frame_001';
+  const hasFrame  = isSystem || !!frameUrl;
+  const resolvedUrl = isSystem ? FRAME_001_URL : frameUrl;
+
   const radius    = size / 2;
   const frameSize = hasFrame ? size / 0.70 : size;
   const offset    = (frameSize - size) / 2;
 
   return (
     <View style={[{ width: size, height: size }, style]}>
-      {/* Avatar circle */}
+      {/* Avatar */}
       <View style={{
         width: size, height: size, borderRadius: radius,
         backgroundColor: bgColor,
@@ -32,10 +37,11 @@ export default function AvatarWithFrame({
           </Text>
         )}
       </View>
-      {/* Frame — desborda el wrapper pero no afecta el layout */}
-      {hasFrame && (
+
+      {/* Marco superpuesto */}
+      {hasFrame && resolvedUrl && (
         <Image
-          source={{ uri: FRAME_URL }}
+          source={{ uri: resolvedUrl }}
           style={{
             position: 'absolute',
             top: -offset, left: -offset,

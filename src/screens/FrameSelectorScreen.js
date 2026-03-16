@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image,
+  View, Text, StyleSheet, TouchableOpacity,
   StatusBar, SafeAreaView, ActivityIndicator, Alert,
   FlatList, Dimensions,
 } from 'react-native';
@@ -12,17 +12,16 @@ import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 
 const { width: W } = Dimensions.get('window');
-const COLS   = 3;
-const GAP    = 10;
-const CARD_W = (W - 32 - GAP * (COLS - 1)) / COLS;
+const COLS        = 3;
+const GAP         = 10;
+const CARD_W      = (W - 32 - GAP * (COLS - 1)) / COLS;
 const PREVIEW_SIZE = Math.min(W * 0.38, 150);
 
-// Marco del sistema siempre disponible
 const SYSTEM_FRAME = {
   _id: 'frame_001',
   name: 'Marco Estelar',
   description: 'El marco original de Abyss',
-  imageUrl: null, // se maneja con AvatarWithFrame nativo
+  imageUrl: null,
   isSystem: true,
 };
 
@@ -30,40 +29,38 @@ export default function FrameSelectorScreen({ navigation }) {
   const { user, updateUser } = useAuthStore();
   const [owned, setOwned]       = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [selected, setSelected] = useState(null); // frame seleccionado para previsualizar
+  const [selected, setSelected] = useState(null);
   const [equipping, setEquipping] = useState(false);
 
-  // El marco actualmente equipado
   const activeFrameId = user?.profileFrame || 'default';
 
-  useEffect(() => {
-    loadFrames();
-  }, []);
+  useEffect(() => { loadFrames(); }, []);
 
   async function loadFrames() {
     setLoading(true);
     try {
       const { data } = await api.get('/frames/my');
       const frames = data.frames || [];
-      // Sistema frame siempre al inicio si el usuario tiene ≥10 XP
       const allFrames = (user?.xp || 0) >= 10
         ? [SYSTEM_FRAME, ...frames]
         : frames;
       setOwned(allFrames);
-      // Seleccionar el equipado por defecto para el preview
-      const current = allFrames.find(f => {
-        const frameId = f.frame ? f.frame._id : f._id;
-        return frameId === activeFrameId;
+      // Pre-seleccionar el marco activo
+      const current = allFrames.find(item => {
+        const id = item.frame ? item.frame._id : item._id;
+        return id === activeFrameId;
       });
-      if (current) {
-        const frameObj = current.frame || current;
-        setSelected(frameObj);
-      }
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setLoading(false);
-    }
+      if (current) setSelected(current.frame || current);
+    } catch (e) { console.log(e); }
+    finally { setLoading(false); }
+  }
+
+  // Obtiene frameUrl y profileFrame prop correctos para AvatarWithFrame
+  function resolveFrameProps(frameObj) {
+    if (!frameObj) return { profileFrame: null, frameUrl: null };
+    if (frameObj._id === 'frame_001' || frameObj.isSystem)
+      return { profileFrame: 'frame_001', frameUrl: null };
+    return { profileFrame: frameObj._id, frameUrl: frameObj.imageUrl || null };
   }
 
   async function handleEquip() {
@@ -76,9 +73,7 @@ export default function FrameSelectorScreen({ navigation }) {
       navigation.goBack();
     } catch {
       Alert.alert('Error', 'No se pudo actualizar el marco');
-    } finally {
-      setEquipping(false);
-    }
+    } finally { setEquipping(false); }
   }
 
   async function handleRemove() {
@@ -89,56 +84,35 @@ export default function FrameSelectorScreen({ navigation }) {
       navigation.goBack();
     } catch {
       Alert.alert('Error', 'No se pudo quitar el marco');
-    } finally {
-      setEquipping(false);
-    }
+    } finally { setEquipping(false); }
   }
 
-  // Determina si el frame seleccionado está activo
   const isSelectedEquipped = selected?._id === activeFrameId;
-  const hasActiveFrame = activeFrameId !== 'default' && activeFrameId;
+  const hasActiveFrame     = activeFrameId !== 'default' && !!activeFrameId;
+
+  const previewProps = resolveFrameProps(selected);
 
   function renderCard({ item }) {
-    const frameObj = item.frame || item;
-    const units    = item.units !== undefined ? item.units : null;
-    const isActive = frameObj._id === activeFrameId;
+    const frameObj     = item.frame || item;
+    const units        = item.units !== undefined ? item.units : null;
+    const isActive     = frameObj._id === activeFrameId;
     const isSelectedCard = selected?._id === frameObj._id;
+    const cardProps    = resolveFrameProps(frameObj);
 
     return (
       <TouchableOpacity
-        style={[s.card, isSelectedCard && s.cardSelected, isActive && s.cardActive]}
+        style={[s.card, isSelectedCard && s.cardSelected, isActive && !isSelectedCard && s.cardActive]}
         onPress={() => setSelected(frameObj)}
         activeOpacity={0.75}
       >
         <View style={s.cardPreview}>
-          {frameObj.isSystem ? (
-            <AvatarWithFrame
-              size={CARD_W * 0.65}
-              avatarUrl={user?.avatarUrl}
-              username={user?.username}
-              profileFrame="frame_001"
-            />
-          ) : frameObj.imageUrl ? (
-            <View style={{ width: CARD_W * 0.75, height: CARD_W * 0.75, alignItems: 'center', justifyContent: 'center' }}>
-              <AvatarWithFrame
-                size={CARD_W * 0.65}
-                avatarUrl={user?.avatarUrl}
-                username={user?.username}
-                profileFrame={null}
-              />
-              <Image
-                source={{ uri: frameObj.imageUrl }}
-                style={[StyleSheet.absoluteFill]}
-                resizeMode="contain"
-              />
-            </View>
-          ) : (
-            <View style={s.cardPlaceholder}>
-              <Ionicons name="sparkles-outline" size={22} color={colors.c1} />
-            </View>
-          )}
-
-          {/* Badges */}
+          <AvatarWithFrame
+            size={CARD_W * 0.65}
+            avatarUrl={user?.avatarUrl}
+            username={user?.username}
+            profileFrame={cardProps.profileFrame}
+            frameUrl={cardProps.frameUrl}
+          />
           {isActive && (
             <View style={s.activeDot}>
               <Ionicons name="checkmark-circle" size={14} color={colors.c1} />
@@ -168,48 +142,23 @@ export default function FrameSelectorScreen({ navigation }) {
         </View>
       </SafeAreaView>
 
-      {/* Preview actual */}
+      {/* Preview */}
       <View style={s.previewSection}>
         <View style={s.previewGlow} />
-        <View style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE, alignItems: 'center', justifyContent: 'center' }}>
-          {selected?.isSystem || (!selected && activeFrameId === 'frame_001') ? (
-            <AvatarWithFrame
-              size={PREVIEW_SIZE}
-              avatarUrl={user?.avatarUrl}
-              username={user?.username}
-              profileFrame="frame_001"
-            />
-          ) : selected?.imageUrl ? (
-            <View style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}>
-              <AvatarWithFrame
-                size={PREVIEW_SIZE}
-                avatarUrl={user?.avatarUrl}
-                username={user?.username}
-                profileFrame={null}
-              />
-              <Image
-                source={{ uri: selected.imageUrl }}
-                style={[StyleSheet.absoluteFill, { width: PREVIEW_SIZE, height: PREVIEW_SIZE }]}
-                resizeMode="contain"
-              />
-            </View>
-          ) : (
-            <AvatarWithFrame
-              size={PREVIEW_SIZE}
-              avatarUrl={user?.avatarUrl}
-              username={user?.username}
-              profileFrame={null}
-            />
-          )}
-        </View>
-        {selected ? (
-          <Text style={s.previewName}>{selected.name}</Text>
-        ) : (
-          <Text style={s.previewHint}>Sin marco</Text>
-        )}
+        <AvatarWithFrame
+          size={PREVIEW_SIZE}
+          avatarUrl={user?.avatarUrl}
+          username={user?.username}
+          profileFrame={previewProps.profileFrame}
+          frameUrl={previewProps.frameUrl}
+        />
+        {selected
+          ? <Text style={s.previewName}>{selected.name}</Text>
+          : <Text style={s.previewHint}>Sin marco</Text>
+        }
       </View>
 
-      {/* Divider */}
+      {/* Subtítulo */}
       <View style={s.sectionHeader}>
         <Text style={s.sectionLabel}>TUS MARCOS</Text>
         {hasActiveFrame && (
@@ -242,11 +191,11 @@ export default function FrameSelectorScreen({ navigation }) {
         />
       )}
 
-      {/* Botón equipar fijo abajo */}
+      {/* Botón equipar */}
       {selected && (
         <View style={s.footer}>
           <TouchableOpacity
-            style={[s.equipBtn, isSelectedEquipped && s.equipBtnRemove]}
+            style={s.equipBtn}
             onPress={isSelectedEquipped ? handleRemove : handleEquip}
             disabled={equipping}
             activeOpacity={0.85}
@@ -256,8 +205,7 @@ export default function FrameSelectorScreen({ navigation }) {
                 ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']
                 : ['#006b63', '#00e5cc']}
               style={s.equipBtnInner}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             >
               {equipping ? (
                 <ActivityIndicator size="small" color={isSelectedEquipped ? colors.textDim : '#001a18'} />
@@ -283,7 +231,6 @@ export default function FrameSelectorScreen({ navigation }) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.black },
-
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
@@ -291,95 +238,60 @@ const s = StyleSheet.create({
   },
   backBtn:     { width: 40 },
   headerTitle: { fontSize: 13, fontWeight: '900', letterSpacing: 5, color: colors.c1 },
-
   previewSection: {
-    alignItems: 'center',
-    paddingVertical: 28,
-    gap: 10,
+    alignItems: 'center', paddingVertical: 28, gap: 10,
     backgroundColor: 'rgba(0,229,204,0.03)',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   previewGlow: {
     position: 'absolute',
-    width: PREVIEW_SIZE * 1.5,
-    height: PREVIEW_SIZE * 1.5,
+    width: PREVIEW_SIZE * 1.5, height: PREVIEW_SIZE * 1.5,
     borderRadius: PREVIEW_SIZE * 0.75,
     backgroundColor: 'rgba(0,229,204,0.06)',
   },
   previewName: { color: colors.textHi, fontSize: 15, fontWeight: '700' },
   previewHint: { color: colors.textDim, fontSize: 13 },
-
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8,
   },
   sectionLabel: { color: colors.textDim, fontSize: 9, fontWeight: '700', letterSpacing: 3 },
   removeLink:   { color: 'rgba(239,68,68,0.7)', fontSize: 11, fontWeight: '600' },
-
   grid: { paddingHorizontal: 16, paddingBottom: 100, paddingTop: 4 },
-
   card: {
-    width: CARD_W,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    overflow: 'hidden',
-    marginBottom: GAP,
+    width: CARD_W, backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden', marginBottom: GAP,
   },
-  cardSelected: {
-    borderColor: colors.c1,
-    backgroundColor: 'rgba(0,229,204,0.07)',
-  },
-  cardActive: {
-    borderColor: 'rgba(0,229,204,0.4)',
-  },
+  cardSelected: { borderColor: colors.c1, backgroundColor: 'rgba(0,229,204,0.07)' },
+  cardActive:   { borderColor: 'rgba(0,229,204,0.4)' },
   cardPreview: {
-    width: '100%',
-    aspectRatio: 1,
+    width: '100%', aspectRatio: 1,
     backgroundColor: 'rgba(0,0,0,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
-  cardPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  activeDot: {
-    position: 'absolute', top: 6, right: 6,
-  },
+  activeDot:  { position: 'absolute', top: 6, right: 6 },
   unitsBadge: {
     position: 'absolute', top: 6, right: 6,
-    backgroundColor: 'rgba(0,229,204,0.15)',
-    borderRadius: 8, paddingHorizontal: 5, paddingVertical: 2,
+    backgroundColor: 'rgba(0,229,204,0.15)', borderRadius: 8,
+    paddingHorizontal: 5, paddingVertical: 2,
     borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)',
   },
   unitsTxt: { color: colors.c1, fontSize: 9, fontWeight: '800' },
   cardName: {
     color: colors.textMid, fontSize: 10, fontWeight: '600',
-    paddingHorizontal: 7, paddingVertical: 7,
-    textAlign: 'center',
+    paddingHorizontal: 7, paddingVertical: 7, textAlign: 'center',
   },
-
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 40 },
-  emptyTxt:  { color: colors.textDim, fontSize: 14 },
-  emptyLink: { color: colors.c1, fontSize: 13, fontWeight: '600', marginTop: 4 },
-
+  empty:    { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 40 },
+  emptyTxt: { color: colors.textDim, fontSize: 14 },
+  emptyLink:{ color: colors.c1, fontSize: 13, fontWeight: '600', marginTop: 4 },
   footer: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-    paddingTop: 12,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 20, paddingBottom: 28, paddingTop: 12,
     backgroundColor: 'rgba(2,5,9,0.95)',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopWidth: 1, borderTopColor: colors.border,
   },
   equipBtn:      { borderRadius: 16, overflow: 'hidden' },
-  equipBtnRemove:{ },
   equipBtnInner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, paddingVertical: 15, borderRadius: 16,
