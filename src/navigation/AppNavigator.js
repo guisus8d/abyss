@@ -14,6 +14,7 @@ import PostImageScreen       from '../screens/PostImageScreen';
 import PostNoticiaScreen     from '../screens/PostNoticiaScreen';
 import SettingsScreen        from '../screens/SettingsScreen';
 import CollectionScreen     from '../screens/CollectionScreen';
+import CreateFrameScreen    from '../screens/CreateFrameScreen';
 import ModPanelScreen       from '../screens/ModPanelScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import FollowListScreen    from '../screens/FollowListScreen';
@@ -49,6 +50,7 @@ export default function AppNavigator() {
             <Stack.Screen name="PostNoticia"     component={PostNoticiaScreen} />
             <Stack.Screen name="Settings"         component={SettingsScreen} />
             <Stack.Screen name="Collection"       component={CollectionScreen} />
+            <Stack.Screen name="CreateFrame"      component={CreateFrameScreen} />
             <Stack.Screen name="ModPanel"         component={ModPanelScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="FollowList"    component={FollowListScreen} />

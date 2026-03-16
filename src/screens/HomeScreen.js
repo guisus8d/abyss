@@ -383,6 +383,7 @@ export default function HomeScreen({ navigation }) {
           onClose={() => setShowMenu(false)}
           onSelect={key => {
             if (key === 'quick') setShowCompose(true);
+            else if (key === 'frame') navigation.navigate('CreateFrame');
             else if (key === 'image') navigation.navigate('PostImage');
             else if (key === 'news') navigation.navigate('PostNoticia');
           }}

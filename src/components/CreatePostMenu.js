@@ -41,12 +41,12 @@ const OPTIONS = [
   {
     key: 'frame',
     icon: 'sparkles-outline',
-    label: 'Agregar marco',
-    hint: 'Próximamente',
+    label: 'Crear marco',
+    hint: 'Requiere 200 XP',
     color: 'rgba(244,114,182,1)',
     bg: 'rgba(236,72,153,0.08)',
     border: 'rgba(236,72,153,0.2)',
-    active: false,
+    active: true,
   },
   {
     key: 'channel',
