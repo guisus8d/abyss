@@ -92,6 +92,7 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
             avatarUrl={post.author.avatarUrl}
             username={post.author.username}
             profileFrame={post.author.profileFrame}
+              frameUrl={post.author.profileFrameUrl}
           />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
@@ -405,6 +406,8 @@ export default function HomeScreen({ navigation }) {
               avatarUrl={user?.avatarUrl}
               username={user?.username}
               profileFrame={user?.profileFrame}
+              frameUrl={user?.profileFrameUrl}
+              frameUrl={user?.profileFrameUrl}
               bgColor='rgba(0,229,204,0.15)'
             />
           </TouchableOpacity>
@@ -454,6 +457,7 @@ export default function HomeScreen({ navigation }) {
                   avatarUrl={u.avatarUrl}
                   username={u.username}
                   profileFrame={u.profileFrame}
+              frameUrl={u.profileFrameUrl}
                 />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={s.searchUser}>{u.username}</Text>

@@ -182,6 +182,8 @@ export default function PublicProfileScreen({ route, navigation }) {
             avatarUrl={profile?.avatarUrl}
             username={profile?.username}
             profileFrame={profile?.profileFrame}
+              frameUrl={profile?.profileFrameUrl}
+              frameUrl={profile?.profileFrameUrl}
             bgColor="rgba(0,229,204,0.12)"
           />
           <Text style={s.username}>{profile?.username}</Text>

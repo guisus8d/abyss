@@ -30,7 +30,10 @@ export default function FrameDetailScreen({ route, navigation }) {
     setEquipping(true);
     try {
       const frameId = isEquipped ? 'default' : frame._id;
-      const { data } = await api.patch('/users/me/profile', { profileFrame: frameId });
+      const patchPayload = { profileFrame: frameId };
+      if (frameId !== 'default') patchPayload.profileFrameUrl = frame.imageUrl || null;
+      else patchPayload.profileFrameUrl = null;
+      const { data } = await api.patch('/users/me/profile', patchPayload);
       if (updateUser) updateUser(data.user);
       Alert.alert(
         isEquipped ? 'Marco quitado' : '✅ Marco equipado',

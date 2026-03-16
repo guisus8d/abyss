@@ -101,6 +101,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
                 avatarUrl={avatarUrl}
                 username={user?.username}
                 profileFrame={user?.profileFrame}
+                frameUrl={user?.profileFrameUrl}
                 bgColor={colors.surface}
               />
               <View style={s.photoBtn}>

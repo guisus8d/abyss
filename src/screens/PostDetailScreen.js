@@ -122,7 +122,9 @@ export default function PostDetailScreen({ route, navigation }) {
           <TouchableOpacity style={s.authorRow}
             onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })}>
             <AvatarWithFrame size={42} avatarUrl={post.author?.avatarUrl}
-              username={post.author?.username} profileFrame={post.author?.profileFrame} />
+              username={post.author?.username} profileFrame={post.author?.profileFrame}
+              frameUrl={post.author?.profileFrameUrl}
+              frameUrl={post.author?.profileFrameUrl} />
             <View style={{ marginLeft: 10, flex: 1 }}>
               <Text style={s.authorName}>@{post.author?.username}</Text>
               <Text style={s.authorMeta}>XP {post.author?.xp || 0} · {timeAgo(post.createdAt)}</Text>

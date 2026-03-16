@@ -121,6 +121,7 @@ function UserCard({ user, index, navigation }) {
           <AvatarWithFrame
             avatarUrl={user.avatarUrl}
             profileFrame={user.profileFrame}
+            frameUrl={user.profileFrameUrl}
             username={user.username}
             size={52}
           />

@@ -123,6 +123,8 @@ export default function ChatsScreen({ navigation }) {
           })}>
           <AvatarWithFrame size={46} avatarUrl={sr.to?.avatarUrl}
             username={sr.to?.username} profileFrame={sr.to?.profileFrame}
+              frameUrl={sr.to?.profileFrameUrl}
+              frameUrl={sr.to?.profileFrameUrl}
             style={{ marginRight: 12 }} />
           <View style={{ flex: 1 }}>
             <Text style={s.chatUser}>{sr.to?.username}</Text>
@@ -144,6 +146,8 @@ export default function ChatsScreen({ navigation }) {
         onPress={() => navigation.navigate('ChatRoom', { chat, other })}>
         <AvatarWithFrame size={46} avatarUrl={other?.avatarUrl}
           username={other?.username} profileFrame={other?.profileFrame}
+              frameUrl={other?.profileFrameUrl}
+              frameUrl={other?.profileFrameUrl}
           style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={s.chatUser}>{other?.username}</Text>
@@ -178,6 +182,8 @@ export default function ChatsScreen({ navigation }) {
             <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: r.from?.username })}>
               <AvatarWithFrame size={46} avatarUrl={r.from?.avatarUrl}
                 username={r.from?.username} profileFrame={r.from?.profileFrame}
+              frameUrl={r.from?.profileFrameUrl}
+              frameUrl={r.from?.profileFrameUrl}
                 style={{ marginRight: 12 }} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>

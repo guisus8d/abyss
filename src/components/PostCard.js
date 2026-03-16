@@ -76,7 +76,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
       {/* Header */}
       <View style={s.cardHead}>
         <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })} style={{ marginRight: 10 }}>
-          <AvatarWithFrame size={38} avatarUrl={post.author.avatarUrl} username={post.author.username} profileFrame={post.author.profileFrame} />
+          <AvatarWithFrame size={38} avatarUrl={post.author.avatarUrl} username={post.author.username} profileFrame={post.author.profileFrame} frameUrl={post.author.profileFrameUrl} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })}>

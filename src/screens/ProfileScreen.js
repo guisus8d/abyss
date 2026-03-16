@@ -227,6 +227,7 @@ export default function ProfileScreen({ navigation }) {
                 avatarUrl={profile?.avatarUrl}
                 username={profile?.username}
                 profileFrame={profile?.profileFrame}
+                frameUrl={profile?.profileFrameUrl}
                 bgColor="rgba(0,229,204,0.12)"
               />
             </TouchableOpacity>

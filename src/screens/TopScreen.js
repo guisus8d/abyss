@@ -89,6 +89,7 @@ export default function TopScreen({ navigation }) {
                       avatarUrl={u.avatarUrl}
                       username={u.username}
                       profileFrame={u.profileFrame}
+              frameUrl={u.profileFrameUrl}
                     />
 
                     <Text style={[s.podiumUser, isFirst && s.podiumUserFirst]} numberOfLines={1}>
@@ -131,6 +132,7 @@ export default function TopScreen({ navigation }) {
               avatarUrl={item.avatarUrl}
               username={item.username}
               profileFrame={item.profileFrame}
+              frameUrl={item.profileFrameUrl}
               style={{ marginHorizontal: 12 }}
             />
             <Text style={s.rowUser}>{item.username}</Text>

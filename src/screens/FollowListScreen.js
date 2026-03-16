@@ -54,6 +54,7 @@ export default function FollowListScreen({ route, navigation }) {
                 avatarUrl={item.avatarUrl}
                 username={item.username}
                 profileFrame={item.profileFrame}
+              frameUrl={item.profileFrameUrl}
                 style={{ marginRight: 12 }}
               />
               <View style={{ flex: 1 }}>
