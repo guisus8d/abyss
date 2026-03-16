@@ -133,7 +133,7 @@ export default function CollectionScreen({ navigation }) {
             <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator.username}</Text>
           )}
         </TouchableOpacity>
-      </Animated.View>
+      </View>
     );
   }
 
