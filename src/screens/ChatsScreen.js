@@ -83,7 +83,7 @@ export default function ChatsScreen({ navigation }) {
   async function handleRequest(fromId, action) {
     try {
       const { data } = await api.patch(`/chats/request/${fromId}`, { action });
-      if (action === 'accept' && data.chat) setChats(prev => [data.chat, ...prev]);
+      if (action === 'accept' && data.chat) setChats(prev => prev.find(c => c._id === data.chat._id) ? prev : [data.chat, ...prev]);
       setRequests(prev => prev.filter(r => r.from._id !== fromId));
     } catch (err) { console.log(err); }
   }
@@ -124,7 +124,6 @@ export default function ChatsScreen({ navigation }) {
           <AvatarWithFrame size={46} avatarUrl={sr.to?.avatarUrl}
             username={sr.to?.username} profileFrame={sr.to?.profileFrame}
               frameUrl={sr.to?.profileFrameUrl}
-              frameUrl={sr.to?.profileFrameUrl}
             style={{ marginRight: 12 }} />
           <View style={{ flex: 1 }}>
             <Text style={s.chatUser}>{sr.to?.username}</Text>
@@ -146,7 +145,6 @@ export default function ChatsScreen({ navigation }) {
         onPress={() => navigation.navigate('ChatRoom', { chat, other })}>
         <AvatarWithFrame size={46} avatarUrl={other?.avatarUrl}
           username={other?.username} profileFrame={other?.profileFrame}
-              frameUrl={other?.profileFrameUrl}
               frameUrl={other?.profileFrameUrl}
           style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
