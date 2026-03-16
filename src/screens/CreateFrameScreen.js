@@ -87,7 +87,11 @@ export default function CreateFrameScreen({ navigation }) {
       formData.append('units', String(selectedPkg.units));
       formData.append('cost', String(selectedPkg.cost));
       const blob = await fetch(frameImage).then(r => r.blob());
-      formData.append('image', blob, 'frame.png');
+      const ext  = blob.type === 'image/webp' ? 'webp'
+                 : blob.type === 'image/png'  ? 'png'
+                 : blob.type === 'image/gif'  ? 'gif'
+                 : 'jpg';
+      formData.append('image', blob, `frame.${ext}`);
       const { data } = await api.post('/frames', formData, {
         headers: { 'Content-Type':'multipart/form-data' },
       });
