@@ -181,7 +181,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                           <Text style={s.commentText}>{c.text}</Text>
                         </Text>
                       </View>
-                      <TouchableOpacity onLongPress={() => (c.user?._id === currentUserId) && setDeleteCommentModal(c._id)} onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
+                      <TouchableOpacity onLongPress={() => { const uid = c.user?._id?.toString() || c.user?.toString(); if (uid === currentUserId?.toString()) setDeleteCommentModal(c._id); }} onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
                         <Ionicons name="return-down-forward-outline" size={14} color="#555" />
                       </TouchableOpacity>
                     </View>

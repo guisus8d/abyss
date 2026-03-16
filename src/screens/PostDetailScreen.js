@@ -36,9 +36,9 @@ export default function PostDetailScreen({ route, navigation }) {
   async function loadPost() {
     try {
       const { data } = await api.get(`/posts/${postId}`);
-      setPost(data.post);
-    } catch {
-      navigation.goBack();
+      if (data.post) setPost(data.post);
+    } catch (e) {
+      console.log('loadPost error:', e.response?.status, e.message);
     } finally {
       setLoading(false);
     }
