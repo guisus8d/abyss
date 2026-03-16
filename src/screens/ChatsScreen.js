@@ -89,9 +89,7 @@ export default function ChatsScreen({ navigation }) {
   }
 
   function getOther(chat) {
-    const o = chat.participants?.find(p => p._id !== user._id) || chat.participants?.[0];
-    console.log('OTHER:', JSON.stringify({ pf: o?.profileFrame, fu: o?.profileFrameUrl }));
-    return o;
+    return chat.participants?.find(p => p._id !== user._id) || chat.participants?.[0];
   }
 
   function switchTab(key) {
