@@ -46,7 +46,7 @@ export default function CreateFrameScreen({ navigation }) {
   const [name, setName]       = useState('');
   const [description, setDesc]= useState('');
   const [pkg, setPkg]         = useState(0);           // índice del paquete
-  const [frameImage, setFrameImg] = useState(null);
+  const [frameImage, setFrameImg] = useState(null);  // { uri, mimeType }
   const [bgType, setBgType]   = useState('color');
   const [bgColor, setBgColor] = useState('#0d1f2d');
   const [bgGradient, setBgGrad] = useState(['#000000','#0d1f2d']);
@@ -56,12 +56,16 @@ export default function CreateFrameScreen({ navigation }) {
 
   const selectedPkg = PACKAGES[pkg];
   const canCreate   = (user?.xp || 0) >= 200 && (user?.coins || 0) >= selectedPkg.cost;
+  const frameUri    = frameImage?.uri || null;
 
   async function pickFrame() {
     const r = await ImagePicker.launchImageLibraryAsync({
       mediaTypes:['images'], allowsEditing:true, aspect:[1,1], quality:1,
     });
-    if (!r.canceled) setFrameImg(r.assets[0].uri);
+    if (!r.canceled) {
+      const asset = r.assets[0];
+      setFrameImg({ uri: asset.uri, mimeType: asset.mimeType || 'image/png' });
+    }
   }
 
   async function pickBgImage() {
@@ -73,7 +77,7 @@ export default function CreateFrameScreen({ navigation }) {
 
   async function handleCreate() {
     if (!name.trim())  return Alert.alert('Falta nombre', 'Ponle un nombre a tu marco');
-    if (!frameImage)   return Alert.alert('Falta imagen', 'Sube la imagen del marco');
+    if (!frameImage?.uri) return Alert.alert('Falta imagen', 'Sube la imagen del marco');
     if (!canCreate)    return Alert.alert('Sin recursos', `Necesitas ${selectedPkg.cost} ✦ y 200 XP`);
     setPublishing(true);
     try {
@@ -86,21 +90,14 @@ export default function CreateFrameScreen({ navigation }) {
       formData.append('bgGradient', JSON.stringify(bgGradient));
       formData.append('units', String(selectedPkg.units));
       formData.append('cost', String(selectedPkg.cost));
-      const blob = await fetch(frameImage).then(r => r.blob());
-      // Detectar extensión desde la URI original (más confiable que blob.type en Expo Web)
-      const uriLower = frameImage.toLowerCase();
-      const ext = uriLower.includes('.webp') ? 'webp'
-                : uriLower.includes('.png')  ? 'png'
-                : uriLower.includes('.gif')  ? 'gif'
-                : uriLower.includes('.webp') ? 'webp'
-                : (blob.type === 'image/webp') ? 'webp'
-                : (blob.type === 'image/png')  ? 'png'
-                : 'jpg';
-      const mimeType = ext === 'webp' ? 'image/webp'
-                     : ext === 'png'  ? 'image/png'
-                     : ext === 'gif'  ? 'image/gif'
-                     : 'image/jpeg';
-      const namedBlob = new Blob([blob], { type: mimeType });
+      const blob = await fetch(frameImage.uri).then(r => r.blob());
+      // Usar mimeType guardado por ImagePicker — la fuente más confiable
+      const mime = frameImage.mimeType || blob.type || 'image/png';
+      const ext  = mime.includes('webp') ? 'webp'
+                 : mime.includes('png')  ? 'png'
+                 : mime.includes('gif')  ? 'gif'
+                 : 'jpg';
+      const namedBlob = new Blob([blob], { type: mime });
       formData.append('image', namedBlob, `frame.${ext}`);
       const { data } = await api.post('/frames', formData, {
         headers: { 'Content-Type':'multipart/form-data' },
@@ -174,8 +171,8 @@ export default function CreateFrameScreen({ navigation }) {
                       {av.letter === '?' ? (user?.username?.[0]?.toUpperCase() || '?') : av.letter}
                     </Text>}
               </View>
-              {frameImage && (
-                <Image source={{uri:frameImage}} resizeMode="contain" pointerEvents="none"
+              {frameImage?.uri && (
+                <Image source={{uri:frameImage.uri}} resizeMode="contain" pointerEvents="none"
                   style={s.previewFrameOverlay} />
               )}
             </View>
@@ -244,7 +241,7 @@ export default function CreateFrameScreen({ navigation }) {
             <Text style={s.sectionHint}>PNG o WebP con fondo transparente · 600×600px recomendado</Text>
             <TouchableOpacity style={s.uploadBtn} onPress={pickFrame}>
               {frameImage
-                ? <Image source={{uri:frameImage}} style={s.uploadPreview} resizeMode="contain" />
+                ? <Image source={{uri:frameImage.uri}} style={s.uploadPreview} resizeMode="contain" />
                 : <View style={s.uploadEmpty}>
                     <Ionicons name="cloud-upload-outline" size={32} color={colors.c1} />
                     <Text style={s.uploadTxt}>Toca para subir</Text>
