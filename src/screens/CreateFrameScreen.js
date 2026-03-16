@@ -87,11 +87,21 @@ export default function CreateFrameScreen({ navigation }) {
       formData.append('units', String(selectedPkg.units));
       formData.append('cost', String(selectedPkg.cost));
       const blob = await fetch(frameImage).then(r => r.blob());
-      const ext  = blob.type === 'image/webp' ? 'webp'
-                 : blob.type === 'image/png'  ? 'png'
-                 : blob.type === 'image/gif'  ? 'gif'
-                 : 'jpg';
-      formData.append('image', blob, `frame.${ext}`);
+      // Detectar extensión desde la URI original (más confiable que blob.type en Expo Web)
+      const uriLower = frameImage.toLowerCase();
+      const ext = uriLower.includes('.webp') ? 'webp'
+                : uriLower.includes('.png')  ? 'png'
+                : uriLower.includes('.gif')  ? 'gif'
+                : uriLower.includes('.webp') ? 'webp'
+                : (blob.type === 'image/webp') ? 'webp'
+                : (blob.type === 'image/png')  ? 'png'
+                : 'jpg';
+      const mimeType = ext === 'webp' ? 'image/webp'
+                     : ext === 'png'  ? 'image/png'
+                     : ext === 'gif'  ? 'image/gif'
+                     : 'image/jpeg';
+      const namedBlob = new Blob([blob], { type: mimeType });
+      formData.append('image', namedBlob, `frame.${ext}`);
       const { data } = await api.post('/frames', formData, {
         headers: { 'Content-Type':'multipart/form-data' },
       });
