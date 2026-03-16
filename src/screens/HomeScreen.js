@@ -129,7 +129,7 @@ function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigatio
       ) : (
         <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: post._id })}>
           <Text style={s.cardBody}>{post.content}</Text>
-          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.postImage} />}
+          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="contain" />}
         </TouchableOpacity>
       )}
 
@@ -603,7 +603,7 @@ const s = StyleSheet.create({
   emojiOptTxt: { fontSize: 22 },
   deleteBtn:    { padding: 8, marginLeft: 4, backgroundColor: 'rgba(255,0,0,0.15)', borderRadius: 8 },
   deleteBtnTxt: { color: '#ff4444', fontSize: 18, fontWeight: 'bold' },
-  postImage:  { width: "100%", aspectRatio: 4/3, borderRadius: 12, marginBottom: 10, backgroundColor: colors.surface },
+  postImage:  { width: "100%", aspectRatio: 4/3, borderRadius: 12, marginBottom: 10, backgroundColor: colors.surface, resizeMode: 'contain' },
   tagsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   tag:        { color: colors.c1, fontSize: 11, opacity: 0.7 },
   cardActions:{ flexDirection: 'row', alignItems: 'center', gap: 20 },

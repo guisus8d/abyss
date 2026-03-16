@@ -248,7 +248,7 @@ const s = StyleSheet.create({
 
   quickWrap:  { paddingHorizontal: 16, marginBottom: 12 },
   postContent:{ color: colors.textHi, fontSize: 16, lineHeight: 24, marginBottom: 12 },
-  postImage:  { width: '100%', aspectRatio: 4/3, borderRadius: 14 },
+  postImage:  { width: '100%', maxHeight: 400, borderRadius: 14 },
 
   tagsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, marginBottom: 12 },
   tag:        { color: colors.c1, fontSize: 12, backgroundColor: 'rgba(0,229,204,0.08)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },

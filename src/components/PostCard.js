@@ -20,6 +20,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
   const [commentText, setCommentText]       = useState('');
   const [sending, setSending]               = useState(false);
   const [replyToComment, setReplyToComment] = useState(null);
+  const [deleteCommentModal, setDeleteCommentModal] = useState(null);
 
   const likeCount      = post.reactions.filter(r => r.type === 'like').length;
   const hasLiked       = post.reactions.some(r => (r.user?._id || r.user) === currentUserId && r.type === 'like');
@@ -31,6 +32,14 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
     const uid = r.user?._id || r.user;
     return uid?.toString() === currentUserId?.toString();
   });
+
+  async function handleDeleteComment(commentId) {
+    try {
+      const { data } = await api.delete(`/posts/${post._id}/comment/${commentId}`);
+      if (onComment) onComment(post._id, null, null, data.comments);
+    } catch (e) { console.log('deleteComment error:', e.message); }
+    finally { setDeleteCommentModal(null); }
+  }
 
   async function submitComment() {
     if (!commentText.trim() || sending) return;
@@ -45,6 +54,25 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
 
   return (
     <View style={s.card}>
+      {/* Modal borrar comentario */}
+      <Modal visible={!!deleteCommentModal} transparent animationType="fade" onRequestClose={() => setDeleteCommentModal(null)}>
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', alignItems:'center', justifyContent:'center', padding:24 }}>
+          <View style={{ backgroundColor:'#0d1f2d', borderRadius:20, padding:24, width:'100%', borderWidth:1, borderColor:'rgba(255,255,255,0.08)' }}>
+            <Text style={{ color:'#fff', fontSize:16, fontWeight:'700', textAlign:'center', marginBottom:8 }}>¿Borrar comentario?</Text>
+            <Text style={{ color:'rgba(255,255,255,0.4)', fontSize:13, textAlign:'center', marginBottom:24 }}>Esta acción no se puede deshacer</Text>
+            <View style={{ flexDirection:'row', gap:12 }}>
+              <TouchableOpacity onPress={() => setDeleteCommentModal(null)}
+                style={{ flex:1, paddingVertical:12, borderRadius:14, borderWidth:1, borderColor:'rgba(255,255,255,0.12)', alignItems:'center' }}>
+                <Text style={{ color:'rgba(255,255,255,0.5)', fontWeight:'600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDeleteComment(deleteCommentModal)}
+                style={{ flex:1, paddingVertical:12, borderRadius:14, backgroundColor:'rgba(239,68,68,0.8)', alignItems:'center' }}>
+                <Text style={{ color:'#fff', fontWeight:'700' }}>Borrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       {/* Header */}
       <View style={s.cardHead}>
         <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })} style={{ marginRight: 10 }}>
@@ -153,7 +181,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                           <Text style={s.commentText}>{c.text}</Text>
                         </Text>
                       </View>
-                      <TouchableOpacity onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
+                      <TouchableOpacity onLongPress={() => (c.user?._id === currentUserId) && setDeleteCommentModal(c._id)} onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
                         <Ionicons name="return-down-forward-outline" size={14} color="#555" />
                       </TouchableOpacity>
                     </View>
