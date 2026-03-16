@@ -347,7 +347,11 @@ export default function HomeScreen({ navigation }) {
     }
   }
 
-  async function handleComment(postId, text, replyTo) {
+  async function handleComment(postId, text, replyTo, updatedComments) {
+    if (updatedComments) {
+      setPosts(prev => prev.map(p => p._id === postId ? { ...p, comments: updatedComments } : p));
+      return;
+    }
     try {
       const { data } = await api.post(`/posts/${postId}/comment`, { text, replyTo });
       setPosts(prev => prev.map(p => {
