@@ -23,12 +23,8 @@ const TABS = [
 const TAB_W = (W - 32) / TABS.length;
 
 function FrameCard({ frame, units, index, onPress }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue:1, duration:400, delay:index*60, useNativeDriver:true }).start();
-  }, []);
   return (
-    <Animated.View style={{ opacity: fadeAnim }}>
+    <View>
       <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
         <View style={s.cardPreview}>
           {frame.imageUrl
@@ -40,7 +36,7 @@ function FrameCard({ frame, units, index, onPress }) {
         <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
         {frame.creator?.username && <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator.username}</Text>}
       </TouchableOpacity>
-    </Animated.View>
+    </View>
   );
 }
 
