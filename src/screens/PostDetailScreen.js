@@ -281,3 +281,4 @@ const s = StyleSheet.create({
   sendBtn:    { backgroundColor: colors.c1, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled:{ backgroundColor: 'rgba(0,229,204,0.3)' },
 });
+// dom 15 mar 2026 19:44:51 CST
