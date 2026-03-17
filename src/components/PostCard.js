@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, Image,
+  View, Text, TouchableOpacity, Image, Modal,
   StyleSheet, TextInput, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import AvatarWithFrame from './AvatarWithFrame';
+import api from '../services/api';
 
 function timeAgo(date) {
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
@@ -73,6 +74,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
           </View>
         </View>
       </Modal>
+
       {/* Header */}
       <View style={s.cardHead}>
         <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })} style={{ marginRight: 10 }}>
@@ -174,25 +176,55 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                 const cReplies = replies.filter(r => r.replyTo.commentId?.toString() === c._id?.toString());
                 return (
                   <View key={i}>
+                    {/* Comentario principal */}
                     <View style={s.comment}>
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
+                        style={{ marginRight: 8 }}
+                      >
+                        <AvatarWithFrame
+                          size={28}
+                          avatarUrl={c.user?.avatarUrl}
+                          username={c.user?.username}
+                          profileFrame={c.user?.profileFrame}
+                          frameUrl={c.user?.profileFrameUrl}
+                        />
+                      </TouchableOpacity>
                       <View style={{ flex: 1 }}>
-                        <Text>
-                          <Text style={s.commentUser}>{c.user?.username} </Text>
-                          <Text style={s.commentText}>{c.text}</Text>
-                        </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>
+                          <Text style={s.commentUser}>{c.user?.username}</Text>
+                        </TouchableOpacity>
+                        <Text style={s.commentText}>{c.text}</Text>
                       </View>
-                      <TouchableOpacity onLongPress={() => { const uid = c.user?._id?.toString() || c.user?.toString(); if (uid === currentUserId?.toString()) setDeleteCommentModal(c._id); }} onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
+                      <TouchableOpacity
+                        onLongPress={() => { const uid = c.user?._id?.toString() || c.user?.toString(); if (uid === currentUserId?.toString()) setDeleteCommentModal(c._id); }}
+                        onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}
+                      >
                         <Ionicons name="return-down-forward-outline" size={14} color="#555" />
                       </TouchableOpacity>
                     </View>
+
+                    {/* Respuestas */}
                     {cReplies.map((r, j) => (
                       <View key={j} style={s.commentReply}>
                         <View style={s.commentReplyLine} />
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate('PublicProfile', { username: r.user?.username })}
+                          style={{ marginRight: 8 }}
+                        >
+                          <AvatarWithFrame
+                            size={24}
+                            avatarUrl={r.user?.avatarUrl}
+                            username={r.user?.username}
+                            profileFrame={r.user?.profileFrame}
+                            frameUrl={r.user?.profileFrameUrl}
+                          />
+                        </TouchableOpacity>
                         <View style={{ flex: 1 }}>
-                          <Text>
-                            <Text style={s.commentUser}>{r.user?.username} </Text>
-                            <Text style={s.commentText}>{r.text}</Text>
-                          </Text>
+                          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: r.user?.username })}>
+                            <Text style={s.commentUser}>{r.user?.username}</Text>
+                          </TouchableOpacity>
+                          <Text style={s.commentText}>{r.text}</Text>
                         </View>
                         <TouchableOpacity onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
                           <Ionicons name="return-down-forward-outline" size={14} color="#555" />
@@ -204,6 +236,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
               });
             })()}
           </ScrollView>
+
           {replyToComment && (
             <View style={s.commentReplyBar}>
               <Text style={s.commentReplyBarTxt} numberOfLines={1}>↩ @{replyToComment.username}: {replyToComment.text?.slice(0,40)}</Text>
@@ -212,6 +245,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
               </TouchableOpacity>
             </View>
           )}
+
           <View style={s.commentInput}>
             <TextInput
               style={s.commentField}
@@ -220,8 +254,12 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
               value={commentText}
               onChangeText={setCommentText}
             />
-            <TouchableOpacity onPress={submitComment} disabled={sending}>
-              <Text style={s.commentSend}>{sending ? '...' : '↑'}</Text>
+            <TouchableOpacity
+              style={[s.sendBtn, (!commentText.trim() || sending) && s.sendBtnDisabled]}
+              onPress={submitComment}
+              disabled={!commentText.trim() || sending}
+            >
+              <Ionicons name="send" size={15} color={colors.black} />
             </TouchableOpacity>
           </View>
         </View>
@@ -256,16 +294,17 @@ const s = StyleSheet.create({
   emojiOpt:   { padding: 5 },
   emojiOptTxt:{ fontSize: 22 },
   commentsBox:{ marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
-  comment:    { flexDirection: 'row', marginBottom: 6 },
-  commentUser:{ color: colors.c1, fontSize: 12, fontWeight: '600' },
+  comment:    { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  commentUser:{ color: colors.c1, fontSize: 12, fontWeight: '600', marginBottom: 1 },
   commentText:{ color: colors.textMid, fontSize: 12 },
-  commentReply:     { flexDirection: 'row', paddingLeft: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#111' },
-  commentReplyLine: { width: 2, backgroundColor: '#333', marginRight: 10, borderRadius: 2 },
+  commentReply:     { flexDirection: 'row', alignItems: 'flex-start', paddingLeft: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#111' },
+  commentReplyLine: { width: 2, backgroundColor: '#333', marginRight: 10, borderRadius: 2, alignSelf: 'stretch' },
   commentReplyBar:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', padding: 6, borderRadius: 8, marginBottom: 4 },
   commentReplyBarTxt:{ color: '#888', fontSize: 11, flex: 1 },
   commentInput: { flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: 'rgba(8,20,36,0.95)', borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6 },
   commentField: { flex: 1, color: colors.textHi, fontSize: 13 },
-  commentSend:  { color: colors.c1, fontSize: 20, paddingLeft: 8 },
+  sendBtn:      { backgroundColor: colors.c1, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  sendBtnDisabled:{ backgroundColor: 'rgba(0,229,204,0.3)' },
   modBadge:   { backgroundColor: 'rgba(251,191,36,0.15)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' },
   modBadgeTxt:{ color: 'rgba(251,191,36,1)', fontSize: 8, fontWeight: '800', letterSpacing: 1 },
   adminBadge: { backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' },

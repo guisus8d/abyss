@@ -104,6 +104,7 @@ export default function PostDetailScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <SafeAreaView>
         <View style={s.header}>
@@ -123,7 +124,6 @@ export default function PostDetailScreen({ route, navigation }) {
             onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })}>
             <AvatarWithFrame size={42} avatarUrl={post.author?.avatarUrl}
               username={post.author?.username} profileFrame={post.author?.profileFrame}
-              frameUrl={post.author?.profileFrameUrl}
               frameUrl={post.author?.profileFrameUrl} />
             <View style={{ marginLeft: 10, flex: 1 }}>
               <Text style={s.authorName}>@{post.author?.username}</Text>
@@ -134,19 +134,15 @@ export default function PostDetailScreen({ route, navigation }) {
           {/* Contenido según tipo */}
           {isNews ? (
             <View style={s.newsWrap}>
-              {/* Imagen portada */}
               {post.imageUrl && (
                 <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" />
               )}
               <View style={s.newsBody}>
-                {/* Badge */}
                 <View style={s.newsBadge}>
                   <Ionicons name="newspaper-outline" size={11} color="rgba(251,191,36,1)" />
                   <Text style={s.newsBadgeTxt}>NOTICIA</Text>
                 </View>
-                {/* Título */}
                 {post.title ? <Text style={s.newsTitle}>{post.title}</Text> : null}
-                {/* Cuerpo */}
                 {post.content ? <Text style={s.newsContent}>{post.content}</Text> : null}
               </View>
             </View>
@@ -166,7 +162,6 @@ export default function PostDetailScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* Divisor */}
           <View style={s.divider} />
 
           {/* Comentarios */}
@@ -181,7 +176,6 @@ export default function PostDetailScreen({ route, navigation }) {
 
           {(() => {
             const comments = post.comments || [];
-            // Separar padres (sin replyTo) y respuestas
             const parents  = comments.filter(c => !c.replyTo?.commentId);
             const replies  = comments.filter(c => !!c.replyTo?.commentId);
 
@@ -191,38 +185,50 @@ export default function PostDetailScreen({ route, navigation }) {
             const renderComment = (c, isReply = false) => (
               <View key={c._id || Math.random()} style={[s.commentWrap, isReply && s.commentWrapReply]}>
                 {isReply && <View style={s.replyLine} />}
-                <TouchableOpacity style={s.comment}
-                  onLongPress={() => {
-                    const uid = c.user?._id?.toString() || c.user?.toString();
-                    if (uid === user?._id?.toString()) setDeleteCommentModal(c._id);
-                  }}
-                  onPress={() => {
-                    // Si es reply, apunta al padre original del hilo
-                    const parentId = isReply ? c.replyTo?.commentId : c._id;
-                    const parentUsername = isReply ? c.replyTo?.username : c.user?.username;
-                    setReplyTo({ commentId: parentId, username: c.user?.username, text: c.text });
-                    inputRef.current?.focus();
-                  }}>
-                  {/* Preview del comentario al que responde */}
-                  {isReply && c.replyTo?.text && (
-                    <View style={s.replyPreview}>
-                      <Text style={s.replyTxt} numberOfLines={1}>↩ @{c.replyTo.username}: {c.replyTo.text}</Text>
-                    </View>
-                  )}
-                  <View style={s.commentRow}>
-                    <View style={s.commentAv}>
-                      {c.user?.avatarUrl
-                        ? <Image source={{ uri: c.user.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 16 }} />
-                        : <Text style={{ color: colors.c1, fontWeight: '700', fontSize: 11 }}>{c.user?.username?.[0]?.toUpperCase()}</Text>}
-                    </View>
-                    <View style={{ flex: 1 }}>
+                <View style={s.commentRow}>
+                  {/* Avatar con marco — tappable */}
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
+                    style={{ marginRight: 10 }}
+                  >
+                    <AvatarWithFrame
+                      size={isReply ? 28 : 34}
+                      avatarUrl={c.user?.avatarUrl}
+                      username={c.user?.username}
+                      profileFrame={c.user?.profileFrame}
+                      frameUrl={c.user?.profileFrameUrl}
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ flex: 1 }}
+                    onLongPress={() => {
+                      const uid = c.user?._id?.toString() || c.user?.toString();
+                      if (uid === user?._id?.toString()) setDeleteCommentModal(c._id);
+                    }}
+                    onPress={() => {
+                      const parentId = isReply ? c.replyTo?.commentId : c._id;
+                      setReplyTo({ commentId: parentId, username: c.user?.username, text: c.text });
+                      inputRef.current?.focus();
+                    }}
+                  >
+                    {/* Preview del comentario al que responde */}
+                    {isReply && c.replyTo?.text && (
+                      <View style={s.replyPreview}>
+                        <Text style={s.replyTxt} numberOfLines={1}>↩ @{c.replyTo.username}: {c.replyTo.text}</Text>
+                      </View>
+                    )}
+                    {/* Username tappable */}
+                    <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>
                       <Text style={s.commentUser}>@{c.user?.username}</Text>
-                      <Text style={s.commentTxt}>{c.text}</Text>
-                    </View>
-                    <Ionicons name="return-down-back-outline" size={14} color={colors.textDim} />
-                  </View>
-                </TouchableOpacity>
-                {/* Respuestas anidadas — solo 1 nivel máximo */}
+                    </TouchableOpacity>
+                    <Text style={s.commentTxt}>{c.text}</Text>
+                  </TouchableOpacity>
+
+                  <Ionicons name="return-down-back-outline" size={14} color={colors.textDim} />
+                </View>
+
+                {/* Respuestas anidadas */}
                 {!isReply && getReplies(c._id).map(r => renderComment(r, true))}
               </View>
             );
@@ -300,18 +306,14 @@ const s = StyleSheet.create({
   emptyComments:  { alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptyCommentsTxt:{ color: colors.textDim, fontSize: 13 },
 
-  comment:    { paddingVertical: 8 },
-  commentWrap:     { paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  commentWrapReply:{ paddingLeft: 36, borderBottomWidth: 0 },
+  commentWrap:     { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  commentWrapReply:{ paddingLeft: 36, borderBottomWidth: 0, paddingVertical: 6 },
   replyLine:       { position: 'absolute', left: 28, top: 0, bottom: 0, width: 1.5, backgroundColor: colors.border },
+  commentRow:      { flexDirection: 'row', alignItems: 'flex-start' },
+  commentUser:     { color: colors.c1, fontWeight: '700', fontSize: 12, marginBottom: 3 },
+  commentTxt:      { color: colors.textMid, fontSize: 13, lineHeight: 18 },
   replyPreview:    { backgroundColor: colors.card, borderLeftWidth: 2, borderLeftColor: colors.borderC, paddingLeft: 8, paddingVertical: 4, borderRadius: 4, marginBottom: 6 },
   replyTxt:        { color: colors.textDim, fontSize: 11 },
-  commentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  commentAv:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  commentUser:{ color: colors.c1, fontWeight: '700', fontSize: 12, marginBottom: 3 },
-  commentTxt: { color: colors.textMid, fontSize: 13, lineHeight: 18 },
-  replyPreview:{ backgroundColor: colors.card, borderLeftWidth: 2, borderLeftColor: colors.border, paddingLeft: 8, paddingVertical: 4, borderRadius: 4, marginBottom: 6 },
-  replyTxt:   { color: colors.textDim, fontSize: 11 },
 
   inputWrap:  { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, padding: 12 },
   replyBanner:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, paddingBottom: 8 },
@@ -321,4 +323,3 @@ const s = StyleSheet.create({
   sendBtn:    { backgroundColor: colors.c1, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled:{ backgroundColor: 'rgba(0,229,204,0.3)' },
 });
-// dom 15 mar 2026 19:44:51 CST
