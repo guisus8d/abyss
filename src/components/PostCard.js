@@ -229,6 +229,11 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                           <AvatarWithFrame size={22} avatarUrl={r.user?.avatarUrl} username={r.user?.username} />
                         </TouchableOpacity>
                         <View style={{ flex: 1 }}>
+                          {r.replyTo?.text && (
+                            <View style={s.replyPreview}>
+                              <Text style={s.replyPreviewTxt} numberOfLines={1}>↩ @{r.replyTo.username}: {r.replyTo.text}</Text>
+                            </View>
+                          )}
                           <TouchableOpacity onPress={() => goToProfile(r.user?.username, r.user?._id)}>
                             <Text style={s.commentUser}>{r.user?.username}</Text>
                           </TouchableOpacity>
@@ -309,6 +314,8 @@ const s = StyleSheet.create({
   commentAvatarWrapSm: { width: 22, height: 22, marginRight: 8,  overflow: 'visible' },
   commentUser: { color: colors.c1, fontSize: 12, fontWeight: '600', marginBottom: 1 },
   commentText: { color: colors.textMid, fontSize: 12 },
+  replyPreview: { backgroundColor: colors.surface, borderLeftWidth: 2, borderLeftColor: colors.borderC, paddingLeft: 6, paddingVertical: 3, borderRadius: 4, marginBottom: 4 },
+  replyPreviewTxt: { color: colors.textDim, fontSize: 10 },
   commentReply:      { flexDirection: 'row', alignItems: 'flex-start', paddingLeft: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#111' },
   commentReplyLine:  { width: 2, backgroundColor: '#333', marginRight: 10, borderRadius: 2, alignSelf: 'stretch' },
   commentReplyBar:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', padding: 6, borderRadius: 8, marginBottom: 4 },
