@@ -195,8 +195,6 @@ export default function PostDetailScreen({ route, navigation }) {
                       size={isReply ? 28 : 34}
                       avatarUrl={c.user?.avatarUrl}
                       username={c.user?.username}
-                      profileFrame={c.user?.profileFrame}
-                      frameUrl={c.user?.profileFrameUrl}
                     />
                   </TouchableOpacity>
 
@@ -225,7 +223,16 @@ export default function PostDetailScreen({ route, navigation }) {
                     <Text style={s.commentTxt}>{c.text}</Text>
                   </TouchableOpacity>
 
-                  <Ionicons name="return-down-back-outline" size={14} color={colors.textDim} />
+                  <TouchableOpacity
+                    onPress={() => {
+                      const parentId = isReply ? c.replyTo?.commentId : c._id;
+                      setReplyTo({ commentId: parentId, username: c.user?.username, text: c.text });
+                      inputRef.current?.focus();
+                    }}
+                    style={{ paddingLeft: 8 }}
+                  >
+                    <Ionicons name="return-down-back-outline" size={14} color={colors.textDim} />
+                  </TouchableOpacity>
                 </View>
 
                 {/* Respuestas anidadas */}

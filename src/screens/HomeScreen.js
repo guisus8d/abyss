@@ -18,6 +18,7 @@ import { TouchableWithoutFeedback } from 'react-native';
 import PostComposer    from '../components/PostComposer';
 import CreatePostMenu from '../components/CreatePostMenu';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import PostCard from '../components/PostCard';
 import OrbitUsers    from '../components/OrbitUsers';
 import RandomUsers  from '../components/RandomUsers';
 
@@ -46,214 +47,6 @@ function BadgeToast({ badge, onHide }) {
         <Text style={s.toastName}>{badge.name}</Text>
       </View>
     </Animated.View>
-  );
-}
-
-function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigation, openPickerId, setOpenPickerId }) {
-  const [showComments, setShowComments] = useState(false);
-  const [commentText, setCommentText]   = useState('');
-  const [sending, setSending]           = useState(false);
-  const [replyToComment, setReplyToComment] = useState(null);
-  const showEmojiPicker = openPickerId;
-  const setShowEmojiPicker = setOpenPickerId;
-
-  const likeCount = post.reactions.filter(r => r.type === 'like').length;
-  const hasLiked  = post.reactions.some(r => r.user === currentUserId && r.type === 'like');
-  const emojiReactions = post.reactions.filter(r => r.type !== 'like');
-  const emojiGroups = Object.entries(
-    emojiReactions.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {})
-  ).map(([emoji, count]) => ({ emoji, count }));
-  const myEmoji = emojiReactions.find(r => {
-    const uid = r.user?._id || r.user;
-    return uid?.toString() === currentUserId?.toString();
-  });
-
-  async function submitComment() {
-    if (!commentText.trim() || sending) return;
-    setSending(true);
-    const txt = commentText.trim();
-    const reply = replyToComment;
-    setCommentText('');
-    setReplyToComment(null);
-    await onComment(post._id, txt, reply);
-    setSending(false);
-  }
-
-  return (
-    <View style={s.card}>
-      <View style={s.cardHead}>
-        {/* Avatar con marco */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })}
-          style={{ marginRight: 10 }}
-        >
-          <AvatarWithFrame
-            size={38}
-            avatarUrl={post.author.avatarUrl}
-            username={post.author.username}
-            profileFrame={post.author.profileFrame}
-              frameUrl={post.author.profileFrameUrl}
-          />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })}>
-            <Text style={s.cardUser}>{post.author.username}</Text>
-          </TouchableOpacity>
-          <Text style={s.cardMeta}>XP {post.author.xp} · {timeAgo(post.createdAt)}</Text>
-        </View>
-        {(post.author._id === currentUserId || post.author.id === currentUserId) && (
-          <TouchableOpacity
-            onPress={() => {
-              if (window.confirm('¿Seguro que quieres borrar este post?')) {
-                onDelete(post._id);
-              }
-            }}
-            style={s.deleteBtn}
-          >
-            <Text style={s.deleteBtnTxt}>···</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {post.postType === 'news' ? (
-        <TouchableOpacity style={s.newsCard} onPress={() => navigation.navigate('PostDetail', { postId: post._id })}>
-          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" />}
-          <View style={s.newsBody}>
-            <View style={s.newsBadge}>
-              <Ionicons name="newspaper-outline" size={10} color="rgba(251,191,36,1)" />
-              <Text style={s.newsBadgeTxt}>NOTICIA</Text>
-            </View>
-            {post.title ? <Text style={s.newsTitle}>{post.title}</Text> : null}
-            <Text style={s.newsContent} numberOfLines={3}>{post.content}</Text>
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: post._id })}>
-          <Text style={s.cardBody}>{post.content}</Text>
-          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="contain" />}
-        </TouchableOpacity>
-      )}
-
-
-
-      {post.tags?.length > 0 && (
-        <View style={s.tagsRow}>
-          {post.tags.map((t, i) => <Text key={i} style={s.tag}>{t}</Text>)}
-        </View>
-      )}
-
-      <View style={s.cardActions}>
-        <TouchableOpacity style={s.act} onPress={() => onReact(post._id, 'like')}>
-          <Ionicons name={hasLiked ? 'heart' : 'heart-outline'} size={18} color={hasLiked ? colors.c3 : colors.textDim} />
-          <Text style={s.actCount}>{likeCount}</Text>
-        </TouchableOpacity>
-
-        {emojiGroups.map(g => (
-          <TouchableOpacity key={g.emoji} style={s.act}
-            onPress={() => onReact(post._id, g.emoji)}>
-            <Text style={[s.actIcon, myEmoji?.type === g.emoji && {opacity:1}]}>{g.emoji}</Text>
-            <Text style={s.actCount}>{g.count}</Text>
-          </TouchableOpacity>
-        ))}
-
-        <View>
-          <TouchableOpacity style={s.act} onPress={() => setShowEmojiPicker(prev => prev === post._id ? null : post._id)}>
-            <Ionicons name='add' size={18} color='#fff' />
-          </TouchableOpacity>
-          {showEmojiPicker === post._id && (
-            <View style={s.emojiPicker}>
-              {['😂','😮','😢','😡','🤯','👏','🥰','💀','🔥','👀','💯','🫶','😍','🤣','😭','🙌'].map(e => (
-                <TouchableOpacity key={e} style={s.emojiOpt}
-                  onPress={() => { onReact(post._id, e); setShowEmojiPicker(null); }}>
-                  <Text style={s.emojiOptTxt}>{e}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-
-        <TouchableOpacity style={s.act} onPress={() => setShowComments(!showComments)}>
-          <Ionicons name='chatbubble-outline' size={15} color='#fff' />
-          <Text style={s.actCount}>{post.comments.length}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.act, { marginLeft: 'auto' }]}>
-          <Ionicons name='share-outline' size={18} color='#fff' />
-        </TouchableOpacity>
-      </View>
-
-      {showComments && (
-        <View style={s.commentsBox}>
-          <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
-          {(() => {
-            const topLevel = post.comments.filter(c => !c.replyTo?.commentId);
-            const replies  = post.comments.filter(c => !!c.replyTo?.commentId);
-            return topLevel.map((c, i) => {
-              const cReplies = replies.filter(r => r.replyTo.commentId?.toString() === c._id?.toString());
-              return (
-                <View key={i}>
-                  <View style={s.comment}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text>
-                          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>
-                            <Text style={s.commentUser}>{c.user?.username || 'user'} </Text>
-                          </TouchableOpacity>
-                          <Text style={s.commentText}>{c.text}</Text>
-                        </Text>
-                      </View>
-                      <TouchableOpacity onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
-                        <Ionicons name='return-down-forward-outline' size={14} color='#555' />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  {cReplies.map((r, j) => (
-                    <View key={j} style={s.commentReply}>
-                      <View style={s.commentReplyLine} />
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <View style={{ flex: 1 }}>
-                            <Text>
-                              <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: r.user?.username })}>
-                                <Text style={s.commentUser}>{r.user?.username || 'user'} </Text>
-                              </TouchableOpacity>
-                              <Text style={s.commentText}>{r.text}</Text>
-                            </Text>
-                          </View>
-                          <TouchableOpacity onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
-                            <Ionicons name='return-down-forward-outline' size={14} color='#555' />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              );
-            });
-          })()}
-          </ScrollView>
-          {replyToComment && (
-            <View style={s.commentReplyBar}>
-              <Text style={s.commentReplyBarTxt} numberOfLines={1}>↩  @{replyToComment.username}: {replyToComment.text?.slice(0,40)}</Text>
-              <TouchableOpacity onPress={() => setReplyToComment(null)}>
-                <Text style={{ color: '#888', paddingHorizontal: 8 }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          <View style={s.commentInput}>
-            <TextInput
-              style={s.commentField}
-              placeholder="Escribe un comentario..."
-              placeholderTextColor={colors.textDim}
-              value={commentText}
-              onChangeText={setCommentText}
-            />
-            <TouchableOpacity onPress={submitComment} disabled={sending}>
-              <Text style={s.commentSend}>{sending ? '...' : '↑'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-    </View>
   );
 }
 
@@ -321,22 +114,21 @@ export default function HomeScreen({ navigation }) {
   }
 
   async function handleReact(postId, type) {
-    try {
-      await api.post(`/posts/${postId}/react`, { type });
-      setPosts(prev => prev.map(p => {
-        if (p._id !== postId) return p;
-        const myId = user._id?.toString();
-        const isSame = p.reactions.find(r => (r.user?._id || r.user)?.toString() === myId && r.type === type);
-        const reactions = p.reactions.filter(r => {
-          const uid = (r.user?._id || r.user)?.toString();
-          if (uid !== myId) return true;
-          if (type === 'like') return r.type !== 'like';
-          return r.type === 'like';
-        });
-        if (!isSame) reactions.push({ user: user._id, type });
-        return { ...p, reactions };
-      }));
-    } catch {}
+    // Optimistic update — actualiza UI primero, luego llama al API
+    setPosts(prev => prev.map(p => {
+      if (p._id !== postId) return p;
+      const myId = user._id?.toString();
+      const isSame = p.reactions.find(r => (r.user?._id || r.user)?.toString() === myId && r.type === type);
+      const reactions = p.reactions.filter(r => {
+        const uid = (r.user?._id || r.user)?.toString();
+        if (uid !== myId) return true;
+        if (type === 'like') return r.type !== 'like';
+        return r.type === 'like';
+      });
+      if (!isSame) reactions.push({ user: user._id, type });
+      return { ...p, reactions };
+    }));
+    try { await api.post(`/posts/${postId}/react`, { type }); } catch {}
   }
 
   async function handleDelete(postId) {

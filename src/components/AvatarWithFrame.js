@@ -7,13 +7,13 @@ export default function AvatarWithFrame({
   size = 40,
   avatarUrl,
   username,
-  profileFrame,   // ID del marco ('frame_001', un _id de mongo, 'default', null)
-  frameUrl,       // URL directa del marco (para marcos custom)
+  profileFrame,
+  frameUrl,
   bgColor = 'rgba(0,229,204,0.1)',
   style,
 }) {
-  const isSystem  = profileFrame === 'frame_001';
-  const hasFrame  = isSystem || !!frameUrl;
+  const isSystem    = profileFrame === 'frame_001';
+  const hasFrame    = isSystem || !!frameUrl;
   const resolvedUrl = isSystem ? FRAME_001_URL : frameUrl;
 
   const radius    = size / 2;
@@ -21,8 +21,9 @@ export default function AvatarWithFrame({
   const offset    = (frameSize - size) / 2;
 
   return (
-    <View style={[{ width: size, height: size }, style]}>
-      {/* Avatar */}
+    // Contenedor siempre del tamaño del avatar — el frame se sale con overflow visible
+    <View style={[{ width: size, height: size, overflow: 'visible' }, style]}>
+      {/* Avatar centrado */}
       <View style={{
         width: size, height: size, borderRadius: radius,
         backgroundColor: bgColor,
@@ -38,14 +39,16 @@ export default function AvatarWithFrame({
         )}
       </View>
 
-      {/* Marco superpuesto */}
+      {/* Marco superpuesto — se sale del contenedor pero no empuja nada */}
       {hasFrame && resolvedUrl && (
         <Image
           source={{ uri: resolvedUrl }}
           style={{
             position: 'absolute',
-            top: -offset, left: -offset,
-            width: frameSize, height: frameSize,
+            top: -offset,
+            left: -offset,
+            width: frameSize,
+            height: frameSize,
             zIndex: 10,
           }}
           resizeMode="contain"

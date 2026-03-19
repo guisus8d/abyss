@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Image, Modal,
-  StyleSheet, TextInput, ScrollView,
+  StyleSheet, TextInput, ScrollView, Animated,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -17,11 +18,17 @@ function timeAgo(date) {
 }
 
 export default function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigation, openPickerId, setOpenPickerId }) {
+  function goToProfile(username, userId) {
+    const isMe = userId === currentUserId || userId?.toString() === currentUserId?.toString();
+    if (isMe) navigation.navigate('Profile');
+    else navigation.navigate('PublicProfile', { username });
+  }
   const [showComments, setShowComments]     = useState(false);
   const [commentText, setCommentText]       = useState('');
   const [sending, setSending]               = useState(false);
   const [replyToComment, setReplyToComment] = useState(null);
   const [deleteCommentModal, setDeleteCommentModal] = useState(null);
+  const heartScale = useRef(new Animated.Value(1)).current;
 
   const likeCount      = post.reactions.filter(r => r.type === 'like').length;
   const hasLiked       = post.reactions.some(r => (r.user?._id || r.user) === currentUserId && r.type === 'like');
@@ -33,6 +40,13 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
     const uid = r.user?._id || r.user;
     return uid?.toString() === currentUserId?.toString();
   });
+
+  function animateHeart() {
+    Animated.sequence([
+      Animated.spring(heartScale, { toValue: 1.5, useNativeDriver: false, speed: 50 }),
+      Animated.spring(heartScale, { toValue: 1,   useNativeDriver: false, speed: 50 }),
+    ]).start();
+  }
 
   async function handleDeleteComment(commentId) {
     try {
@@ -55,7 +69,6 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
 
   return (
     <View style={s.card}>
-      {/* Modal borrar comentario */}
       <Modal visible={!!deleteCommentModal} transparent animationType="fade" onRequestClose={() => setDeleteCommentModal(null)}>
         <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', alignItems:'center', justifyContent:'center', padding:24 }}>
           <View style={{ backgroundColor:'#0d1f2d', borderRadius:20, padding:24, width:'100%', borderWidth:1, borderColor:'rgba(255,255,255,0.08)' }}>
@@ -77,11 +90,11 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
 
       {/* Header */}
       <View style={s.cardHead}>
-        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })} style={{ marginRight: 10 }}>
+        <TouchableOpacity onPress={() => goToProfile(post.author.username, post.author._id || post.author.id)} style={s.avatarWrap}>
           <AvatarWithFrame size={38} avatarUrl={post.author.avatarUrl} username={post.author.username} profileFrame={post.author.profileFrame} frameUrl={post.author.profileFrameUrl} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: post.author.username })}>
+          <TouchableOpacity onPress={() => goToProfile(post.author.username, post.author._id || post.author.id)}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <Text style={s.cardUser}>{post.author.username}</Text>
               {post.author.role === 'mod' && <View style={s.modBadge}><Text style={s.modBadgeTxt}>MOD</Text></View>}
@@ -94,7 +107,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
           <TouchableOpacity onPress={() => {
             if (window.confirm('¿Seguro que quieres borrar este post?')) onDelete(post._id);
           }} style={s.deleteBtn}>
-            <Text style={s.deleteBtnTxt}>···</Text>
+            <Ionicons name="ellipsis-vertical" size={18} color={colors.textDim} />
           </TouchableOpacity>
         )}
       </View>
@@ -115,7 +128,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
       ) : (
         <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: post._id })}>
           {post.content ? <Text style={s.cardBody}>{post.content}</Text> : null}
-          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.postImage} />}
+          {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="contain" />}
         </TouchableOpacity>
       )}
 
@@ -128,8 +141,11 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
 
       {/* Acciones */}
       <View style={s.cardActions}>
-        <TouchableOpacity style={s.act} onPress={() => onReact(post._id, 'like')}>
-          <Ionicons name={hasLiked ? 'heart' : 'heart-outline'} size={18} color={hasLiked ? colors.c3 : colors.textDim} />
+        {/* Like con animación */}
+        <TouchableOpacity style={s.act} onPress={() => { animateHeart(); onReact(post._id, 'like'); }}>
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Ionicons name={hasLiked ? 'heart' : 'heart-outline'} size={18} color={hasLiked ? '#ef4444' : colors.textDim} />
+          </Animated.View>
           <Text style={s.actCount}>{likeCount}</Text>
         </TouchableOpacity>
 
@@ -140,18 +156,24 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
           </TouchableOpacity>
         ))}
 
+        {/* Emoji picker — se cierra al tocar fuera */}
         <View>
           <TouchableOpacity style={s.act} onPress={() => setOpenPickerId(prev => prev === post._id ? null : post._id)}>
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
           {openPickerId === post._id && (
-            <View style={s.emojiPicker}>
-              {['😂','😮','😢','😡','🤯','👏','🥰','💀','🔥','👀','💯','🫶','😍','🤣','😭','🙌'].map(e => (
-                <TouchableOpacity key={e} style={s.emojiOpt} onPress={() => { onReact(post._id, e); setOpenPickerId(null); }}>
-                  <Text style={s.emojiOptTxt}>{e}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <>
+              <TouchableWithoutFeedback onPress={() => setOpenPickerId(null)}>
+                <View style={s.emojiOverlay} />
+              </TouchableWithoutFeedback>
+              <View style={s.emojiPicker}>
+                {['😂','😮','😢','😡','🤯','👏','🥰','💀','🔥','👀','💯','🫶','😍','🤣','😭','🙌'].map(e => (
+                  <TouchableOpacity key={e} style={s.emojiOpt} onPress={() => { onReact(post._id, e); setOpenPickerId(null); }}>
+                    <Text style={s.emojiOptTxt}>{e}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
           )}
         </View>
 
@@ -176,22 +198,15 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                 const cReplies = replies.filter(r => r.replyTo.commentId?.toString() === c._id?.toString());
                 return (
                   <View key={i}>
-                    {/* Comentario principal */}
                     <View style={s.comment}>
                       <TouchableOpacity
-                        onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
-                        style={{ marginRight: 8 }}
+                        onPress={() => goToProfile(c.user?.username, c.user?._id)}
+                        style={s.commentAvatarWrap}
                       >
-                        <AvatarWithFrame
-                          size={28}
-                          avatarUrl={c.user?.avatarUrl}
-                          username={c.user?.username}
-                          profileFrame={c.user?.profileFrame}
-                          frameUrl={c.user?.profileFrameUrl}
-                        />
+                        <AvatarWithFrame size={28} avatarUrl={c.user?.avatarUrl} username={c.user?.username} />
                       </TouchableOpacity>
                       <View style={{ flex: 1 }}>
-                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>
+                        <TouchableOpacity onPress={() => goToProfile(c.user?.username, c.user?._id)}>
                           <Text style={s.commentUser}>{c.user?.username}</Text>
                         </TouchableOpacity>
                         <Text style={s.commentText}>{c.text}</Text>
@@ -199,34 +214,27 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                       <TouchableOpacity
                         onLongPress={() => { const uid = c.user?._id?.toString() || c.user?.toString(); if (uid === currentUserId?.toString()) setDeleteCommentModal(c._id); }}
                         onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}
+                        style={{ paddingLeft: 8 }}
                       >
                         <Ionicons name="return-down-forward-outline" size={14} color="#555" />
                       </TouchableOpacity>
                     </View>
-
-                    {/* Respuestas */}
                     {cReplies.map((r, j) => (
                       <View key={j} style={s.commentReply}>
                         <View style={s.commentReplyLine} />
                         <TouchableOpacity
-                          onPress={() => navigation.navigate('PublicProfile', { username: r.user?.username })}
-                          style={{ marginRight: 8 }}
+                          onPress={() => goToProfile(r.user?.username, r.user?._id)}
+                          style={s.commentAvatarWrapSm}
                         >
-                          <AvatarWithFrame
-                            size={24}
-                            avatarUrl={r.user?.avatarUrl}
-                            username={r.user?.username}
-                            profileFrame={r.user?.profileFrame}
-                            frameUrl={r.user?.profileFrameUrl}
-                          />
+                          <AvatarWithFrame size={22} avatarUrl={r.user?.avatarUrl} username={r.user?.username} />
                         </TouchableOpacity>
                         <View style={{ flex: 1 }}>
-                          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: r.user?.username })}>
+                          <TouchableOpacity onPress={() => goToProfile(r.user?.username, r.user?._id)}>
                             <Text style={s.commentUser}>{r.user?.username}</Text>
                           </TouchableOpacity>
                           <Text style={s.commentText}>{r.text}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}>
+                        <TouchableOpacity onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })} style={{ paddingLeft: 8 }}>
                           <Ionicons name="return-down-forward-outline" size={14} color="#555" />
                         </TouchableOpacity>
                       </View>
@@ -269,44 +277,48 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
 }
 
 const s = StyleSheet.create({
-  card:       { marginHorizontal: 16, marginTop: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 16 },
-  cardHead:   { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  cardUser:   { color: colors.textHi, fontWeight: '600', fontSize: 13 },
-  cardMeta:   { color: colors.textDim, fontSize: 10, marginTop: 1 },
-  cardBody:   { color: colors.textMid, fontSize: 13, lineHeight: 20, marginBottom: 10 },
-  deleteBtn:  { padding: 8, marginLeft: 4, backgroundColor: 'rgba(255,0,0,0.15)', borderRadius: 8 },
+  card:        { marginHorizontal: 16, marginTop: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  cardHead:    { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  avatarWrap:  { width: 38, height: 38, marginRight: 10, overflow: 'visible' },
+  cardUser:    { color: colors.textHi, fontWeight: '600', fontSize: 13 },
+  cardMeta:    { color: colors.textDim, fontSize: 10, marginTop: 1 },
+  cardBody:    { color: colors.textMid, fontSize: 13, lineHeight: 20, marginBottom: 10 },
+  deleteBtn:   { padding: 8, marginLeft: 4 },
   deleteBtnTxt:{ color: '#ff4444', fontSize: 18, fontWeight: 'bold' },
-  postImage:  { width: '100%', aspectRatio: 4/3, borderRadius: 12, marginBottom: 10, backgroundColor: colors.surface },
-  newsCard:   { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', overflow: 'hidden', marginBottom: 10 },
-  newsCover:  { width: '100%', height: 160 },
-  newsBody:   { padding: 12, gap: 8 },
-  newsBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(234,179,8,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
+  postImage:   { width: '100%', aspectRatio: 1, maxHeight: 400, borderRadius: 12, marginBottom: 10, backgroundColor: colors.surface },
+  newsCard:    { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', overflow: 'hidden', marginBottom: 10 },
+  newsCover:   { width: '100%', height: 160 },
+  newsBody:    { padding: 12, gap: 8 },
+  newsBadge:   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(234,179,8,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
   newsBadgeTxt:{ color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  newsTitle:  { color: colors.textHi, fontSize: 16, fontWeight: '700', lineHeight: 22 },
-  newsContent:{ color: colors.textDim, fontSize: 13, lineHeight: 20 },
-  tagsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  tag:        { color: colors.c1, fontSize: 11, opacity: 0.7 },
-  cardActions:{ flexDirection: 'row', alignItems: 'center', gap: 20 },
-  act:        { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  actIcon:    { fontSize: 16, color: colors.textDim },
-  actCount:   { color: colors.textDim, fontSize: 12 },
-  emojiPicker:{ position: 'absolute', bottom: 36, left: -60, zIndex: 99, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, flexDirection: 'row', flexWrap: 'wrap', padding: 8, gap: 4, width: 220 },
-  emojiOpt:   { padding: 5 },
-  emojiOptTxt:{ fontSize: 22 },
-  commentsBox:{ marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
-  comment:    { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  commentUser:{ color: colors.c1, fontSize: 12, fontWeight: '600', marginBottom: 1 },
-  commentText:{ color: colors.textMid, fontSize: 12 },
-  commentReply:     { flexDirection: 'row', alignItems: 'flex-start', paddingLeft: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#111' },
-  commentReplyLine: { width: 2, backgroundColor: '#333', marginRight: 10, borderRadius: 2, alignSelf: 'stretch' },
-  commentReplyBar:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', padding: 6, borderRadius: 8, marginBottom: 4 },
+  newsTitle:   { color: colors.textHi, fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  newsContent: { color: colors.textDim, fontSize: 13, lineHeight: 20 },
+  tagsRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  tag:         { color: colors.c1, fontSize: 11, opacity: 0.7 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  act:         { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  actIcon:     { fontSize: 16, color: colors.textDim },
+  actCount:    { color: colors.textDim, fontSize: 12 },
+  emojiOverlay:{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 98 },
+  emojiPicker: { position: 'absolute', bottom: 36, left: -60, zIndex: 99, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, flexDirection: 'row', flexWrap: 'wrap', padding: 8, gap: 4, width: 220 },
+  emojiOpt:    { padding: 5 },
+  emojiOptTxt: { fontSize: 22 },
+  commentsBox: { marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, paddingLeft: 8 },
+  comment:     { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  commentAvatarWrap:   { width: 28, height: 28, marginRight: 10, overflow: 'visible' },
+  commentAvatarWrapSm: { width: 22, height: 22, marginRight: 8,  overflow: 'visible' },
+  commentUser: { color: colors.c1, fontSize: 12, fontWeight: '600', marginBottom: 1 },
+  commentText: { color: colors.textMid, fontSize: 12 },
+  commentReply:      { flexDirection: 'row', alignItems: 'flex-start', paddingLeft: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#111' },
+  commentReplyLine:  { width: 2, backgroundColor: '#333', marginRight: 10, borderRadius: 2, alignSelf: 'stretch' },
+  commentReplyBar:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', padding: 6, borderRadius: 8, marginBottom: 4 },
   commentReplyBarTxt:{ color: '#888', fontSize: 11, flex: 1 },
-  commentInput: { flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: 'rgba(8,20,36,0.95)', borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6 },
-  commentField: { flex: 1, color: colors.textHi, fontSize: 13 },
-  sendBtn:      { backgroundColor: colors.c1, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  commentInput:  { flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: 'rgba(8,20,36,0.95)', borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6 },
+  commentField:  { flex: 1, color: colors.textHi, fontSize: 13 },
+  sendBtn:       { backgroundColor: colors.c1, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   sendBtnDisabled:{ backgroundColor: 'rgba(0,229,204,0.3)' },
-  modBadge:   { backgroundColor: 'rgba(251,191,36,0.15)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' },
-  modBadgeTxt:{ color: 'rgba(251,191,36,1)', fontSize: 8, fontWeight: '800', letterSpacing: 1 },
-  adminBadge: { backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' },
+  modBadge:    { backgroundColor: 'rgba(251,191,36,0.15)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' },
+  modBadgeTxt: { color: 'rgba(251,191,36,1)', fontSize: 8, fontWeight: '800', letterSpacing: 1 },
+  adminBadge:  { backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' },
   adminBadgeTxt:{ color: 'rgba(239,68,68,0.9)', fontSize: 8, fontWeight: '800', letterSpacing: 1 },
 });

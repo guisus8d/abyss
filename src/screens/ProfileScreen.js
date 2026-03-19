@@ -51,19 +51,21 @@ export default function ProfileScreen({ navigation }) {
   const [openPickerId, setOpenPickerId] = useState(null);
 
   async function handleReact(postId, type) {
-    try {
-      await api.post(`/posts/${postId}/react`, { type });
-      setPosts(prev => prev.map(p => {
-        if (p._id !== postId) return p;
-        const already = p.reactions.find(r => (r.user?._id||r.user) === user?._id && r.type === type);
-        return { ...p, reactions: already
-          ? p.reactions.filter(r => !((r.user?._id||r.user) === user?._id && r.type === type))
-          : [...p.reactions, { user: user?._id, type }] };
-      }));
-    } catch {}
+    setPosts(prev => prev.map(p => {
+      if (p._id !== postId) return p;
+      const already = p.reactions.find(r => (r.user?._id||r.user) === user?._id && r.type === type);
+      return { ...p, reactions: already
+        ? p.reactions.filter(r => !((r.user?._id||r.user) === user?._id && r.type === type))
+        : [...p.reactions, { user: user?._id, type }] };
+    }));
+    try { await api.post(`/posts/${postId}/react`, { type }); } catch {}
   }
 
-  async function handleComment(postId, text, replyTo) {
+  async function handleComment(postId, text, replyTo, updatedComments) {
+    if (updatedComments) {
+      setPosts(prev => prev.map(p => p._id === postId ? { ...p, comments: updatedComments } : p));
+      return;
+    }
     try {
       const { data } = await api.post(`/posts/${postId}/comment`, { text, replyTo });
       setPosts(prev => prev.map(p => p._id === postId ? { ...p, comments: data.comments } : p));
