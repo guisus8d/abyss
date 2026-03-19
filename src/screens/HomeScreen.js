@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Image } from 'react-native';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
@@ -53,6 +53,7 @@ function BadgeToast({ badge, onHide }) {
 export default function HomeScreen({ navigation }) {
   const [unreadNotifs, setUnreadNotifs] = React.useState(0);
   const [openPickerId, setOpenPickerId] = useState(null);
+  const [scrolled, setScrolled]         = useState(false);
 
   React.useEffect(() => {
     api.get('/notifications/unread').then(r => setUnreadNotifs(r.data.unread)).catch(() => {});
@@ -64,12 +65,12 @@ export default function HomeScreen({ navigation }) {
 
   const { user, logout, updateUser } = useAuthStore();
 
-  // Refrescar datos del usuario (coins, xp, etc) al montar
   useEffect(() => {
     api.get('/users/me').then(({ data }) => {
       if (data.user) updateUser(data.user);
     }).catch(() => {});
   }, []);
+
   const [posts, setPosts]             = useState([]);
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
@@ -114,7 +115,6 @@ export default function HomeScreen({ navigation }) {
   }
 
   async function handleReact(postId, type) {
-    // Optimistic update — actualiza UI primero, luego llama al API
     setPosts(prev => prev.map(p => {
       if (p._id !== postId) return p;
       const myId = user._id?.toString();
@@ -158,7 +158,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {toastBadge && <BadgeToast badge={toastBadge} onHide={() => setToastBadge(null)} />}
 
@@ -189,85 +189,75 @@ export default function HomeScreen({ navigation }) {
         />
       )}
 
-      <SafeAreaView>
-        <View style={s.header}>
-          {/* Header avatar con marco */}
-          <TouchableOpacity style={s.headerAvatarWrap} onPress={() => setDrawerOpen(true)}>
-            <AvatarWithFrame
-              size={34}
-              avatarUrl={user?.avatarUrl}
-              username={user?.username}
-              profileFrame={user?.profileFrame}
-              frameUrl={user?.profileFrameUrl}
-              frameUrl={user?.profileFrameUrl}
-              bgColor='rgba(0,229,204,0.15)'
-            />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>ABBYS</Text>
-          <View style={s.headerRight}>
-            <TouchableOpacity style={s.iconBtn} onPress={() => { setUnreadNotifs(0); navigation.navigate('Notifications'); }}>
-              <Ionicons name='notifications-outline' size={22} color={colors.textHi} />
-              {unreadNotifs > 0 && (
-                <View style={{
-                  position:'absolute', top:-2, right:-2,
-                  backgroundColor: colors.c1, borderRadius: 8,
-                  minWidth: 16, height: 16, alignItems:'center', justifyContent:'center',
-                }}>
-                  <Text style={{ color: colors.black, fontSize: 9, fontWeight:'900', paddingHorizontal:3 }}>
-                    {unreadNotifs > 99 ? '99+' : unreadNotifs}
-                  </Text>
-                </View>
-              )}
+      {/* Header flotante — transparente o cristal según scroll */}
+      <View style={[s.headerWrap, scrolled && s.headerWrapScrolled]}>
+        <SafeAreaView>
+          <View style={s.header}>
+            <TouchableOpacity style={s.headerLeft} onPress={() => setDrawerOpen(true)}>
+              <AvatarWithFrame
+                size={34}
+                avatarUrl={user?.avatarUrl}
+                username={user?.username}
+                profileFrame={user?.profileFrame}
+                frameUrl={user?.profileFrameUrl}
+                bgColor='rgba(0,229,204,0.15)'
+              />
+              <Text style={s.headerUsername}>{user?.username}</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {searchOpen && (
-          <View style={s.searchBar}>
-            <TextInput
-              style={s.searchInput}
-              placeholder="Buscar usuarios..."
-              placeholderTextColor={colors.textDim}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              autoFocus
-            />
-            {searching && <ActivityIndicator color={colors.c1} size="small" style={{ marginRight: 10 }} />}
-          </View>
-        )}
-
-        {searchOpen && searchResults.length > 0 && (
-          <View style={s.searchResults}>
-            {searchResults.map(u => (
-              <TouchableOpacity
-                key={u._id}
-                style={s.searchItem}
-                onPress={() => { setSearchOpen(false); navigation.navigate('PublicProfile', { username: u.username }); }}
-              >
-                <AvatarWithFrame
-                  size={36}
-                  avatarUrl={u.avatarUrl}
-                  username={u.username}
-                  profileFrame={u.profileFrame}
-              frameUrl={u.profileFrameUrl}
-                />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={s.searchUser}>{u.username}</Text>
-                  <Text style={s.searchXp}>XP {u.xp}</Text>
-                </View>
-                <Text style={s.searchArrow}>›</Text>
+            <View style={s.headerRight}>
+              <TouchableOpacity style={s.iconBtn} onPress={() => { setUnreadNotifs(0); navigation.navigate('Notifications'); }}>
+                <Ionicons name='notifications-outline' size={22} color={colors.textHi} />
+                {unreadNotifs > 0 && (
+                  <View style={s.notifBadge}>
+                    <Text style={s.notifBadgeTxt}>{unreadNotifs > 99 ? '99+' : unreadNotifs}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
-        )}
 
-        {searchOpen && searchQuery.length >= 2 && searchResults.length === 0 && !searching && (
-          <View style={s.searchEmpty}>
-            <Text style={s.searchEmptyTxt}>Sin resultados para "{searchQuery}"</Text>
-          </View>
-        )}
-      </SafeAreaView>
+          {searchOpen && (
+            <View style={s.searchBar}>
+              <TextInput
+                style={s.searchInput}
+                placeholder="Buscar usuarios..."
+                placeholderTextColor={colors.textDim}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                autoFocus
+              />
+              {searching && <ActivityIndicator color={colors.c1} size="small" style={{ marginRight: 10 }} />}
+            </View>
+          )}
 
+          {searchOpen && searchResults.length > 0 && (
+            <View style={s.searchResults}>
+              {searchResults.map(u => (
+                <TouchableOpacity
+                  key={u._id}
+                  style={s.searchItem}
+                  onPress={() => { setSearchOpen(false); navigation.navigate('PublicProfile', { username: u.username }); }}
+                >
+                  <AvatarWithFrame size={36} avatarUrl={u.avatarUrl} username={u.username} profileFrame={u.profileFrame} frameUrl={u.profileFrameUrl} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={s.searchUser}>{u.username}</Text>
+                    <Text style={s.searchXp}>XP {u.xp}</Text>
+                  </View>
+                  <Text style={s.searchArrow}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {searchOpen && searchQuery.length >= 2 && searchResults.length === 0 && !searching && (
+            <View style={s.searchEmpty}>
+              <Text style={s.searchEmptyTxt}>Sin resultados para "{searchQuery}"</Text>
+            </View>
+          )}
+        </SafeAreaView>
+      </View>
+
+      {/* Feed */}
       {loading ? (
         <View style={s.center}><ActivityIndicator color={colors.c1} size="large" /></View>
       ) : (
@@ -275,8 +265,10 @@ export default function HomeScreen({ navigation }) {
           style={s.feed}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPosts(); }} tintColor={colors.c1} />}
+          onScroll={e => setScrolled(e.nativeEvent.contentOffset.y > 40)}
+          scrollEventThrottle={16}
         >
-         
+          <View style={{ height: 70 }} />
           <RandomUsers navigation={navigation} />
           {posts.length === 0 && (
             <View style={s.center}><Text style={s.emptyTxt}>Sin posts aún. ¡Sé el primero!</Text></View>
@@ -297,6 +289,7 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       )}
 
+      {/* Nav bar */}
       <View style={s.bnav}>
         <TouchableOpacity style={[s.ni, s.niActive]}>
           <Ionicons name='home' size={22} color={colors.c1} />
@@ -340,17 +333,27 @@ const s = StyleSheet.create({
   toastTitle: { color: colors.textDim, fontSize: 10, letterSpacing: 2 },
   toastName:  { color: colors.c1, fontSize: 16, fontWeight: '700' },
 
+  // Header wrapper — flotante, transparente por defecto
+  headerWrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100,
+    backgroundColor: 'transparent',
+  },
+  // Cuando scrollea — fondo cristal oscuro
+  headerWrapScrolled: {
+    backgroundColor: 'rgba(2,5,9,0.82)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: 'transparent',
   },
-  headerTitle:     { fontSize: 18, fontWeight: '900', letterSpacing: 8, color: colors.c1 },
-  headerAvatarWrap:{ width: 34, height: 34 },
-  headerAvatarImg: { width: 34, height: 34, borderRadius: 17 },
-  headerRight:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBtn:      { padding: 8 },
+  headerLeft:     { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  headerUsername: { color: colors.textHi, fontWeight: '700', fontSize: 13 },
+  headerRight:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  iconBtn:        { padding: 8 },
+  notifBadge:     { position: 'absolute', top: -2, right: -2, backgroundColor: colors.c1, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
+  notifBadgeTxt:  { color: colors.black, fontSize: 9, fontWeight: '900', paddingHorizontal: 3 },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
@@ -358,77 +361,21 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12, borderWidth: 1, borderColor: colors.borderC,
   },
-  searchInput: { flex: 1, padding: 12, color: colors.textHi, fontSize: 14 },
+  searchInput:  { flex: 1, padding: 12, color: colors.textHi, fontSize: 14 },
   searchResults: {
     marginHorizontal: 16, marginBottom: 8,
     backgroundColor: colors.surface,
     borderRadius: 12, borderWidth: 1, borderColor: colors.borderC,
     overflow: 'hidden',
   },
-  searchItem: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 12, gap: 10,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  searchUser:  { color: colors.textHi, fontSize: 13, fontWeight: '600' },
-  searchXp:    { color: colors.textDim, fontSize: 10, marginTop: 1 },
-  searchArrow: { color: colors.textDim, fontSize: 18 },
-  searchEmpty: { marginHorizontal: 16, marginBottom: 8, padding: 12, alignItems: 'center' },
-  searchEmptyTxt: { color: colors.textDim, fontSize: 13 },
+  searchItem:   { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  searchUser:   { color: colors.textHi, fontSize: 13, fontWeight: '600' },
+  searchXp:     { color: colors.textDim, fontSize: 10, marginTop: 1 },
+  searchArrow:  { color: colors.textDim, fontSize: 18 },
+  searchEmpty:  { marginHorizontal: 16, marginBottom: 8, padding: 12, alignItems: 'center' },
+  searchEmptyTxt:{ color: colors.textDim, fontSize: 13 },
 
   feed: { flex: 1 },
-  card: {
-    marginHorizontal: 16, marginTop: 12,
-    backgroundColor: colors.card,
-    borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 16,
-  },
-  cardHead:   { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  avatarTxt:  { color: colors.c1, fontWeight: 'bold', fontSize: 14 },
-  cardUser:   { color: colors.textHi, fontWeight: '600', fontSize: 13 },
-  cardMeta:   { color: colors.textDim, fontSize: 10, marginTop: 1 },
-  cardBody:   { color: colors.textMid, fontSize: 13, lineHeight: 20, marginBottom: 10 },
-  newsCard:   { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', overflow: 'hidden', marginBottom: 10 },
-  newsCover:  { width: '100%', height: 160 },
-  newsBody:   { padding: 12, gap: 8 },
-  newsBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(234,179,8,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
-  newsBadgeTxt: { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  newsTitle:  { color: colors.textHi, fontSize: 16, fontWeight: '700', lineHeight: 22 },
-  newsContent:{ color: colors.textDim, fontSize: 13, lineHeight: 20 },
-  emojiPicker: {
-    position: 'absolute', bottom: 36, left: -60, zIndex: 99,
-    backgroundColor: colors.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: colors.borderC,
-    flexDirection: 'row', flexWrap: 'wrap',
-    padding: 8, gap: 4, width: 220,
-  },
-  emojiOpt:    { padding: 5 },
-  emojiOptTxt: { fontSize: 22 },
-  deleteBtn:    { padding: 8, marginLeft: 4, backgroundColor: 'rgba(255,0,0,0.15)', borderRadius: 8 },
-  deleteBtnTxt: { color: '#ff4444', fontSize: 18, fontWeight: 'bold' },
-  postImage:  { width: "100%", aspectRatio: 4/3, borderRadius: 12, marginBottom: 10, backgroundColor: colors.surface, resizeMode: 'contain' },
-  tagsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  tag:        { color: colors.c1, fontSize: 11, opacity: 0.7 },
-  cardActions:{ flexDirection: 'row', alignItems: 'center', gap: 20 },
-  act:        { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  actIcon:    { fontSize: 16, color: colors.textDim },
-  actCount:   { color: colors.textDim, fontSize: 12 },
-
-  commentsBox:  { marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
-  comment:      { flexDirection: 'row', marginBottom: 6 },
-  commentUser:  { color: colors.c1, fontSize: 12, fontWeight: '600' },
-  commentText:  { color: colors.textMid, fontSize: 12, flex: 1 },
-  commentReply:        { flexDirection: 'row', paddingLeft: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#111' },
-  commentReplyLine:    { width: 2, backgroundColor: '#333', marginRight: 10, borderRadius: 2 },
-  commentReplyBar:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', padding: 6, borderRadius: 8, marginBottom: 4 },
-  commentReplyBarTxt:  { color: '#888', fontSize: 11, flex: 1 },
-  commentInput: {
-    flexDirection: 'row', alignItems: 'center', marginTop: 8,
-    backgroundColor: 'rgba(8,20,36,0.95)',
-    borderRadius: 10, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 12, paddingVertical: 6,
-  },
-  commentField: { flex: 1, color: colors.textHi, fontSize: 13 },
-  commentSend:  { color: colors.c1, fontSize: 20, paddingLeft: 8 },
 
   bnav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',

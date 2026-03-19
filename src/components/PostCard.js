@@ -18,10 +18,8 @@ function timeAgo(date) {
 }
 
 export default function PostCard({ post, currentUserId, onReact, onComment, onDelete, navigation, openPickerId, setOpenPickerId }) {
-  function goToProfile(username, userId) {
-    const isMe = userId === currentUserId || userId?.toString() === currentUserId?.toString();
-    if (isMe) navigation.navigate('Profile');
-    else navigation.navigate('PublicProfile', { username });
+  function goToProfile(username) {
+    navigation.navigate('PublicProfile', { username });
   }
   const [showComments, setShowComments]     = useState(false);
   const [commentText, setCommentText]       = useState('');
@@ -90,11 +88,11 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
 
       {/* Header */}
       <View style={s.cardHead}>
-        <TouchableOpacity onPress={() => goToProfile(post.author.username, post.author._id || post.author.id)} style={s.avatarWrap}>
+        <TouchableOpacity onPress={() => goToProfile(post.author.username)} style={s.avatarWrap}>
           <AvatarWithFrame size={38} avatarUrl={post.author.avatarUrl} username={post.author.username} profileFrame={post.author.profileFrame} frameUrl={post.author.profileFrameUrl} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={() => goToProfile(post.author.username, post.author._id || post.author.id)}>
+          <TouchableOpacity onPress={() => goToProfile(post.author.username)}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <Text style={s.cardUser}>{post.author.username}</Text>
               {post.author.role === 'mod' && <View style={s.modBadge}><Text style={s.modBadgeTxt}>MOD</Text></View>}
@@ -200,13 +198,13 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                   <View key={i}>
                     <View style={s.comment}>
                       <TouchableOpacity
-                        onPress={() => goToProfile(c.user?.username, c.user?._id)}
+                        onPress={() => goToProfile(c.user?.username)}
                         style={s.commentAvatarWrap}
                       >
                         <AvatarWithFrame size={28} avatarUrl={c.user?.avatarUrl} username={c.user?.username} />
                       </TouchableOpacity>
                       <View style={{ flex: 1 }}>
-                        <TouchableOpacity onPress={() => goToProfile(c.user?.username, c.user?._id)}>
+                        <TouchableOpacity onPress={() => goToProfile(c.user?.username)}>
                           <Text style={s.commentUser}>{c.user?.username}</Text>
                         </TouchableOpacity>
                         <Text style={s.commentText}>{c.text}</Text>
@@ -223,7 +221,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                       <View key={j} style={s.commentReply}>
                         <View style={s.commentReplyLine} />
                         <TouchableOpacity
-                          onPress={() => goToProfile(r.user?.username, r.user?._id)}
+                          onPress={() => goToProfile(r.user?.username)}
                           style={s.commentAvatarWrapSm}
                         >
                           <AvatarWithFrame size={22} avatarUrl={r.user?.avatarUrl} username={r.user?.username} />
@@ -234,7 +232,7 @@ export default function PostCard({ post, currentUserId, onReact, onComment, onDe
                               <Text style={s.replyPreviewTxt} numberOfLines={1}>↩ @{r.replyTo.username}: {r.replyTo.text}</Text>
                             </View>
                           )}
-                          <TouchableOpacity onPress={() => goToProfile(r.user?.username, r.user?._id)}>
+                          <TouchableOpacity onPress={() => goToProfile(r.user?.username)}>
                             <Text style={s.commentUser}>{r.user?.username}</Text>
                           </TouchableOpacity>
                           <Text style={s.commentText}>{r.text}</Text>

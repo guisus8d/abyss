@@ -34,17 +34,21 @@ export default function PublicProfileScreen({ route, navigation }) {
   const [tab, setTab]               = useState('profile');
   const [openPickerId, setOpenPickerId] = useState(null);
 
+  useEffect(() => {
+    if (username === me?.username) {
+      navigation.replace('Profile');
+    }
+  }, [username]);
+
   async function handleReact(postId, type) {
-    try {
-      await api.post(`/posts/${postId}/react`, { type });
-      setPosts(prev => prev.map(p => {
-        if (p._id !== postId) return p;
-        const already = p.reactions.find(r => (r.user?._id||r.user) === me?._id && r.type === type);
-        return { ...p, reactions: already
-          ? p.reactions.filter(r => !((r.user?._id||r.user) === me?._id && r.type === type))
-          : [...p.reactions, { user: me?._id, type }] };
-      }));
-    } catch {}
+    setPosts(prev => prev.map(p => {
+      if (p._id !== postId) return p;
+      const already = p.reactions.find(r => (r.user?._id||r.user) === me?._id && r.type === type);
+      return { ...p, reactions: already
+        ? p.reactions.filter(r => !((r.user?._id||r.user) === me?._id && r.type === type))
+        : [...p.reactions, { user: me?._id, type }] };
+    }));
+    try { await api.post(`/posts/${postId}/react`, { type }); } catch {}
   }
 
   async function handleComment(postId, text, replyTo) {
@@ -55,6 +59,13 @@ export default function PublicProfileScreen({ route, navigation }) {
   }
 
   useEffect(() => { loadProfile(); }, []);
+
+  useEffect(() => {
+    const { user: me } = useAuthStore.getState();
+    if (username === me?.username) {
+      navigation.replace('Profile');
+    }
+  }, []);
 
   async function loadProfile() {
     try {
