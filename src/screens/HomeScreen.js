@@ -343,7 +343,8 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'transparent',
   },
   headerTitle:     { fontSize: 18, fontWeight: '900', letterSpacing: 8, color: colors.c1 },
   headerAvatarWrap:{ width: 34, height: 34 },
