@@ -220,7 +220,14 @@ export default function ProfileScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
-        <LinearGradient colors={['rgba(0,110,100,0.2)','rgba(2,5,9,1)']} style={s.hero}>
+        <View style={s.heroBanner}>
+          {isImageBg && profile?.profileBg
+            ? <><Image source={{ uri: profile.profileBg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+               <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} /></>
+            : profile?.profileBg
+              ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
+              : <LinearGradient colors={['rgba(0,110,100,0.35)','rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
+          }
           <View style={s.avatarWrap}>
             {/* Tap en avatar → selector de marcos */}
             <TouchableOpacity onPress={() => navigation.navigate('FrameSelector')} activeOpacity={0.85}>
@@ -242,15 +249,9 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <Text style={s.username}>{profile?.username}</Text>
           {prefs.showXp && (
-          <View style={s.xpRow}>
-            <Text style={s.xpLabel}>XP</Text>
-            <View style={s.xpBarBg}>
-              <LinearGradient colors={['#006b63','#00e5cc']} style={[s.xpBarFill, { width: `${xpProgress}%` }]} start={{x:0,y:0}} end={{x:1,y:0}} />
-            </View>
-            <Text style={s.xpVal}>{profile?.xp}</Text>
-          </View>
+          <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>
           )}
-        </LinearGradient>
+        </View>
 
         {/* Stats */}
         {(prefs.showFollowing || prefs.showFollowers || prefs.showPosts) && (
@@ -402,6 +403,11 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
 
+              <TouchableOpacity style={s.settingsRow} onPress={() => setBgModal(true)}>
+                <Ionicons name="color-palette-outline" size={20} color={colors.textMid} />
+                <Text style={s.settingsRowTxt}>Fondo del perfil</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+              </TouchableOpacity>
               <TouchableOpacity style={s.settingsRow} onPress={() => navigation.navigate('Top')}>
                 <Ionicons name="trophy-outline" size={20} color={colors.textMid} />
                 <Text style={s.settingsRowTxt}>Top Semanal</Text>
@@ -516,15 +522,12 @@ const s = StyleSheet.create({
   backBtn:     { width: 40 },
   headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 6, color: colors.c1 },
 
+  heroBanner: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24, overflow: 'hidden', position: 'relative' },
   hero:       { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24 },
   avatarWrap: { position: 'relative', marginBottom: 14 },
   cameraBtn:  { position: 'absolute', bottom: 2, right: 2, backgroundColor: colors.deep, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', zIndex: 20 },
   username:   { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  xpRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%' },
-  xpLabel:    { color: colors.textDim, fontSize: 10, letterSpacing: 2, width: 24 },
-  xpBarBg:    { flex: 1, height: 5, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
-  xpBarFill:  { height: '100%', borderRadius: 3, minWidth: 4 },
-  xpVal:      { color: colors.c1, fontSize: 12, fontWeight: '700', width: 36, textAlign: 'right' },
+  xpSimple:   { color: colors.c1, fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 4 },
 
   statsRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 16, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18 },
   stat:     { flex: 1, alignItems: 'center' },

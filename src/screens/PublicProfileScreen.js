@@ -218,13 +218,7 @@ export default function PublicProfileScreen({ route, navigation }) {
           </TouchableOpacity>
           <Text style={s.username}>{profile?.username}</Text>
           {prefs.showXp && (
-            <View style={s.xpRow}>
-              <Text style={s.xpLabel}>XP</Text>
-              <View style={s.xpBarBg}>
-                <LinearGradient colors={['#006b63','#00e5cc']} style={[s.xpBarFill, { width: `${Math.min((profile?.xp||0)%100,100)}%` }]} start={{x:0,y:0}} end={{x:1,y:0}} />
-              </View>
-              <Text style={s.xpVal}>{profile?.xp || 0}</Text>
-            </View>
+            <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>
           )}
 
           {!isMe && !blocked && (
@@ -402,11 +396,7 @@ const s = StyleSheet.create({
   hero:     { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 },
   username: { color: colors.textHi, fontSize: 22, fontWeight: '700', marginTop: 14, marginBottom: 6 },
   bio:      { color: colors.textDim, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18, maxWidth: 260 },
-  xpRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%', marginBottom: 12 },
-  xpLabel:  { color: colors.textDim, fontSize: 10, letterSpacing: 2, width: 24 },
-  xpBarBg:  { flex: 1, height: 5, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
-  xpBarFill:{ height: '100%', borderRadius: 3, minWidth: 4 },
-  xpVal:    { color: colors.c1, fontSize: 12, fontWeight: '700', width: 36, textAlign: 'right' },
+  xpSimple: { color: colors.c1, fontSize: 12, fontWeight: '700', marginTop: 4, marginBottom: 12 },
 
   actionRow:      { flexDirection: 'row', gap: 12, width: '100%', marginTop: 4 },
   btnFollow:      { borderRadius: 12, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
