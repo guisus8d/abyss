@@ -176,15 +176,7 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
-      {isImageBg && profile?.profileBg
-        ? <Image source={{ uri: profile.profileBg }} style={s.fullBgImage} resizeMode="cover" />
-        : null}
-      {isImageBg && profile?.profileBg
-        ? <View style={s.fullBgOverlay} />
-        : null}
-      {!isImageBg && hasBg
-        ? <View style={[s.fullBgColor, { backgroundColor: profile.profileBg }]} />
-        : null}
+
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <SafeAreaView>
         <View style={s.header}>
@@ -203,6 +195,13 @@ export default function PublicProfileScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient colors={['rgba(0,110,100,0.2)','rgba(2,5,9,1)']} style={s.hero}>
+          {isImageBg && profile?.profileBg && (
+            <><Image source={{ uri: profile.profileBg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /></>
+          )}
+          {!isImageBg && hasBg && (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
+          )}
           <TouchableOpacity
             onPress={handleFramePress}
             activeOpacity={profile?.profileFrame && profile.profileFrame !== 'default' && profile.profileFrame !== 'frame_001' ? 0.8 : 1}

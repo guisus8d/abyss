@@ -298,7 +298,7 @@ const s = StyleSheet.create({
   newsContent: { color: colors.textDim, fontSize: 13, lineHeight: 20 },
   tagsRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   tag:         { color: colors.c1, fontSize: 11, opacity: 0.7 },
-  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, rowGap: 8 },
   act:         { flexDirection: 'row', alignItems: 'center', gap: 5 },
   actIcon:     { fontSize: 16, color: colors.textDim },
   actCount:    { color: colors.textDim, fontSize: 12 },

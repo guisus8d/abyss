@@ -190,7 +190,7 @@ export default function HomeScreen({ navigation }) {
       )}
 
       {/* Header flotante — transparente o cristal según scroll */}
-      <View style={[s.headerWrap, scrolled && s.headerWrapScrolled]}>
+      <LinearGradient colors={['rgba(2,5,9,1)', 'rgba(2,5,9,0)']} style={[s.headerWrap]} start={{x:0,y:0}} end={{x:0,y:1}}>
         <SafeAreaView>
           <View style={s.header}>
             <TouchableOpacity style={s.headerLeft} onPress={() => setDrawerOpen(true)}>
@@ -205,6 +205,9 @@ export default function HomeScreen({ navigation }) {
               <Text style={s.headerUsername}>{user?.username}</Text>
             </TouchableOpacity>
             <View style={s.headerRight}>
+              <TouchableOpacity style={s.iconBtn} onPress={() => { setSearchOpen(!searchOpen); setSearchQuery(''); setSearchResults([]); }}>
+                <Ionicons name='search-outline' size={22} color={colors.textHi} />
+              </TouchableOpacity>
               <TouchableOpacity style={s.iconBtn} onPress={() => { setUnreadNotifs(0); navigation.navigate('Notifications'); }}>
                 <Ionicons name='notifications-outline' size={22} color={colors.textHi} />
                 {unreadNotifs > 0 && (
@@ -255,7 +258,7 @@ export default function HomeScreen({ navigation }) {
             </View>
           )}
         </SafeAreaView>
-      </View>
+      </LinearGradient>
 
       {/* Feed */}
       {loading ? (
@@ -295,9 +298,9 @@ export default function HomeScreen({ navigation }) {
           <Ionicons name='home' size={22} color={colors.c1} />
           <Text style={[s.niLbl, { color: colors.c1 }]}>Inicio</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.ni} onPress={() => { setSearchOpen(!searchOpen); setSearchQuery(''); setSearchResults([]); }}>
-          <Ionicons name='search-outline' size={22} color={colors.textDim} />
-          <Text style={s.niLbl}>Buscar</Text>
+        <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Home')}>
+          <Ionicons name='storefront' size={22} color={colors.textDim} />
+          <Text style={s.niLbl}>Tienda</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setShowMenu(true)}>
           <View style={s.niCreate}>
@@ -339,11 +342,7 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   // Cuando scrollea — fondo cristal oscuro
-  headerWrapScrolled: {
-    backgroundColor: 'rgba(2,5,9,0.82)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
+
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
