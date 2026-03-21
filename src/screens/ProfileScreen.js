@@ -213,21 +213,15 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
 
-      <SafeAreaView>
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#ffffff" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>PERFIL</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={s.heroBanner}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={22} color="#ffffff" />
+          </TouchableOpacity>
           {profile?.profileBannerType === 'image' && profile?.profileBanner
             ? <><Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} /></>
@@ -524,11 +518,11 @@ const s = StyleSheet.create({
   fullBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   fullBgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 0 },
   fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  backBtn:     { width: 40 },
+
+  backBtn:     { position: 'absolute', top: 16, left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 6, color: '#ffffff' },
 
-  heroBanner: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24, overflow: 'hidden', position: 'relative' },
+  heroBanner: { alignItems: 'center', paddingTop: 60, paddingBottom: 60, paddingHorizontal: 24, overflow: 'hidden' },
   hero:       { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24 },
   avatarWrap: { position: 'relative', marginBottom: 14 },
   cameraBtn:  { position: 'absolute', bottom: 2, right: 2, backgroundColor: colors.deep, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', zIndex: 20 },
