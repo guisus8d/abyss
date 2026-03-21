@@ -205,11 +205,11 @@ export default function HomeScreen({ navigation }) {
               <Text style={s.headerUsername}>{user?.username}</Text>
             </TouchableOpacity>
             <View style={s.headerRight}>
-              <TouchableOpacity style={s.iconBtn} onPress={() => { setSearchOpen(!searchOpen); setSearchQuery(''); setSearchResults([]); }}>
-                <Ionicons name='search-outline' size={22} color={colors.textHi} />
+              <TouchableOpacity style={s.iconBtnBox} onPress={() => { setSearchOpen(!searchOpen); setSearchQuery(''); setSearchResults([]); }}>
+                <Ionicons name='search' size={18} color={colors.textHi} />
               </TouchableOpacity>
-              <TouchableOpacity style={s.iconBtn} onPress={() => { setUnreadNotifs(0); navigation.navigate('Notifications'); }}>
-                <Ionicons name='notifications-outline' size={22} color={colors.textHi} />
+              <TouchableOpacity style={s.iconBtnBox} onPress={() => { setUnreadNotifs(0); navigation.navigate('Notifications'); }}>
+                <Ionicons name='notifications' size={18} color={colors.textHi} />
                 {unreadNotifs > 0 && (
                   <View style={s.notifBadge}>
                     <Text style={s.notifBadgeTxt}>{unreadNotifs > 99 ? '99+' : unreadNotifs}</Text>
@@ -294,12 +294,16 @@ export default function HomeScreen({ navigation }) {
 
       {/* Nav bar */}
       <View style={s.bnav}>
-        <TouchableOpacity style={[s.ni, s.niActive]}>
-          <Ionicons name='home' size={22} color={colors.c1} />
-          <Text style={[s.niLbl, { color: colors.c1 }]}>Inicio</Text>
+        <TouchableOpacity style={s.ni}>
+          <View style={s.niBox}>
+            <Ionicons name='game-controller' size={20} color={colors.c1} />
+          </View>
+          <Text style={[s.niLbl, { color: colors.c1 }]}>Game</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Home')}>
-          <Ionicons name='storefront' size={22} color={colors.textDim} />
+          <View style={s.niBox}>
+            <Ionicons name='storefront' size={20} color={colors.textDim} />
+          </View>
           <Text style={s.niLbl}>Tienda</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setShowMenu(true)}>
@@ -308,12 +312,16 @@ export default function HomeScreen({ navigation }) {
           </View>
         </TouchableOpacity>
         <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Chats')}>
-          <Ionicons name='chatbubble-outline' size={22} color={colors.textDim} />
+          <View style={s.niBox}>
+            <Ionicons name='chatbubble' size={20} color={colors.textDim} />
+          </View>
           <Text style={s.niLbl}>Chat</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.ni} onPress={() => setDrawerOpen(true)}>
-          <Ionicons name='person-outline' size={22} color={colors.textDim} />
-          <Text style={s.niLbl}>Perfil</Text>
+          <View style={s.niBox}>
+            <Ionicons name='people' size={20} color={colors.textDim} />
+          </View>
+          <Text style={s.niLbl}>Círculos</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -351,6 +359,7 @@ const s = StyleSheet.create({
   headerUsername: { color: colors.textHi, fontWeight: '700', fontSize: 13 },
   headerRight:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtn:        { padding: 8 },
+  iconBtnBox:     { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 },
   notifBadge:     { position: 'absolute', top: -2, right: -2, backgroundColor: colors.c1, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
   notifBadgeTxt:  { color: colors.black, fontSize: 9, fontWeight: '900', paddingHorizontal: 3 },
 
@@ -383,6 +392,7 @@ const s = StyleSheet.create({
     paddingVertical: 10, paddingBottom: 20,
   },
   ni:       { alignItems: 'center', flex: 1 },
+  niBox:    { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   niLbl:    { fontSize: 9, color: colors.textDim, letterSpacing: 0.5 },
   niCreate: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', shadowColor: colors.c1, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
 });
