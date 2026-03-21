@@ -181,7 +181,7 @@ export default function PublicProfileScreen({ route, navigation }) {
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color={colors.c1} />
+            <Ionicons name="arrow-back" size={22} color="#ffffff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>{profile?.username}</Text>
           {!isMe ? (
@@ -195,13 +195,13 @@ export default function PublicProfileScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient colors={['rgba(0,110,100,0.2)','rgba(2,5,9,1)']} style={s.hero}>
-          {isImageBg && profile?.profileBg && (
-            <><Image source={{ uri: profile.profileBg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /></>
-          )}
-          {!isImageBg && hasBg && (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
-          )}
+          {profile?.profileBannerType === 'image' && profile?.profileBanner
+            ? <><Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+               <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} /></>
+            : profile?.profileBanner
+              ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBanner }]} />
+              : <LinearGradient colors={['rgba(0,110,100,0.35)','rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
+          }
           <TouchableOpacity
             onPress={handleFramePress}
             activeOpacity={profile?.profileFrame && profile.profileFrame !== 'default' && profile.profileFrame !== 'frame_001' ? 0.8 : 1}
@@ -220,6 +220,29 @@ export default function PublicProfileScreen({ route, navigation }) {
           {prefs.showXp && (
             <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>
           )}
+
+          <View style={s.heroStats}>
+            {prefs.showFollowing && (
+              <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
+                <Text style={s.heroStatVal}>{profile?.following?.length || 0}</Text>
+                <Text style={s.heroStatLbl}>SIGUIENDO</Text>
+              </TouchableOpacity>
+            )}
+            {prefs.showFollowing && prefs.showPosts && <View style={s.heroStatDiv} />}
+            {prefs.showPosts && (
+              <View style={s.heroStat}>
+                <Text style={s.heroStatVal}>{posts.length}</Text>
+                <Text style={s.heroStatLbl}>POSTS</Text>
+              </View>
+            )}
+            {prefs.showPosts && prefs.showFollowers && <View style={s.heroStatDiv} />}
+            {prefs.showFollowers && (
+              <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
+                <Text style={s.heroStatVal}>{profile?.followers?.length || 0}</Text>
+                <Text style={s.heroStatLbl}>SEGUIDORES</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {!isMe && !blocked && (
             <View style={s.actionRow}>
@@ -252,37 +275,13 @@ export default function PublicProfileScreen({ route, navigation }) {
           )}
         </LinearGradient>
 
-        {/* Stats */}
-        {(prefs.showFollowing || prefs.showFollowers || prefs.showPosts) && (
-        <View style={s.statsRow}>
-          {prefs.showFollowing && (
-            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
-              <Text style={s.statVal}>{profile?.following?.length || 0}</Text>
-              <Text style={s.statLbl}>SIGUIENDO</Text>
-            </TouchableOpacity>
-          )}
-          {prefs.showFollowing && (prefs.showPosts || prefs.showFollowers) && <View style={s.statDiv} />}
-          {prefs.showPosts && (
-            <View style={s.stat}>
-              <Text style={[s.statVal, { color: colors.c1 }]}>{posts.length}</Text>
-              <Text style={s.statLbl}>POSTS</Text>
-            </View>
-          )}
-          {prefs.showPosts && prefs.showFollowers && <View style={s.statDiv} />}
-          {prefs.showFollowers && (
-            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
-              <Text style={s.statVal}>{profile?.followers?.length || 0}</Text>
-              <Text style={s.statLbl}>SEGUIDORES</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        )}
+
 
         {/* Tabs */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} style={[s.tabBtn, { width: TAB_W }]} onPress={() => setTab(t.key)}>
-              <Ionicons name={t.icon} size={20} color={tab === t.key ? colors.c1 : colors.textDim} />
+              <Ionicons name={t.icon} size={20} color={tab === t.key ? '#ffffff' : colors.textDim} />
               {tab === t.key && <View style={[s.tabDot, { width: TAB_W }]} />}
             </TouchableOpacity>
           ))}
@@ -391,12 +390,12 @@ const s = StyleSheet.create({
   fullBgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 0 },
   fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 4, color: colors.c1 },
+  headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 4, color: '#ffffff' },
 
   hero:     { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 },
   username: { color: colors.textHi, fontSize: 22, fontWeight: '700', marginTop: 14, marginBottom: 6 },
   bio:      { color: colors.textDim, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18, maxWidth: 260 },
-  xpSimple: { color: colors.c1, fontSize: 12, fontWeight: '700', marginTop: 4, marginBottom: 12 },
+  xpSimple: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', marginTop: 4, marginBottom: 12 },
 
   actionRow:      { flexDirection: 'row', gap: 12, width: '100%', marginTop: 4 },
   btnFollow:      { borderRadius: 12, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
@@ -416,7 +415,7 @@ const s = StyleSheet.create({
 
   tabBar:       { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 16, overflow: 'hidden' },
   tabBtn:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-  tabDot:       { position: 'absolute', bottom: 0, height: 2, backgroundColor: colors.c1, borderRadius: 1 },
+  tabDot:       { position: 'absolute', bottom: 0, height: 2, backgroundColor: '#ffffff', borderRadius: 1 },
 
   postsGrid:   { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 2 },
   postTile:    { backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'center', padding: 6 },
@@ -427,6 +426,11 @@ const s = StyleSheet.create({
   bioCardLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, marginBottom: 12 },
   bioText:    { color: colors.textHi, fontSize: 14, lineHeight: 22 },
 
+  heroStats:    { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  heroStat:     { flex: 1, alignItems: 'center' },
+  heroStatVal:  { color: '#ffffff', fontSize: 18, fontWeight: '700' },
+  heroStatLbl:  { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
+  heroStatDiv:  { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
   profileSection:  { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120 },
   sectionBgImage:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
   blocksContainer: { gap: 8, paddingBottom: 8 },

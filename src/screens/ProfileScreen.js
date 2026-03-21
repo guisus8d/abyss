@@ -46,6 +46,7 @@ export default function ProfileScreen({ navigation }) {
   const [tab, setTab]               = useState('profile');
   const [frameModal, setFrameModal] = useState(false);
   const [bgModal, setBgModal]       = useState(false);
+  const [bgTarget, setBgTarget]       = useState('banner'); // 'banner' | 'card'
   const [equipping, setEquipping]   = useState(false);
   const [saving, setSaving]         = useState(false);
   const [openPickerId, setOpenPickerId] = useState(null);
@@ -146,16 +147,19 @@ export default function ProfileScreen({ navigation }) {
       if (asset.uri.startsWith('blob:') || asset.uri.startsWith('data:') || asset.uri.startsWith('http')) {
         const res  = await fetch(asset.uri);
         const blob = await res.blob();
-        formData.append('avatar', blob, 'bg.jpg');
+        formData.append('banner', blob, 'bg.jpg');
       } else {
-        formData.append('avatar', { uri: asset.uri, type: 'image/jpeg', name: 'bg.jpg' });
+        formData.append('banner', { uri: asset.uri, type: 'image/jpeg', name: 'bg.jpg' });
       }
-      // Subir como avatar temporal para obtener URL
-      const { data } = await api.post('/users/me/avatar', formData);
-      const bgUrl = data.avatarUrl;
-      const patchRes = await api.patch('/users/me/profile', { profileBg: bgUrl, profileBgType: 'image' });
-      setProfile(patchRes.data.user);
-      if (updateUser) updateUser(patchRes.data.user);
+      if (bgTarget === 'banner') {
+        const { data } = await api.post('/users/me/banner', formData);
+        setProfile(data.user);
+        if (updateUser) updateUser(data.user);
+      } else {
+        // card bg — subir como banner pero guardar en profileBg
+        const { data } = await api.post('/users/me/banner', formData);
+        await savePatch({ profileBg: data.bannerUrl, profileBgType: 'image' });
+      }
       setBgModal(false);
     } catch {
       Alert.alert('Error', 'No se pudo subir la imagen');
@@ -204,28 +208,31 @@ export default function ProfileScreen({ navigation }) {
   const TAB_W      = (W - 32) / TABS.length;
   const hasBg      = !!profile?.profileBg;
   const isImageBg  = profile?.profileBgType === 'image';
+  const hasBanner    = !!profile?.profileBanner;
+  const isBannerImg  = profile?.profileBannerType === 'image';
 
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+
+
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.c1} />
+            <Ionicons name="arrow-back" size={22} color="#ffffff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>PERFIL</Text>
           <View style={{ width: 40 }} />
         </View>
       </SafeAreaView>
-
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={s.heroBanner}>
-          {isImageBg && profile?.profileBg
-            ? <><Image source={{ uri: profile.profileBg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {profile?.profileBannerType === 'image' && profile?.profileBanner
+            ? <><Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} /></>
-            : profile?.profileBg
-              ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
+            : profile?.profileBanner
+              ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBanner }]} />
               : <LinearGradient colors={['rgba(0,110,100,0.35)','rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
           }
           <View style={s.avatarWrap}>
@@ -240,50 +247,43 @@ export default function ProfileScreen({ navigation }) {
                 bgColor="rgba(0,229,204,0.12)"
               />
             </TouchableOpacity>
-            {/* Ícono cámara → cambiar foto */}
-            <TouchableOpacity onPress={handlePickAvatar} disabled={uploading} style={s.cameraBtn}>
-              {uploading
-                ? <ActivityIndicator size="small" color={colors.c1} />
-                : <Ionicons name="camera" size={13} color={colors.c1} />}
-            </TouchableOpacity>
+
           </View>
           <Text style={s.username}>{profile?.username}</Text>
           {prefs.showXp && (
           <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>
           )}
+          <View style={s.heroStats}>
+            {prefs.showFollowing && (
+              <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
+                <Text style={s.heroStatVal}>{profile?.following?.length || 0}</Text>
+                <Text style={s.heroStatLbl}>SIGUIENDO</Text>
+              </TouchableOpacity>
+            )}
+            {prefs.showFollowing && prefs.showPosts && <View style={s.heroStatDiv} />}
+            {prefs.showPosts && (
+              <View style={s.heroStat}>
+                <Text style={s.heroStatVal}>{posts.length}</Text>
+                <Text style={s.heroStatLbl}>POSTS</Text>
+              </View>
+            )}
+            {prefs.showPosts && prefs.showFollowers && <View style={s.heroStatDiv} />}
+            {prefs.showFollowers && (
+              <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
+                <Text style={s.heroStatVal}>{profile?.followers?.length || 0}</Text>
+                <Text style={s.heroStatLbl}>SEGUIDORES</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* Stats */}
-        {(prefs.showFollowing || prefs.showFollowers || prefs.showPosts) && (
-        <View style={s.statsRow}>
-          {prefs.showFollowing && (
-            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
-              <Text style={s.statVal}>{profile?.following?.length || 0}</Text>
-              <Text style={s.statLbl}>SIGUIENDO</Text>
-            </TouchableOpacity>
-          )}
-          {prefs.showFollowing && (prefs.showPosts || prefs.showFollowers) && <View style={s.statDiv} />}
-          {prefs.showPosts && (
-            <View style={s.stat}>
-              <Text style={[s.statVal, { color: colors.c1 }]}>{posts.length}</Text>
-              <Text style={s.statLbl}>POSTS</Text>
-            </View>
-          )}
-          {prefs.showPosts && prefs.showFollowers && <View style={s.statDiv} />}
-          {prefs.showFollowers && (
-            <TouchableOpacity style={s.stat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
-              <Text style={s.statVal}>{profile?.followers?.length || 0}</Text>
-              <Text style={s.statLbl}>SEGUIDORES</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        )}
+
 
         {/* Tabs */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
           {TABS.map((t, i) => (
             <TouchableOpacity key={t.key} style={[s.tabBtn, { width: TAB_W }]} onPress={() => switchTab(t.key)}>
-              <Ionicons name={t.icon} size={20} color={tab === t.key ? colors.c1 : colors.textDim} />
+              <Ionicons name={t.icon} size={20} color={tab === t.key ? '#ffffff' : colors.textDim} />
             </TouchableOpacity>
           ))}
           <Animated.View style={[s.tabIndicator, {
@@ -296,7 +296,7 @@ export default function ProfileScreen({ navigation }) {
         {tab === 'profile' && (
           <View style={s.padded}>
             {/* Sección con fondo personalizable */}
-            <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }]}>
+            <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }, !hasBg && s.pageSectionGlass]}>
               {isImageBg && profile?.profileBg
                 ? <><Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
                     <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }]} /></>
@@ -304,7 +304,8 @@ export default function ProfileScreen({ navigation }) {
               {!isImageBg && hasBg
                 ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg, borderRadius: 16 }]} />
                 : null}
-              {/* Bloques */}
+              {/* Mini stats dentro de la card */}
+{/* Bloques */}
               <View style={s.blocksContainer}>
               {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
                 <View style={s.emptyPage}>
@@ -403,9 +404,14 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.settingsRow} onPress={() => setBgModal(true)}>
+              <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('banner'); setBgModal(true); }}>
+                <Ionicons name="image-outline" size={20} color={colors.textMid} />
+                <Text style={s.settingsRowTxt}>Fondo del hero (banner)</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+              </TouchableOpacity>
+              <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('card'); setBgModal(true); }}>
                 <Ionicons name="color-palette-outline" size={20} color={colors.textMid} />
-                <Text style={s.settingsRowTxt}>Fondo del perfil</Text>
+                <Text style={s.settingsRowTxt}>Fondo de la card</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
               <TouchableOpacity style={s.settingsRow} onPress={() => navigation.navigate('Top')}>
@@ -458,7 +464,7 @@ export default function ProfileScreen({ navigation }) {
       <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.bgModalBox}>
-            <Text style={s.modalTitle}>FONDO DEL PERFIL</Text>
+            <Text style={s.modalTitle}>{bgTarget === 'banner' ? 'FONDO DEL BANNER' : 'FONDO DE LA CARD'}</Text>
 
             <View style={s.colorGrid}>
               {BG_COLORS.map(c => (
@@ -466,9 +472,9 @@ export default function ProfileScreen({ navigation }) {
                   key={c.id}
                   style={[s.colorSwatch,
                     c.value ? { backgroundColor: c.value, borderWidth: 2 } : { borderWidth: 1 },
-                    profile?.profileBg === c.value && { borderColor: colors.c1, borderWidth: 2 },
+                    (bgTarget === 'banner' ? profile?.profileBanner : profile?.profileBg) === c.value && { borderColor: colors.c1, borderWidth: 2 },
                   ]}
-                  onPress={() => savePatch({ profileBg: c.value, profileBgType: 'color' }).then(() => setBgModal(false))}
+                  onPress={() => savePatch(bgTarget === 'banner' ? { profileBanner: c.value, profileBannerType: 'color' } : { profileBg: c.value, profileBgType: 'color' }).then(() => setBgModal(false))}
                 >
                   {!c.value && <Ionicons name="close" size={16} color={colors.textDim} />}
                 </TouchableOpacity>
@@ -520,14 +526,19 @@ const s = StyleSheet.create({
   fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   backBtn:     { width: 40 },
-  headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 6, color: colors.c1 },
+  headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 6, color: '#ffffff' },
 
   heroBanner: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24, overflow: 'hidden', position: 'relative' },
   hero:       { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24 },
   avatarWrap: { position: 'relative', marginBottom: 14 },
   cameraBtn:  { position: 'absolute', bottom: 2, right: 2, backgroundColor: colors.deep, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', zIndex: 20 },
   username:   { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  xpSimple:   { color: colors.c1, fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 4 },
+  xpSimple:   { color: colors.c1, fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 12 },
+  heroStats:    { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  heroStat:     { flex: 1, alignItems: 'center' },
+  heroStatVal:  { color: '#ffffff', fontSize: 18, fontWeight: '700' },
+  heroStatLbl:  { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
+  heroStatDiv:  { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
 
   statsRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 16, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18 },
   stat:     { flex: 1, alignItems: 'center' },
@@ -537,18 +548,20 @@ const s = StyleSheet.create({
 
   tabBar:       { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 16, overflow: 'hidden', position: 'relative' },
   tabBtn:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-  tabIndicator: { position: 'absolute', bottom: 0, height: 2, backgroundColor: colors.c1, borderRadius: 1 },
+  tabIndicator: { position: 'absolute', bottom: 0, height: 2, backgroundColor: '#ffffff', borderRadius: 1 },
 
   padded: { paddingHorizontal: 16 },
 
   profileSection: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 140, marginBottom: 8 },
   pageSection:    { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120, marginBottom: 8 },
+  pageSectionGlass: { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' },
   pageBgImage:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
   toggle:         { width: 40, height: 22, borderRadius: 11, backgroundColor: colors.border, justifyContent: 'center', padding: 2 },
   toggleOn:       { backgroundColor: 'rgba(0,229,204,0.3)' },
   toggleThumb:    { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.textDim },
   toggleThumbOn:  { backgroundColor: colors.c1, alignSelf: 'flex-end' },
   sectionBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+
   blocksContainer: { paddingBottom: 48, gap: 8 },
   emptyPage:       { alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptyPageTxt:    { color: colors.textDim, fontSize: 12, textAlign: 'center' },
