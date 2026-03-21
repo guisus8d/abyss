@@ -23,10 +23,23 @@ const TABS = [
 const TAB_W = (W - 32) / TABS.length;
 
 function FrameCard({ frame, units, index, onPress }) {
+  // Fondo real del marco
+  function CardBg() {
+    if (frame.bgType === 'image' && frame.bgImage)
+      return <Image source={{ uri: frame.bgImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />;
+    const grad = typeof frame.bgGradient === 'string' ? JSON.parse(frame.bgGradient) : frame.bgGradient;
+    if (frame.bgType === 'gradient' && grad?.length >= 2)
+      return <LinearGradient colors={grad} style={StyleSheet.absoluteFill} />;
+    if (frame.bgColor)
+      return <View style={[StyleSheet.absoluteFill, { backgroundColor: frame.bgColor }]} />;
+    return <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0d1f2d' }]} />;
+  }
+
   return (
     <View>
       <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
         <View style={s.cardPreview}>
+          <CardBg />
           {frame.imageUrl
             ? <Image source={{ uri: frame.imageUrl }} style={s.cardFrame} resizeMode="contain" />
             : <View style={s.cardFramePlaceholder}><Ionicons name="sparkles-outline" size={28} color={colors.c1} /></View>}
