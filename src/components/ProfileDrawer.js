@@ -5,7 +5,6 @@ import {
   StyleSheet, Dimensions, ScrollView, Alert,
 } from 'react-native';
 
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
@@ -74,8 +73,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
   if (!rendered) return null;
 
-  const daysSince  = Math.floor((Date.now() - new Date(user?.createdAt)) / 86400000);
-  const xpProgress = Math.min((user?.xp || 0) % 100, 100);
+  const daysSince = Math.floor((Date.now() - new Date(user?.createdAt)) / 86400000);
 
   return (
     <View style={s.root}>
@@ -86,15 +84,11 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       <Animated.View style={[s.drawer, { transform: [{ translateX }] }]}>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-          <LinearGradient
-            colors={['rgba(0,110,100,0.35)', 'rgba(2,5,9,1)']}
-            style={s.drawerHeader}
-          >
+          <View style={s.drawerHeader}>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <Text style={s.closeTxt}>✕</Text>
             </TouchableOpacity>
 
-            {/* Avatar con marco */}
             <TouchableOpacity onPress={() => { onClose(); onNavigate('Profile'); }} style={s.avatarArea}>
               <AvatarWithFrame
                 size={64}
@@ -111,18 +105,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
             <Text style={s.drawerUsername}>{user?.username}</Text>
             <Text style={s.drawerEmail}>{user?.email}</Text>
-            <View style={s.xpRow}>
-              <Text style={s.xpLbl}>XP</Text>
-              <View style={s.xpBarBg}>
-                <LinearGradient
-                  colors={['#006b63','#00e5cc']}
-                  style={[s.xpBarFill, { width: `${xpProgress}%` }]}
-                  start={{x:0,y:0}} end={{x:1,y:0}}
-                />
-              </View>
-              <Text style={s.xpVal}>{user?.xp}</Text>
-            </View>
-          </LinearGradient>
+          </View>
 
           <View style={s.statsRow}>
             <View style={s.stat}>
@@ -136,7 +119,6 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             </View>
           </View>
 
-
           <View style={s.section}>
             <Text style={s.sectionTitle}>MONEDAS</Text>
             <View style={s.coinsRow}>
@@ -144,6 +126,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               <Text style={s.coinsAmt}>{user?.coins ?? 50}</Text>
             </View>
           </View>
+
           <View style={s.section}>
             <Text style={s.sectionTitle}>MENÚ</Text>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Collection'); }}>
@@ -174,6 +157,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               <Text style={s.modPanelTxt}>Panel de Moderación</Text>
             </TouchableOpacity>
           )}
+
           <TouchableOpacity style={s.logoutBtn} onPress={onLogout}>
             <Text style={s.logoutTxt}>Cerrar sesión</Text>
           </TouchableOpacity>
@@ -191,10 +175,8 @@ const s = StyleSheet.create({
   drawer: {
     position: 'absolute', top: 0, left: 0, bottom: 0,
     width: DRAWER_WIDTH, backgroundColor: colors.deep,
-    borderRightWidth: 1, borderRightColor: colors.borderC,
-    shadowColor: colors.c1, shadowOpacity: 0.15, shadowRadius: 20, elevation: 20,
   },
-  drawerHeader: { paddingHorizontal: 18, paddingTop: 40, paddingBottom: 18, alignItems: 'center' },
+  drawerHeader: { paddingHorizontal: 18, paddingTop: 40, paddingBottom: 18, alignItems: 'center', backgroundColor: colors.deep },
   closeBtn:     { position: 'absolute', top: 40, right: 12, padding: 6 },
   closeTxt:     { color: colors.textDim, fontSize: 14 },
   avatarArea:   { position: 'relative', marginBottom: 10 },
@@ -205,17 +187,11 @@ const s = StyleSheet.create({
     width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
   },
   drawerUsername: { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 1 },
+  drawerEmail:    { color: colors.textDim, fontSize: 10, marginBottom: 12 },
   coinsRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 4 },
   coinIcon:  { width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(251,191,36,0.2)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.5)', alignItems: 'center', justifyContent: 'center' },
   coinEmoji: { fontSize: 9, color: 'rgba(251,191,36,1)' },
   coinsAmt:  { color: 'rgba(251,191,36,1)', fontWeight: '800', fontSize: 13 },
-  coinsLbl:  { color: 'rgba(251,191,36,0.6)', fontSize: 11 },
-  drawerEmail:    { color: colors.textDim, fontSize: 10, marginBottom: 12 },
-  xpRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, width: '100%' },
-  xpLbl:    { color: colors.textDim, fontSize: 8, letterSpacing: 2 },
-  xpBarBg:  { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' },
-  xpBarFill:{ height: '100%', borderRadius: 2, minWidth: 4 },
-  xpVal:    { color: colors.c1, fontSize: 10, fontWeight: '700' },
   statsRow: {
     flexDirection: 'row', marginHorizontal: 12, marginVertical: 10,
     backgroundColor: colors.card,
@@ -227,15 +203,6 @@ const s = StyleSheet.create({
   statDiv: { width: 1, backgroundColor: colors.border },
   section:      { marginHorizontal: 12, marginBottom: 14 },
   sectionTitle: { fontSize: 8, letterSpacing: 3, color: colors.textDim, marginBottom: 8 },
-  badgesRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  badgePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(0,229,204,0.07)',
-    borderWidth: 1, borderColor: colors.borderC,
-    borderRadius: 16, paddingHorizontal: 8, paddingVertical: 4,
-  },
-  badgeIcon: { fontSize: 12 },
-  badgeName: { color: colors.c1, fontSize: 10 },
   menuItem: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10,
