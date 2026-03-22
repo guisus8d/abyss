@@ -2,25 +2,36 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, FlatList, StatusBar, SafeAreaView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import AudioMessage from '../components/AudioMessage';
 
 export default function GroupRoomScreen({ route, navigation }) {
   const { group: initialGroup } = route.params;
   const { user } = useAuthStore();
-  const [group, setGroup]     = useState(initialGroup);
+  const [group, setGroup]       = useState(initialGroup);
   const [messages, setMessages] = useState([]);
-  const [text, setText]       = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const flatRef   = useRef(null);
-  const socketRef = useRef(null);
+  const [text, setText]         = useState('');
+  const [loading, setLoading]   = useState(true);
+  const [sending, setSending]   = useState(false);
+  const [uploading, setUploading]   = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recSeconds, setRecSeconds]   = useState(0);
+  const [audioPreview, setAudioPreview] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [fullImg, setFullImg]   = useState(null);
+  const flatRef     = useRef(null);
+  const socketRef   = useRef(null);
+  const recordingRef = useRef(null);
+  const recTimerRef  = useRef(null);
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user) === user?._id && m.role === 'admin'
@@ -61,14 +72,104 @@ export default function GroupRoomScreen({ route, navigation }) {
     });
   }
 
+  // ── Texto ────────────────────────────────────────────────────────────────────
   function sendMessage() {
     if (!text.trim() || sending) return;
     setSending(true);
-    socketRef.current?.emit('group:message', { groupId: group._id, text: text.trim() });
+    socketRef.current?.emit('group:message', {
+      groupId: group._id,
+      text: text.trim(),
+      type: 'text',
+    });
     setText('');
     setSending(false);
   }
 
+  // ── Imagen ───────────────────────────────────────────────────────────────────
+  async function pickImage() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
+      if (result.canceled) return;
+      setImagePreview(result.assets[0].uri);
+    } catch (e) { console.log('pickImage error:', e.message); }
+  }
+
+  async function confirmSendImage() {
+    if (!imagePreview) return;
+    const uri = imagePreview;
+    setImagePreview(null);
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      const blob = await fetch(uri).then(r => r.blob());
+      formData.append('file', blob, 'group.jpg');
+      const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      socketRef.current?.emit('group:message', {
+        groupId: group._id,
+        text: '',
+        type: 'image',
+        mediaUrl: data.url,
+      });
+    } catch (e) { console.log('confirmSendImage error:', e.message); }
+    finally { setUploading(false); }
+  }
+
+  // ── Audio ────────────────────────────────────────────────────────────────────
+  async function startRecording() {
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      setIsRecording(true);
+      setRecSeconds(0);
+      recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+    } catch (e) { console.log('startRecording error:', e.message); }
+  }
+
+  async function stopRecording() {
+    try {
+      setIsRecording(false);
+      clearInterval(recTimerRef.current);
+      const secs = recSeconds;
+      setRecSeconds(0);
+      await recordingRef.current?.stopAndUnloadAsync();
+      const uri = recordingRef.current?.getURI();
+      if (!uri) return;
+      setAudioPreview({ uri, duration: secs });
+    } catch (e) { console.log('stopRecording error:', e.message); }
+    finally { recordingRef.current = null; }
+  }
+
+  async function sendAudioPreview() {
+    if (!audioPreview) return;
+    const preview = audioPreview;
+    setAudioPreview(null);
+    try {
+      setUploading(true);
+      const blob = await fetch(preview.uri).then(r => r.blob());
+      const formData = new FormData();
+      formData.append('file', blob, 'audio.m4a');
+      const { data } = await api.post('/chats/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data', 'x-file-type': 'audio' },
+      });
+      socketRef.current?.emit('group:message', {
+        groupId: group._id,
+        text: '',
+        type: 'audio',
+        mediaUrl: data.url,
+        audioDuration: preview.duration,
+      });
+    } catch (e) { console.log('sendAudioPreview error:', e.message); Alert.alert('Error', 'No se pudo enviar el audio'); }
+    finally { setUploading(false); }
+  }
+
+  function cancelAudioPreview() {
+    setAudioPreview(null);
+    recordingRef.current = null;
+  }
+
+  // ── Acciones ─────────────────────────────────────────────────────────────────
   async function deleteMessage(msgId) {
     try {
       await api.delete(`/groups/${group._id}/message/${msgId}`);
@@ -91,18 +192,17 @@ export default function GroupRoomScreen({ route, navigation }) {
     ]);
   }
 
+  // ── Render mensaje ───────────────────────────────────────────────────────────
   function renderMessage({ item: msg, index }) {
     const isMe         = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
     const sender       = msg.sender;
     const prevMsg      = messages[index - 1];
     const prevSenderId = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
     const thisSenderId = (sender?._id || sender)?.toString();
-
-    // sameAsPrev aplica para todos (yo y otros)
-    const sameAsPrev  = prevMsg && prevSenderId === thisSenderId;
-    const showName    = !sameAsPrev;
-    const displayName = isMe ? (user?.username || 'Tú') : (sender?.username || '');
-    const senderRole  = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
+    const sameAsPrev   = prevMsg && prevSenderId === thisSenderId;
+    const showName     = !sameAsPrev;
+    const displayName  = isMe ? (user?.username || 'Tú') : (sender?.username || '');
+    const senderRole   = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
     const senderIsAdmin = senderRole === 'admin';
 
     return (
@@ -119,28 +219,16 @@ export default function GroupRoomScreen({ route, navigation }) {
         )}
 
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
-          {/* Avatar — reserva espacio siempre, oculto si es consecutivo */}
           {isMe ? (
             <View style={{ opacity: sameAsPrev ? 0 : 1, alignSelf: 'flex-start' }}>
-              <AvatarWithFrame
-                size={30}
-                avatarUrl={user?.avatarUrl}
-                username={user?.username}
-                profileFrame={user?.profileFrame}
-                frameUrl={user?.profileFrameUrl}
-              />
+              <AvatarWithFrame size={30} avatarUrl={user?.avatarUrl} username={user?.username}
+                profileFrame={user?.profileFrame} frameUrl={user?.profileFrameUrl} />
             </View>
           ) : (
-            <TouchableOpacity
-              style={{ alignSelf: 'flex-start', opacity: sameAsPrev ? 0 : 1 }}
+            <TouchableOpacity style={{ alignSelf: 'flex-start', opacity: sameAsPrev ? 0 : 1 }}
               onPress={() => navigation.navigate('PublicProfile', { username: sender?.username })}>
-              <AvatarWithFrame
-                size={30}
-                avatarUrl={sender?.avatarUrl}
-                username={sender?.username}
-                profileFrame={sender?.profileFrame}
-                frameUrl={sender?.profileFrameUrl}
-              />
+              <AvatarWithFrame size={30} avatarUrl={sender?.avatarUrl} username={sender?.username}
+                profileFrame={sender?.profileFrame} frameUrl={sender?.profileFrameUrl} />
             </TouchableOpacity>
           )}
 
@@ -158,7 +246,13 @@ export default function GroupRoomScreen({ route, navigation }) {
               }
             }}
           >
-            <Text style={s.bubbleText}>{msg.text}</Text>
+            {msg.type === 'audio' && msg.mediaUrl
+              ? <AudioMessage uri={msg.mediaUrl} isMe={isMe} duration={msg.audioDuration || 0} />
+              : msg.type === 'image' && msg.mediaUrl
+              ? <TouchableOpacity onPress={() => setFullImg(msg.mediaUrl)} activeOpacity={0.9}>
+                  <Image source={{ uri: msg.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+                </TouchableOpacity>
+              : <Text style={s.bubbleText}>{msg.text}</Text>}
             <Text style={s.bubbleTime}>
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
@@ -171,13 +265,40 @@ export default function GroupRoomScreen({ route, navigation }) {
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
+
+      {/* Preview imagen */}
+      <Modal visible={!!imagePreview} transparent animationType="fade" onRequestClose={() => setImagePreview(null)}>
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding:20 }}>
+          {imagePreview && <Image source={{ uri: imagePreview }} style={{ width:'100%', height:'60%', borderRadius:16 }} resizeMode="contain" />}
+          <View style={{ flexDirection:'row', gap:16, marginTop:20 }}>
+            <TouchableOpacity onPress={() => setImagePreview(null)}
+              style={{ flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:24, paddingVertical:12, borderRadius:24, borderWidth:1, borderColor:'rgba(239,68,68,0.4)', backgroundColor:'rgba(239,68,68,0.1)' }}>
+              <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.9)" />
+              <Text style={{ color:'rgba(239,68,68,0.9)', fontWeight:'700', fontSize:13 }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={confirmSendImage} disabled={uploading}
+              style={{ flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:24, paddingVertical:12, borderRadius:24, backgroundColor:'rgba(0,229,204,0.85)' }}>
+              {uploading ? <ActivityIndicator size={16} color="#000" /> : <Ionicons name="send" size={18} color="#000" />}
+              <Text style={{ color:'#000', fontWeight:'800', fontSize:13 }}>Enviar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Visor imagen fullscreen */}
+      <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
+        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
+          {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
+          <Text style={{ color:'rgba(255,255,255,0.4)', marginTop:16, fontSize:12 }}>Toca para cerrar</Text>
+        </Pressable>
+      </Modal>
+
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={s.headerInfo}
+          <TouchableOpacity style={s.headerInfo}
             onPress={() => Alert.alert(group.name, group.description || 'Sin descripción')}>
             {group.imageUrl
               ? <Image source={{ uri: group.imageUrl }} style={s.groupAvatar} />
@@ -209,23 +330,57 @@ export default function GroupRoomScreen({ route, navigation }) {
           />}
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.inputRow}>
-          <TextInput
-            style={s.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="Mensaje..."
-            placeholderTextColor={colors.textDim}
-            multiline
-            maxLength={2000}
-          />
-          <TouchableOpacity
-            style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
-            onPress={sendMessage}
-            disabled={!text.trim() || sending}>
-            <Ionicons name="send" size={16} color={colors.black} />
-          </TouchableOpacity>
-        </View>
+        {audioPreview ? (
+          <View style={s.audioPreviewRow}>
+            <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
+              <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.8)" />
+            </TouchableOpacity>
+            <AudioMessage uri={audioPreview.uri} isMe={true} duration={audioPreview.duration} />
+            <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.audioPreviewSend}>
+              {uploading ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={s.inputRow}>
+            {/* Imagen */}
+            <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
+              {uploading
+                ? <ActivityIndicator size={16} color={colors.c1} />
+                : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
+            </TouchableOpacity>
+
+            {/* Audio */}
+            {isRecording ? (
+              <View style={s.recRow}>
+                <View style={s.recDot} />
+                <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
+                <TouchableOpacity onPress={stopRecording} style={s.recStop}>
+                  <Ionicons name="stop" size={14} color={colors.c1} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
+                <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            )}
+
+            <TextInput
+              style={s.input}
+              value={text}
+              onChangeText={setText}
+              placeholder="Mensaje..."
+              placeholderTextColor={colors.textDim}
+              multiline
+              maxLength={2000}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
+              onPress={sendMessage}
+              disabled={!text.trim() || sending}>
+              <Ionicons name="send" size={16} color={colors.black} />
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </View>
   );
@@ -241,9 +396,9 @@ const s = StyleSheet.create({
   groupName:    { color: colors.textHi, fontSize: 14, fontWeight: '700' },
   groupMembers: { color: colors.textDim, fontSize: 11 },
 
-  messageList:       { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-  msgRow:            { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
-  msgRowMe:          { flexDirection: 'row-reverse' },
+  messageList:     { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  msgRow:          { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
+  msgRowMe:        { flexDirection: 'row-reverse' },
   msgSenderRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 44, marginBottom: 2 },
   msgSenderRowMe:  { flexDirection: 'row-reverse', marginLeft: 0, marginRight: 44 },
   msgSenderName:   { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700' },
@@ -256,8 +411,18 @@ const s = StyleSheet.create({
   bubbleText:      { color: '#ffffff', fontSize: 14, lineHeight: 20 },
   bubbleTime:      { color: 'rgba(255,255,255,0.4)', fontSize: 9, alignSelf: 'flex-end' },
 
-  inputRow:        { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
+  inputRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 8 },
+  mediaBtn:        { padding: 8, justifyContent: 'center', alignItems: 'center' },
   input:           { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 10, color: colors.textHi, fontSize: 14, maxHeight: 100 },
   sendBtn:         { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
+
+  recRow:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8 },
+  recDot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(239,68,68,0.9)' },
+  recTimer:        { color: colors.c1, fontSize: 13, fontWeight: '700', minWidth: 38 },
+  recStop:         { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.8)', alignItems: 'center', justifyContent: 'center' },
+
+  audioPreviewRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
+  audioPreviewCancel: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center', justifyContent: 'center' },
+  audioPreviewSend:   { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,229,204,0.8)', alignItems: 'center', justifyContent: 'center' },
 });
