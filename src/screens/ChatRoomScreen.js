@@ -20,11 +20,8 @@ function renderTextWithMentions(text, navigation) {
     if (part.startsWith('@')) {
       const username = part.slice(1);
       return (
-        <Text
-          key={i}
-          style={{ fontWeight: '700', color: '#fff' }}
-          onPress={() => navigation.navigate('PublicProfile', { username })}
-        >
+        <Text key={i} style={{ fontWeight: '700', color: '#fff' }}
+          onPress={() => navigation.navigate('PublicProfile', { username })}>
           {part}
         </Text>
       );
@@ -38,10 +35,8 @@ function dateLabel(date) {
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-
   if (d.toDateString() === today.toDateString()) return 'Hoy';
   if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
-
   const days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const diff = (today - d) / (1000 * 60 * 60 * 24);
@@ -55,28 +50,27 @@ function timeStr(date) {
 
 export default function ChatRoomScreen({ route, navigation }) {
   const { chat, other, requestMode = false, alreadyRequested = false } = route.params;
-  const { user }                = useAuthStore();
-  const [messages, setMessages] = useState([]);
+  const { user }                  = useAuthStore();
+  const [messages, setMessages]   = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [recording, setRecording] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioPreview, setAudioPreview] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [recSeconds, setRecSeconds] = useState(0);
-  const recordingRef = useRef(null);
-  const recTimerRef = useRef(null);
-  const [fullImg, setFullImg] = useState(null);
-  const [text, setText]         = useState('');
-  const [typing, setTyping]     = useState(false);
+  const recordingRef  = useRef(null);
+  const recTimerRef   = useRef(null);
+  const [fullImg, setFullImg]     = useState(null);
+  const [text, setText]           = useState('');
+  const [typing, setTyping]       = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  const [reqSent, setReqSent] = useState(alreadyRequested);
+  const [reqSent, setReqSent]     = useState(alreadyRequested);
   const [sendingReq, setSendingReq] = useState(false);
-  const flatRef     = useRef(null);
-  const [menuMsg, setMenuMsg]     = useState(null); // mensaje seleccionado
-  const [replyTo, setReplyTo]     = useState(null); // mensaje a responder
+  const flatRef       = useRef(null);
+  const [menuMsg, setMenuMsg]     = useState(null);
+  const [replyTo, setReplyTo]     = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
-  const typingTimer = useRef(null);
-  const socketRef   = useRef(null);
+  const typingTimer   = useRef(null);
+  const socketRef     = useRef(null);
 
   async function handleSendRequest() {
     if (reqSent) return;
@@ -84,12 +78,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     try {
       await api.post(`/chats/request/${other._id}`);
       setReqSent(true);
-    } catch (err) {
-      // Si ya existe solicitud, marcar como enviada igual
-      setReqSent(true);
-    } finally {
-      setSendingReq(false);
-    }
+    } catch { setReqSent(true); }
+    finally { setSendingReq(false); }
   }
 
   function scrollToBottom(animated = true) {
@@ -98,7 +88,6 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   useEffect(() => {
     if (requestMode) {
-      // Cargar mensajes previos de la solicitud
       api.get('/chats/requests/sent').then(({ data }) => {
         const myReq = data.sent?.find(s => s.to._id === other._id);
         if (myReq?.messages?.length) {
@@ -114,16 +103,15 @@ export default function ChatRoomScreen({ route, navigation }) {
       return;
     }
 
-    api.get(`/chats/${chat._id}/messages`)
-      .then(({ data }) => {
-        setMessages(data.messages || []);
-        scrollToBottom(false);
-      });
+    api.get(`/chats/${chat._id}/messages`).then(({ data }) => {
+      setMessages(data.messages || []);
+      scrollToBottom(false);
+    });
 
     connectSocket().then(s => {
       socketRef.current = s;
       s.emit('chat:join', { chatId: chat._id.toString() });
-      s.emit('chat:read', { chatId: chat._id.toString() }); // marcar como leídos al abrir
+      s.emit('chat:read', { chatId: chat._id.toString() });
 
       s.on('chat:message', ({ chatId, message }) => {
         if (chatId.toString() === chat._id.toString()) {
@@ -136,7 +124,6 @@ export default function ChatRoomScreen({ route, navigation }) {
             }
             return [...prev, message];
           });
-          // Marcar como leído inmediatamente al recibir
           s.emit('chat:read', { chatId: chat._id.toString() });
           scrollToBottom();
         }
@@ -159,7 +146,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     const msgText = text.trim();
     const tempMsg = {
       _id: 'temp_' + Date.now(),
-      sender: { _id: user._id },
+      sender: { _id: user._id, avatarUrl: user.avatarUrl, username: user.username, profileFrame: user.profileFrame, profileFrameUrl: user.profileFrameUrl },
       text: msgText,
       type: 'text',
       mediaUrl: null,
@@ -170,19 +157,12 @@ export default function ChatRoomScreen({ route, navigation }) {
     scrollToBottom();
 
     if (requestMode) {
-      // Si no hay solicitud enviada aún, enviarla primero
       if (!reqSent) {
-        try {
-          await api.post(`/chats/request/${other._id}`);
-          setReqSent(true);
-        } catch (e) { setReqSent(true); }
+        try { await api.post(`/chats/request/${other._id}`); setReqSent(true); }
+        catch { setReqSent(true); }
       }
-      // Guardar mensaje en la solicitud
-      try {
-        await api.post(`/chats/request/${other._id}/message`, { text: msgText });
-      } catch (e) {
-        console.log('Error guardando mensaje de solicitud:', e.message);
-      }
+      try { await api.post(`/chats/request/${other._id}/message`, { text: msgText }); }
+      catch (e) { console.log('Error guardando mensaje de solicitud:', e.message); }
       return;
     }
 
@@ -194,7 +174,6 @@ export default function ChatRoomScreen({ route, navigation }) {
     });
     setReplyTo(null);
   }
-
 
   async function sendImage() {
     try {
@@ -218,7 +197,6 @@ export default function ChatRoomScreen({ route, navigation }) {
     } catch (e) { console.log('confirmSendImage error:', e.message); }
     finally { setUploading(false); }
   }
-
 
   async function startRecording() {
     try {
@@ -246,7 +224,6 @@ export default function ChatRoomScreen({ route, navigation }) {
     finally { setUploading(false); recordingRef.current = null; }
   }
 
-
   async function sendAudioPreview() {
     if (!audioPreview) return;
     const preview = audioPreview;
@@ -269,12 +246,10 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   function handleTyping(val) {
     setText(val);
-    // Detectar @ para menciones
     const match = val.match(/@(\w*)$/);
     if (match) {
       const q = match[1].toLowerCase();
-      const suggestions = [other].filter(u => u.username.toLowerCase().startsWith(q));
-      setMentionSuggestions(suggestions);
+      setMentionSuggestions([other].filter(u => u.username.toLowerCase().startsWith(q)));
     } else {
       setMentionSuggestions([]);
     }
@@ -287,21 +262,20 @@ export default function ChatRoomScreen({ route, navigation }) {
   }
 
   function pickMention(username) {
-    const newText = text.replace(/@(\w*)$/, `@${username} `);
-    setText(newText);
+    setText(text.replace(/@(\w*)$/, `@${username} `));
     setMentionSuggestions([]);
   }
 
   function renderMessage({ item, index }) {
-    const showDate = index === 0 || dateLabel(item.createdAt) !== dateLabel(messages[index - 1]?.createdAt);
-    const isMe = (item.sender?._id || item.sender)?.toString() === user._id?.toString();
-    const prevMsg = messages[index - 1];
-    const prevSender = prevMsg?.sender?._id || prevMsg?.sender;
-    const thisSender = item.sender?._id || item.sender;
-    const prevIsMe = (prevMsg?.sender?._id || prevMsg?.sender)?.toString() === user._id?.toString();
-    const sameAsPrev = !isMe && prevMsg && !prevIsMe && (prevMsg?.sender?._id || prevMsg?.sender)?.toString() === thisSender?.toString();
-    const showName = !isMe && !sameAsPrev;
-    const showAvatar = showName;
+    const showDate  = index === 0 || dateLabel(item.createdAt) !== dateLabel(messages[index - 1]?.createdAt);
+    const isMe      = (item.sender?._id || item.sender)?.toString() === user._id?.toString();
+    const prevMsg   = messages[index - 1];
+    const prevIsMe  = (prevMsg?.sender?._id || prevMsg?.sender)?.toString() === user._id?.toString();
+
+    // sameAsPrev: el mensaje anterior era del mismo lado (yo→yo u otro→otro)
+    const sameAsPrev = prevMsg && (isMe ? prevIsMe : !prevIsMe);
+    const showAvatar = !sameAsPrev;
+
     return (
       <>
         {showDate && (
@@ -311,49 +285,63 @@ export default function ChatRoomScreen({ route, navigation }) {
             <View style={s.dateLine} />
           </View>
         )}
-        {showName && !isMe && (
+        {/* Nombre solo del otro en chat 1-a-1 */}
+        {!isMe && showAvatar && (
           <Text style={s.msgSenderName}>{other.username}</Text>
         )}
+
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
-        {!isMe && (
-          <View style={{ opacity: showAvatar ? 1 : 0 }}>
-            <AvatarWithFrame
-              size={28}
-              avatarUrl={other.avatarUrl}
-              username={other.username}
-              profileFrame={other.profileFrame}
-              frameUrl={other.profileFrameUrl}
-            />
-          </View>
-        )}
-        <TouchableOpacity
-          onLongPress={() => setMenuMsg(item)}
-          activeOpacity={0.8}
-          style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}
-        >
-          {item.replyTo?.text && (
-            <TouchableOpacity style={s.replyPreview} onPress={() => scrollToMsg(item.replyTo.messageId)}>
-              <Text style={s.replyUser}>↩ {item.replyTo.senderUsername}</Text>
-              <Text style={s.replyText} numberOfLines={1}>{item.replyTo.text}</Text>
-            </TouchableOpacity>
-          )}
-          {item.mediaUrl && item.type === 'audio'
-            ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
-            : item.mediaUrl && item.type === 'image'
-            ? <TouchableOpacity onPress={() => setFullImg(item.mediaUrl)} activeOpacity={0.9}>
-                <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
-              </TouchableOpacity>
-            : <Text style={s.bubbleTxt}>{renderTextWithMentions(item.text, navigation)}</Text>}
-          <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>
-          {item.reactions?.length > 0 && (
-            <View style={s.msgReactions}>
-              {item.reactions.map((r, i) => (
-                <Text key={i} style={s.msgReactionEmoji}>{r.emoji}</Text>
-              ))}
+          {/* Avatar — ambos lados, oculto si es consecutivo */}
+          {isMe ? (
+            <View style={{ opacity: showAvatar ? 1 : 0 }}>
+              <AvatarWithFrame
+                size={28}
+                avatarUrl={user.avatarUrl}
+                username={user.username}
+                profileFrame={user.profileFrame}
+                frameUrl={user.profileFrameUrl}
+              />
+            </View>
+          ) : (
+            <View style={{ opacity: showAvatar ? 1 : 0 }}>
+              <AvatarWithFrame
+                size={28}
+                avatarUrl={other.avatarUrl}
+                username={other.username}
+                profileFrame={other.profileFrame}
+                frameUrl={other.profileFrameUrl}
+              />
             </View>
           )}
-        </TouchableOpacity>
-      </View>
+
+          <TouchableOpacity
+            onLongPress={() => setMenuMsg(item)}
+            activeOpacity={0.8}
+            style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}
+          >
+            {item.replyTo?.text && (
+              <TouchableOpacity style={s.replyPreview} onPress={() => scrollToMsg(item.replyTo.messageId)}>
+                <Text style={s.replyUser}>↩ {item.replyTo.senderUsername}</Text>
+                <Text style={s.replyText} numberOfLines={1}>{item.replyTo.text}</Text>
+              </TouchableOpacity>
+            )}
+            {item.mediaUrl && item.type === 'audio'
+              ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
+              : item.mediaUrl && item.type === 'image'
+              ? <TouchableOpacity onPress={() => setFullImg(item.mediaUrl)} activeOpacity={0.9}>
+                  <Image source={{ uri: item.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+                </TouchableOpacity>
+              : <Text style={s.bubbleTxt}>{renderTextWithMentions(item.text, navigation)}</Text>}
+            <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>
+            {item.reactions?.length > 0 && (
+              <View style={s.msgReactions}>
+                {item.reactions.map((r, i) => (
+                  <Text key={i} style={s.msgReactionEmoji}>{r.emoji}</Text>
+                ))}
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </>
     );
   }
@@ -385,9 +373,9 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
-      {/* Preview imagen antes de enviar */}
+      {/* Preview imagen */}
       <Modal visible={!!imagePreview} transparent animationType="fade" onRequestClose={() => setImagePreview(null)}>
-        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding: 20 }}>
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding:20 }}>
           {imagePreview && <Image source={{ uri: imagePreview }} style={{ width:'100%', height:'60%', borderRadius:16 }} resizeMode="contain" />}
           <View style={{ flexDirection:'row', gap:16, marginTop:20 }}>
             <TouchableOpacity onPress={() => setImagePreview(null)}
@@ -397,14 +385,13 @@ export default function ChatRoomScreen({ route, navigation }) {
             </TouchableOpacity>
             <TouchableOpacity onPress={confirmSendImage} disabled={uploading}
               style={{ flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:24, paddingVertical:12, borderRadius:24, backgroundColor:'rgba(0,229,204,0.85)' }}>
-              {uploading
-                ? <ActivityIndicator size={16} color="#000" />
-                : <Ionicons name="send" size={18} color="#000" />}
+              {uploading ? <ActivityIndicator size={16} color="#000" /> : <Ionicons name="send" size={18} color="#000" />}
               <Text style={{ color:'#000', fontWeight:'800', fontSize:13 }}>Enviar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
       {/* Visor imagen fullscreen */}
       <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
         <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
@@ -412,35 +399,25 @@ export default function ChatRoomScreen({ route, navigation }) {
           <Text style={{ color:'rgba(255,255,255,0.4)', marginTop:16, fontSize:12 }}>Toca para cerrar</Text>
         </Pressable>
       </Modal>
+
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('PublicProfile', { username: other.username })}
-          >
-            <AvatarWithFrame
-              size={36}
-              avatarUrl={other.avatarUrl}
-              username={other.username}
-              profileFrame={other.profileFrame}
-              frameUrl={other.profileFrameUrl}
-            />
+          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
+            <AvatarWithFrame size={36} avatarUrl={other.avatarUrl} username={other.username}
+              profileFrame={other.profileFrame} frameUrl={other.profileFrameUrl} />
           </TouchableOpacity>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
+          <TouchableOpacity style={{ flex:1 }} onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
             <Text style={s.headerName}>{other.username}</Text>
             {typing && <Text style={s.typingTxt}>escribiendo...</Text>}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={80}
-      >
+      <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
         <FlatList
           ref={flatRef}
           data={messages}
@@ -449,43 +426,27 @@ export default function ChatRoomScreen({ route, navigation }) {
           contentContainerStyle={s.messagesList}
           onScroll={(e) => {
             const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-            const dist = contentSize.height - layoutMeasurement.height - contentOffset.y;
-            setShowScrollBtn(dist > 150);
+            setShowScrollBtn(contentSize.height - layoutMeasurement.height - contentOffset.y > 150);
           }}
           scrollEventThrottle={32}
         />
-        {/* Banner de solicitud */}
+
         {requestMode && (
           <View style={s.reqBanner}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.reqBannerTitle}>
-                {reqSent ? '⏳ Solicitud enviada' : '💬 Enviar solicitud de chat'}
-              </Text>
-              <Text style={s.reqBannerSub}>
-                {reqSent
-                  ? `Espera a que ${other.username} acepte tu solicitud`
-                  : `${other.username} recibirá una notificación`}
-              </Text>
+            <View style={{ flex:1 }}>
+              <Text style={s.reqBannerTitle}>{reqSent ? '⏳ Solicitud enviada' : '💬 Enviar solicitud de chat'}</Text>
+              <Text style={s.reqBannerSub}>{reqSent ? `Espera a que ${other.username} acepte tu solicitud` : `${other.username} recibirá una notificación`}</Text>
             </View>
             {!reqSent && (
-              <TouchableOpacity
-                style={s.reqBannerBtn}
-                onPress={handleSendRequest}
-                disabled={sendingReq}
-              >
-                <LinearGradient
-                  colors={['#006b63', '#00e5cc']}
-                  style={s.reqBannerBtnInner}
-                  start={{x:0,y:0}} end={{x:1,y:0}}
-                >
-                  <Text style={s.reqBannerBtnTxt}>
-                    {sendingReq ? '...' : 'Enviar'}
-                  </Text>
+              <TouchableOpacity style={s.reqBannerBtn} onPress={handleSendRequest} disabled={sendingReq}>
+                <LinearGradient colors={['#006b63','#00e5cc']} style={s.reqBannerBtnInner} start={{x:0,y:0}} end={{x:1,y:0}}>
+                  <Text style={s.reqBannerBtnTxt}>{sendingReq ? '...' : 'Enviar'}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
           </View>
         )}
+
         {mentionSuggestions.length > 0 && (
           <View style={s.mentionDropdown}>
             {mentionSuggestions.map(u => (
@@ -496,66 +457,64 @@ export default function ChatRoomScreen({ route, navigation }) {
             ))}
           </View>
         )}
+
         {replyTo && (
           <View style={s.replyBar}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex:1 }}>
               <Text style={s.replyBarUser}>↩ {replyTo.sender?.username || 'usuario'}</Text>
               <Text style={s.replyBarTxt} numberOfLines={1}>{replyTo.text}</Text>
             </View>
-            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding: 8 }}>
-              <Text style={{ color: '#888', fontSize: 16 }}>✕</Text>
+            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding:8 }}>
+              <Text style={{ color:'#888', fontSize:16 }}>✕</Text>
             </TouchableOpacity>
           </View>
         )}
+
         {audioPreview ? (
-          /* Preview audio grabado */
           <View style={s.audioPreviewRow}>
             <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
               <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.8)" />
             </TouchableOpacity>
             <AudioMessage uri={audioPreview.uri} isMe={true} duration={audioPreview.duration} />
             <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.audioPreviewSend}>
-              {uploading
-                ? <ActivityIndicator size={16} color="#fff" />
-                : <Ionicons name="send" size={16} color="#fff" />}
+              {uploading ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
             </TouchableOpacity>
           </View>
         ) : (
-        <View style={s.inputRow}>
-          <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
-            {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
-          </TouchableOpacity>
-          {isRecording ? (
-            <View style={s.recRow}>
-              <View style={s.recDot} />
-              <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
-              <TouchableOpacity onPress={stopRecording} style={s.recStop}>
-                <Ionicons name="stop" size={14} color={colors.c1} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
-              <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+          <View style={s.inputRow}>
+            <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
+              {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
             </TouchableOpacity>
-          )}
-          <TextInput
-            style={s.input}
-            placeholder="Mensaje..."
-            placeholderTextColor={colors.textDim}
-            value={text}
-            onChangeText={handleTyping}
-            onSubmitEditing={handleSend}
-            returnKeyType="send"
-          />
-          <TouchableOpacity onPress={handleSend} disabled={!text.trim()}>
-            <LinearGradient
-              colors={text.trim() ? ['#006b63','#00e5cc'] : ['#1a2a2a','#1a2a2a']}
-              style={s.sendBtn}
-            >
-              <Ionicons name="send" size={18} color={colors.black} />
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+            {isRecording ? (
+              <View style={s.recRow}>
+                <View style={s.recDot} />
+                <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
+                <TouchableOpacity onPress={stopRecording} style={s.recStop}>
+                  <Ionicons name="stop" size={14} color={colors.c1} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
+                <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            )}
+            <TextInput
+              style={s.input}
+              placeholder="Mensaje..."
+              placeholderTextColor={colors.textDim}
+              value={text}
+              onChangeText={handleTyping}
+              onSubmitEditing={handleSend}
+              returnKeyType="send"
+            />
+            <TouchableOpacity onPress={handleSend} disabled={!text.trim()}>
+              <LinearGradient
+                colors={text.trim() ? ['#006b63','#00e5cc'] : ['#1a2a2a','#1a2a2a']}
+                style={s.sendBtn}>
+                <Ionicons name="send" size={18} color={colors.black} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         )}
       </KeyboardAvoidingView>
 
@@ -564,7 +523,8 @@ export default function ChatRoomScreen({ route, navigation }) {
           <Text style={s.scrollDownTxt}>↓</Text>
         </TouchableOpacity>
       )}
-      {/* Modal menu long press */}
+
+      {/* Modal long press */}
       <Modal visible={!!menuMsg} transparent animationType="fade" onRequestClose={() => setMenuMsg(null)}>
         <Pressable style={s.modalOverlay} onPress={() => setMenuMsg(null)}>
           <View style={s.menuBox}>
@@ -572,7 +532,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             <View style={s.emojiRow}>
               {['❤️','😂','😮','😢','🔥','👏'].map(e => (
                 <TouchableOpacity key={e} onPress={() => reactToMsg(e)} style={s.emojiBtn}>
-                  <Text style={{ fontSize: 26 }}>{e}</Text>
+                  <Text style={{ fontSize:26 }}>{e}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -580,119 +540,69 @@ export default function ChatRoomScreen({ route, navigation }) {
               <Text style={s.menuItemTxt}>↩ Responder</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={deleteForMe}>
-              <Text style={[s.menuItemTxt, { color: '#ff4444' }]}>🗑 Borrar para mí</Text>
+              <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>🗑 Borrar para mí</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
       </Modal>
-
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.black, overflow: 'hidden', maxWidth: '100%' },
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12,
-  },
-  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  backTxt:     { color: colors.c1, fontSize: 22 },
-  headerAv:    {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(0,229,204,0.1)',
-    borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerAvTxt: { color: colors.c1, fontWeight: 'bold' },
-  headerAvImg: { width: 36, height: 36, borderRadius: 18 },
-  msgAvatarImg:{ width: 28, height: 28, borderRadius: 14 },
-  headerName:  { color: colors.textHi, fontWeight: '600', fontSize: 14 },
-  typingTxt:   { color: colors.c1, fontSize: 10, opacity: 0.7 },
-  messagesList:{ padding: 16, paddingBottom: 20 },
-  msgRow:      { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 10 },
-  msgRowMe:    { flexDirection: 'row-reverse' },
-  msgAvatar:   {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: 'rgba(0,229,204,0.1)',
-    borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  msgAvatarTxt:{ color: colors.c1, fontSize: 11, fontWeight: 'bold' },
-  bubble:      { maxWidth: '75%', borderRadius: 16, padding: 12, borderWidth: 1 },
-  bubbleMe:    { backgroundColor: 'rgba(0,180,160,0.85)', borderColor: 'rgba(0,229,204,0.4)', borderBottomRightRadius: 4 },
-  bubbleThem:  { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius: 4 },
-  bubbleTxt:   { color: '#ffffff', fontSize: 14, lineHeight: 20 },
-  msgSenderName: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700', marginLeft: 44, marginBottom: 2 },
-  bubbleTime:  { color: colors.textDim, fontSize: 9, marginTop: 4, textAlign: 'right' },
-  mediaBtn:    { padding: 8, justifyContent: 'center', alignItems: 'center' },
-  mediaBtnActive: { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 20 },
-  recRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8 },
-  recDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(239,68,68,0.9)' },
-  recTimer: { color: colors.c1, fontSize: 13, fontWeight: '700', minWidth: 38 },
-  recStop:  { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.8)', alignItems: 'center', justifyContent: 'center' },
-  audioPreviewRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
-  audioPreviewCancel: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center', justifyContent: 'center' },
-  audioPreviewSend:   { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,229,204,0.8)', alignItems: 'center', justifyContent: 'center' },
-  inputRow:    {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 12, paddingVertical: 10,
-    borderTopWidth: 1, borderTopColor: colors.border,
-    backgroundColor: colors.deep,
-    overflow: 'hidden',
-  },
-  input: {
-    flex: 1, minWidth: 0, flexShrink: 1,
-    backgroundColor: 'rgba(8,20,36,0.95)',
-    borderWidth: 1, borderColor: colors.border, borderRadius: 22,
-    paddingHorizontal: 16, paddingVertical: 10,
-    color: colors.textHi, fontSize: 14,
-  },
-  sendBtn: { width: 42, height: 42, minWidth: 42, maxWidth: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  sendTxt:       { color: colors.black, fontSize: 18, fontWeight: 'bold' },
-  reqBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    margin: 12, padding: 14,
-    backgroundColor: 'rgba(0,229,204,0.06)',
-    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)',
-    gap: 12,
-  },
-  reqBannerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '600', marginBottom: 2 },
-  reqBannerSub:   { color: colors.textDim, fontSize: 11 },
-  reqBannerBtn:   { },
-  reqBannerBtnInner: { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  reqBannerBtnTxt:   { color: '#001a18', fontSize: 12, fontWeight: '700' },
-  dateSep:   { flexDirection: 'row', alignItems: 'center', marginVertical: 12, paddingHorizontal: 16 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-  menuBox:   { backgroundColor: colors.surface, borderRadius: 16, padding: 16, width: 280, borderWidth: 1, borderColor: colors.borderC },
-  menuTitle: { color: colors.textDim, fontSize: 12, marginBottom: 12, fontStyle: 'italic' },
-  emojiRow:  { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
-  emojiBtn:  { padding: 6 },
-  menuItem:  { paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border },
-  menuItemTxt: { color: colors.textHi, fontSize: 15, textAlign: 'center' },
-  replyBar:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#333' },
-  replyBarUser: { color: '#aaa', fontSize: 11, fontWeight: '700' },
-  replyBarTxt:  { color: '#666', fontSize: 12 },
-  replyPreview: { backgroundColor: 'rgba(255,255,255,0.06)', borderLeftWidth: 2, borderLeftColor: '#555', paddingLeft: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 4 },
-  replyUser:    { color: '#aaa', fontSize: 10, fontWeight: '700' },
-  replyText:    { color: '#666', fontSize: 11 },
-  msgReactions: { flexDirection: 'row', gap: 2, marginTop: 4 },
-  msgReactionEmoji: { fontSize: 16 },
-
-  mentionDropdown: { backgroundColor: '#1a1a1a', borderTopWidth: 1, borderTopColor: '#333' },
-  mentionItem:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, gap: 4, borderBottomWidth: 1, borderBottomColor: '#222' },
-  mentionAt:       { color: '#666', fontSize: 14 },
-  mentionName:     { color: '#eee', fontSize: 14, fontWeight: '600' },
-  dateLine:  { flex: 1, height: 1, backgroundColor: colors.border },
-  dateLabel: { color: colors.textDim, fontSize: 11, marginHorizontal: 10 },
-  scrollDownBtn: {
-    position: 'absolute', bottom: 80, right: 16,
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center',
-    elevation: 5,
-  },
-  scrollDownTxt: { color: colors.c1, fontSize: 20, fontWeight: 'bold' },
+  root:        { flex:1, backgroundColor: colors.black, overflow:'hidden', maxWidth:'100%' },
+  header:      { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:12, borderBottomWidth:1, borderBottomColor: colors.border, gap:12 },
+  backBtn:     { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.08)', alignItems:'center', justifyContent:'center', marginRight:8 },
+  headerName:  { color: colors.textHi, fontWeight:'600', fontSize:14 },
+  typingTxt:   { color: colors.c1, fontSize:10, opacity:0.7 },
+  messagesList:{ padding:16, paddingBottom:20 },
+  msgRow:      { flexDirection:'row', alignItems:'flex-end', gap:8, marginBottom:10 },
+  msgRowMe:    { flexDirection:'row-reverse' },
+  msgSenderName: { color:'rgba(255,255,255,0.7)', fontSize:11, fontWeight:'700', marginLeft:44, marginBottom:2 },
+  bubble:      { maxWidth:'75%', borderRadius:16, padding:12, borderWidth:1 },
+  bubbleMe:    { backgroundColor:'rgba(0,180,160,0.85)', borderColor:'rgba(0,229,204,0.4)', borderBottomRightRadius:4 },
+  bubbleThem:  { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius:4 },
+  bubbleTxt:   { color:'#ffffff', fontSize:14, lineHeight:20 },
+  bubbleTime:  { color: colors.textDim, fontSize:9, marginTop:4, textAlign:'right' },
+  mediaBtn:    { padding:8, justifyContent:'center', alignItems:'center' },
+  recRow:      { flexDirection:'row', alignItems:'center', gap:6, paddingHorizontal:8 },
+  recDot:      { width:8, height:8, borderRadius:4, backgroundColor:'rgba(239,68,68,0.9)' },
+  recTimer:    { color: colors.c1, fontSize:13, fontWeight:'700', minWidth:38 },
+  recStop:     { width:28, height:28, borderRadius:14, backgroundColor:'rgba(239,68,68,0.8)', alignItems:'center', justifyContent:'center' },
+  audioPreviewRow:    { flexDirection:'row', alignItems:'center', justifyContent:'center', paddingHorizontal:16, paddingVertical:10, gap:12, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
+  audioPreviewCancel: { width:36, height:36, borderRadius:18, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)', alignItems:'center', justifyContent:'center' },
+  audioPreviewSend:   { width:36, height:36, borderRadius:18, backgroundColor:'rgba(0,229,204,0.8)', alignItems:'center', justifyContent:'center' },
+  inputRow:    { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:12, paddingVertical:10, borderTopWidth:1, borderTopColor: colors.border, backgroundColor: colors.deep, overflow:'hidden' },
+  input:       { flex:1, minWidth:0, flexShrink:1, backgroundColor:'rgba(8,20,36,0.95)', borderWidth:1, borderColor: colors.border, borderRadius:22, paddingHorizontal:16, paddingVertical:10, color: colors.textHi, fontSize:14 },
+  sendBtn:     { width:42, height:42, minWidth:42, maxWidth:42, borderRadius:21, alignItems:'center', justifyContent:'center', flexShrink:0 },
+  reqBanner:   { flexDirection:'row', alignItems:'center', margin:12, padding:14, backgroundColor:'rgba(0,229,204,0.06)', borderRadius:14, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', gap:12 },
+  reqBannerTitle:    { color: colors.textHi, fontSize:13, fontWeight:'600', marginBottom:2 },
+  reqBannerSub:      { color: colors.textDim, fontSize:11 },
+  reqBannerBtn:      {},
+  reqBannerBtnInner: { borderRadius:10, paddingHorizontal:16, paddingVertical:10 },
+  reqBannerBtnTxt:   { color:'#001a18', fontSize:12, fontWeight:'700' },
+  dateSep:     { flexDirection:'row', alignItems:'center', marginVertical:12, paddingHorizontal:16 },
+  dateLine:    { flex:1, height:1, backgroundColor: colors.border },
+  dateLabel:   { color: colors.textDim, fontSize:11, marginHorizontal:10 },
+  modalOverlay:{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'center', alignItems:'center' },
+  menuBox:     { backgroundColor: colors.surface, borderRadius:16, padding:16, width:280, borderWidth:1, borderColor: colors.borderC },
+  menuTitle:   { color: colors.textDim, fontSize:12, marginBottom:12, fontStyle:'italic' },
+  emojiRow:    { flexDirection:'row', justifyContent:'space-around', marginBottom:12 },
+  emojiBtn:    { padding:6 },
+  menuItem:    { paddingVertical:12, borderTopWidth:1, borderTopColor: colors.border },
+  menuItemTxt: { color: colors.textHi, fontSize:15, textAlign:'center' },
+  replyBar:    { flexDirection:'row', alignItems:'center', backgroundColor:'#1a1a1a', paddingHorizontal:12, paddingVertical:8, borderTopWidth:1, borderTopColor:'#333' },
+  replyBarUser:{ color:'#aaa', fontSize:11, fontWeight:'700' },
+  replyBarTxt: { color:'#666', fontSize:12 },
+  replyPreview:{ backgroundColor:'rgba(255,255,255,0.06)', borderLeftWidth:2, borderLeftColor:'#555', paddingLeft:8, paddingVertical:4, marginBottom:6, borderRadius:4 },
+  replyUser:   { color:'#aaa', fontSize:10, fontWeight:'700' },
+  replyText:   { color:'#666', fontSize:11 },
+  msgReactions:{ flexDirection:'row', gap:2, marginTop:4 },
+  msgReactionEmoji: { fontSize:16 },
+  mentionDropdown: { backgroundColor:'#1a1a1a', borderTopWidth:1, borderTopColor:'#333' },
+  mentionItem:     { flexDirection:'row', alignItems:'center', paddingVertical:10, paddingHorizontal:16, gap:4, borderBottomWidth:1, borderBottomColor:'#222' },
+  mentionAt:       { color:'#666', fontSize:14 },
+  mentionName:     { color:'#eee', fontSize:14, fontWeight:'600' },
+  scrollDownBtn:   { position:'absolute', bottom:80, right:16, width:40, height:40, borderRadius:20, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
+  scrollDownTxt:   { color: colors.c1, fontSize:20, fontWeight:'bold' },
 });

@@ -14,13 +14,13 @@ import AvatarWithFrame from '../components/AvatarWithFrame';
 export default function GroupRoomScreen({ route, navigation }) {
   const { group: initialGroup } = route.params;
   const { user } = useAuthStore();
-  const [group, setGroup]       = useState(initialGroup);
+  const [group, setGroup]     = useState(initialGroup);
   const [messages, setMessages] = useState([]);
-  const [text, setText]         = useState('');
-  const [loading, setLoading]   = useState(true);
-  const [sending, setSending]   = useState(false);
-  const flatRef    = useRef(null);
-  const socketRef  = useRef(null);
+  const [text, setText]       = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const flatRef   = useRef(null);
+  const socketRef = useRef(null);
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user) === user?._id && m.role === 'admin'
@@ -51,28 +51,20 @@ export default function GroupRoomScreen({ route, navigation }) {
     const socket = await connectSocket();
     socketRef.current = socket;
     socket.emit('group:join', { groupId: group._id });
-
     socket.on('group:message', ({ groupId, message }) => {
       if (groupId !== group._id) return;
-      // Deduplicar por _id — evita dobles si llega más de una vez
       setMessages(prev =>
         prev.some(m => m._id === message._id) ? prev : [...prev, message]
       );
-      // Scroll automático al recibir mensaje
       setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 80);
-      // Marcar como leído en background
       api.post(`/groups/${group._id}/read`).catch(() => {});
     });
   }
 
-  // ── Envío 100% por socket (sin REST) ────────────────────────────────────────
   function sendMessage() {
     if (!text.trim() || sending) return;
     setSending(true);
-    socketRef.current?.emit('group:message', {
-      groupId: group._id,
-      text: text.trim(),
-    });
+    socketRef.current?.emit('group:message', { groupId: group._id, text: text.trim() });
     setText('');
     setSending(false);
   }
@@ -100,36 +92,51 @@ export default function GroupRoomScreen({ route, navigation }) {
   }
 
   function renderMessage({ item: msg, index }) {
-    const isMe      = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
-    const sender    = msg.sender;
-    const prevMsg   = messages[index - 1];
-    const prevSender = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
-    const thisSender = (sender?._id || sender)?.toString();
-    const sameAsPrev = !isMe && prevMsg && prevSender === thisSender;
-    const showName   = !isMe && !sameAsPrev;
-    const showAvatar = !isMe;
+    const isMe         = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
+    const sender       = msg.sender;
+    const prevMsg      = messages[index - 1];
+    const prevSenderId = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
+    const thisSenderId = (sender?._id || sender)?.toString();
+
+    // sameAsPrev aplica para todos (yo y otros)
+    const sameAsPrev  = prevMsg && prevSenderId === thisSenderId;
+    const showName    = !sameAsPrev;
+    const displayName = isMe ? (user?.username || 'Tú') : (sender?.username || '');
 
     return (
       <View style={{ marginBottom: 4 }}>
         {showName && (
-          <Text style={s.msgSenderName}>{sender?.username}</Text>
+          <Text style={[s.msgSenderName, isMe && s.msgSenderNameMe]}>
+            {displayName}
+          </Text>
         )}
+
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
-          {showAvatar && (
+          {/* Avatar — reserva espacio siempre, oculto si es consecutivo */}
+          {isMe ? (
+            <View style={{ opacity: sameAsPrev ? 0 : 1, alignSelf: 'flex-start' }}>
+              <AvatarWithFrame
+                size={30}
+                avatarUrl={user?.avatarUrl}
+                username={user?.username}
+                profileFrame={user?.profileFrame}
+                frameUrl={user?.profileFrameUrl}
+              />
+            </View>
+          ) : (
             <TouchableOpacity
-              style={{ alignSelf: 'flex-start' }}
+              style={{ alignSelf: 'flex-start', opacity: sameAsPrev ? 0 : 1 }}
               onPress={() => navigation.navigate('PublicProfile', { username: sender?.username })}>
-              {showName
-                ? <AvatarWithFrame
-                    size={30}
-                    avatarUrl={sender?.avatarUrl}
-                    username={sender?.username}
-                    profileFrame={sender?.profileFrame}
-                    frameUrl={sender?.profileFrameUrl}
-                  />
-                : <View style={{ width: 30 }} />}
+              <AvatarWithFrame
+                size={30}
+                avatarUrl={sender?.avatarUrl}
+                username={sender?.username}
+                profileFrame={sender?.profileFrame}
+                frameUrl={sender?.profileFrameUrl}
+              />
             </TouchableOpacity>
           )}
+
           <TouchableOpacity
             style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}
             onLongPress={() => {
@@ -218,25 +225,29 @@ export default function GroupRoomScreen({ route, navigation }) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.black },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
-  backBtn: { padding: 4 },
+  root:       { flex: 1, backgroundColor: colors.black },
+  header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
+  backBtn:    { padding: 4 },
   headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  groupAvatar: { width: 38, height: 38, borderRadius: 10 },
+  groupAvatar:            { width: 38, height: 38, borderRadius: 10 },
   groupAvatarPlaceholder: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center' },
-  groupName: { color: colors.textHi, fontSize: 14, fontWeight: '700' },
+  groupName:    { color: colors.textHi, fontSize: 14, fontWeight: '700' },
   groupMembers: { color: colors.textDim, fontSize: 11 },
-  messageList: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-  msgRow:   { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
-  msgRowMe: { flexDirection: 'row-reverse' },
-  bubble:       { maxWidth: '75%', borderRadius: 16, padding: 10, gap: 4 },
-  bubbleMe:     { backgroundColor: 'rgba(0,180,160,0.85)', borderBottomRightRadius: 4 },
-  bubbleThem:   { backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
-  msgSenderName: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700', marginLeft: 44, marginBottom: 2 },
-  bubbleText:   { color: '#ffffff', fontSize: 14, lineHeight: 20 },
-  bubbleTime:   { color: 'rgba(255,255,255,0.4)', fontSize: 9, alignSelf: 'flex-end' },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
-  input:    { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 10, color: colors.textHi, fontSize: 14, maxHeight: 100 },
-  sendBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center' },
+
+  messageList:       { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  msgRow:            { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
+  msgRowMe:          { flexDirection: 'row-reverse' },
+  msgSenderName:     { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700', marginLeft: 44, marginBottom: 2 },
+  msgSenderNameMe:   { textAlign: 'right', marginLeft: 0, marginRight: 44 },
+
+  bubble:          { maxWidth: '75%', borderRadius: 16, padding: 10, gap: 4 },
+  bubbleMe:        { backgroundColor: 'rgba(0,180,160,0.85)', borderBottomRightRadius: 4 },
+  bubbleThem:      { backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
+  bubbleText:      { color: '#ffffff', fontSize: 14, lineHeight: 20 },
+  bubbleTime:      { color: 'rgba(255,255,255,0.4)', fontSize: 9, alignSelf: 'flex-end' },
+
+  inputRow:        { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
+  input:           { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 10, color: colors.textHi, fontSize: 14, maxHeight: 100 },
+  sendBtn:         { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
 });
