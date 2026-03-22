@@ -14,16 +14,16 @@ import AvatarWithFrame from '../components/AvatarWithFrame';
 export default function GroupRoomScreen({ route, navigation }) {
   const { group: initialGroup } = route.params;
   const { user } = useAuthStore();
-  const [group, setGroup]     = useState(initialGroup);
+  const [group, setGroup]       = useState(initialGroup);
   const [messages, setMessages] = useState([]);
-  const [text, setText]       = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const flatRef = useRef(null);
-  const socketRef = useRef(null);
+  const [text, setText]         = useState('');
+  const [loading, setLoading]   = useState(true);
+  const [sending, setSending]   = useState(false);
+  const flatRef    = useRef(null);
+  const socketRef  = useRef(null);
 
-  const isAdmin = group?.members?.some(m =>
-    (m.user?._id || m.user) === user?._id && m.role === 'admin'
+  const isAdmin = group?.members?.some(
+    m => (m.user?._id || m.user) === user?._id && m.role === 'admin'
   );
 
   useEffect(() => {
@@ -51,24 +51,30 @@ export default function GroupRoomScreen({ route, navigation }) {
     const socket = await connectSocket();
     socketRef.current = socket;
     socket.emit('group:join', { groupId: group._id });
+
     socket.on('group:message', ({ groupId, message }) => {
-      if (groupId === group._id) {
-        setMessages(prev => [...prev, message]);
-        api.post(`/groups/${group._id}/read`).catch(() => {});
-      }
+      if (groupId !== group._id) return;
+      // Deduplicar por _id — evita dobles si llega más de una vez
+      setMessages(prev =>
+        prev.some(m => m._id === message._id) ? prev : [...prev, message]
+      );
+      // Scroll automático al recibir mensaje
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 80);
+      // Marcar como leído en background
+      api.post(`/groups/${group._id}/read`).catch(() => {});
     });
   }
 
-  async function sendMessage() {
+  // ── Envío 100% por socket (sin REST) ────────────────────────────────────────
+  function sendMessage() {
     if (!text.trim() || sending) return;
     setSending(true);
-    try {
-      const { data } = await api.post(`/groups/${group._id}/message`, { text: text.trim() });
-      setMessages(prev => [...prev, data.message]);
-      setText('');
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch {}
-    finally { setSending(false); }
+    socketRef.current?.emit('group:message', {
+      groupId: group._id,
+      text: text.trim(),
+    });
+    setText('');
+    setSending(false);
   }
 
   async function deleteMessage(msgId) {
@@ -84,37 +90,43 @@ export default function GroupRoomScreen({ route, navigation }) {
       { text: 'Banear', style: 'destructive', onPress: async () => {
         try {
           await api.post(`/groups/${group._id}/ban/${userId}`);
-          setGroup(prev => ({ ...prev, members: prev.members.filter(m => (m.user?._id || m.user) !== userId) }));
+          setGroup(prev => ({
+            ...prev,
+            members: prev.members.filter(m => (m.user?._id || m.user) !== userId),
+          }));
         } catch {}
       }},
     ]);
   }
 
   function renderMessage({ item: msg, index }) {
-    const isMe = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
-    const sender = msg.sender;
-    const prevMsg = messages[index - 1];
+    const isMe      = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
+    const sender    = msg.sender;
+    const prevMsg   = messages[index - 1];
     const prevSender = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
     const thisSender = (sender?._id || sender)?.toString();
     const sameAsPrev = !isMe && prevMsg && prevSender === thisSender;
-    const showName = !isMe && !sameAsPrev;
+    const showName   = !isMe && !sameAsPrev;
     const showAvatar = !isMe;
 
     return (
       <View style={{ marginBottom: 4 }}>
-        {/* Nombre arriba de la burbuja */}
         {showName && (
           <Text style={s.msgSenderName}>{sender?.username}</Text>
         )}
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
-          {/* Avatar arriba a la izquierda */}
           {showAvatar && (
             <TouchableOpacity
               style={{ alignSelf: 'flex-start' }}
               onPress={() => navigation.navigate('PublicProfile', { username: sender?.username })}>
               {showName
-                ? <AvatarWithFrame size={30} avatarUrl={sender?.avatarUrl} username={sender?.username}
-                    profileFrame={sender?.profileFrame} frameUrl={sender?.profileFrameUrl} />
+                ? <AvatarWithFrame
+                    size={30}
+                    avatarUrl={sender?.avatarUrl}
+                    username={sender?.username}
+                    profileFrame={sender?.profileFrame}
+                    frameUrl={sender?.profileFrameUrl}
+                  />
                 : <View style={{ width: 30 }} />}
             </TouchableOpacity>
           )}
@@ -124,7 +136,9 @@ export default function GroupRoomScreen({ route, navigation }) {
               if (isAdmin || isMe) {
                 Alert.alert('Opciones', '', [
                   { text: 'Borrar mensaje', style: 'destructive', onPress: () => deleteMessage(msg._id) },
-                  isAdmin && !isMe ? { text: `Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) } : null,
+                  isAdmin && !isMe
+                    ? { text: `Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) }
+                    : null,
                   { text: 'Cancelar', style: 'cancel' },
                 ].filter(Boolean));
               }
@@ -148,7 +162,9 @@ export default function GroupRoomScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
-          <TouchableOpacity style={s.headerInfo} onPress={() => Alert.alert(group.name, group.description || 'Sin descripción')}>
+          <TouchableOpacity
+            style={s.headerInfo}
+            onPress={() => Alert.alert(group.name, group.description || 'Sin descripción')}>
             {group.imageUrl
               ? <Image source={{ uri: group.imageUrl }} style={s.groupAvatar} />
               : <View style={s.groupAvatarPlaceholder}>
@@ -189,8 +205,10 @@ export default function GroupRoomScreen({ route, navigation }) {
             multiline
             maxLength={2000}
           />
-          <TouchableOpacity style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
-            onPress={sendMessage} disabled={!text.trim() || sending}>
+          <TouchableOpacity
+            style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
+            onPress={sendMessage}
+            disabled={!text.trim() || sending}>
             <Ionicons name="send" size={16} color={colors.black} />
           </TouchableOpacity>
         </View>
@@ -208,7 +226,6 @@ const s = StyleSheet.create({
   groupAvatarPlaceholder: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center' },
   groupName: { color: colors.textHi, fontSize: 14, fontWeight: '700' },
   groupMembers: { color: colors.textDim, fontSize: 11 },
-
   messageList: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   msgRow:   { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
   msgRowMe: { flexDirection: 'row-reverse' },
@@ -218,7 +235,6 @@ const s = StyleSheet.create({
   msgSenderName: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700', marginLeft: 44, marginBottom: 2 },
   bubbleText:   { color: '#ffffff', fontSize: 14, lineHeight: 20 },
   bubbleTime:   { color: 'rgba(255,255,255,0.4)', fontSize: 9, alignSelf: 'flex-end' },
-
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
   input:    { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 10, color: colors.textHi, fontSize: 14, maxHeight: 100 },
   sendBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center' },
