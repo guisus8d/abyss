@@ -286,14 +286,16 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
         {/* Nombre solo del otro en chat 1-a-1 */}
-        {!isMe && showAvatar && (
-          <Text style={s.msgSenderName}>{other.username}</Text>
+        {showAvatar && (
+          <Text style={[s.msgSenderName, isMe && { textAlign: 'right', marginLeft: 0, marginRight: 44 }]}>
+            {isMe ? user.username : other.username}
+          </Text>
         )}
 
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
           {/* Avatar — ambos lados, oculto si es consecutivo */}
           {isMe ? (
-            <View style={{ opacity: showAvatar ? 1 : 0 }}>
+            <View style={{ opacity: showAvatar ? 1 : 0, alignSelf: 'flex-start' }}>
               <AvatarWithFrame
                 size={28}
                 avatarUrl={user.avatarUrl}
@@ -303,7 +305,7 @@ export default function ChatRoomScreen({ route, navigation }) {
               />
             </View>
           ) : (
-            <View style={{ opacity: showAvatar ? 1 : 0 }}>
+            <View style={{ opacity: showAvatar ? 1 : 0, alignSelf: 'flex-start' }}>
               <AvatarWithFrame
                 size={28}
                 avatarUrl={other.avatarUrl}
