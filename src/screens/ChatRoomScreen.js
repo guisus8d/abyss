@@ -294,11 +294,11 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   function renderMessage({ item, index }) {
     const showDate = index === 0 || dateLabel(item.createdAt) !== dateLabel(messages[index - 1]?.createdAt);
-    const isMe = item.sender?._id === user._id || item.sender === user._id;
+    const isMe = (item.sender?._id || item.sender)?.toString() === user._id?.toString();
     const prevMsg = messages[index - 1];
     const prevSender = prevMsg?.sender?._id || prevMsg?.sender;
     const thisSender = item.sender?._id || item.sender;
-    const showName = !isMe && (prevSender?.toString() !== thisSender?.toString());
+    const showName = false;
     const showAvatar = showName;
     return (
       <>

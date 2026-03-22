@@ -28,6 +28,7 @@ export default function ChatsScreen({ navigation }) {
   const [sent, setSent]         = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [groups, setGroups]     = useState([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage]         = useState(1);
   const [hasMore, setHasMore]   = useState(true);
@@ -55,15 +56,17 @@ export default function ChatsScreen({ navigation }) {
   async function loadAll() {
     setLoading(true); setPage(1);
     try {
-      const [chatsRes, reqsRes, sentRes] = await Promise.all([
+      const [chatsRes, reqsRes, sentRes, groupsRes] = await Promise.all([
         api.get('/chats?page=1&limit=15'),
         api.get('/chats/requests/pending'),
         api.get('/chats/requests/sent'),
+        api.get('/groups').catch(() => ({ data: { groups: [] } })),
       ]);
       setChats(chatsRes.data.chats);
       setHasMore(chatsRes.data.page < chatsRes.data.pages);
       setRequests(reqsRes.data.requests);
       setSent(sentRes.data.sent);
+      setGroups(groupsRes.data.groups || []);
     } catch (e) { console.log(e); }
     finally { setLoading(false); }
   }
@@ -105,13 +108,42 @@ export default function ChatsScreen({ navigation }) {
   const allItems = [
     ...chats.map(c => ({ type: 'chat', data: c })),
     ...sent.map(s => ({ type: 'pending', data: s })),
+    ...groups.map(g => ({ type: 'group', data: g })),
   ].sort((a, b) => {
-    const dateA = a.type === 'chat' ? a.data.lastMessage : a.data.createdAt;
-    const dateB = b.type === 'chat' ? b.data.lastMessage : b.data.createdAt;
+    const dateA = a.type === 'chat' ? a.data.lastMessage : a.type === 'group' ? a.data.lastMessage : a.data.createdAt;
+    const dateB = b.type === 'chat' ? b.data.lastMessage : b.type === 'group' ? b.data.lastMessage : b.data.createdAt;
     return new Date(dateB) - new Date(dateA);
   });
 
   function renderChatItem({ item }) {
+    if (item.type === 'group') {
+      const g = item.data;
+      const unread = g.unreadCounts?.[user._id] || 0;
+      return (
+        <TouchableOpacity style={s.groupItem}
+          onPress={() => navigation.navigate('GroupRoom', { group: g })}>
+          {g.imageUrl
+            ? <Image source={{ uri: g.imageUrl }} style={s.groupImg} />
+            : <View style={s.groupImgPlaceholder}>
+                <Ionicons name="people" size={20} color={colors.c1} />
+              </View>}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <Text style={s.chatUser}>{g.name}</Text>
+              <View style={s.groupBadge}><Text style={s.groupBadgeTxt}>GRUPO</Text></View>
+            </View>
+            <Text style={s.chatPreview} numberOfLines={1}>
+              {g.lastMessageText || g.description || 'Grupo privado'}
+            </Text>
+          </View>
+          {unread > 0 && (
+            <View style={s.unreadBadge}>
+              <Text style={s.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    }
     if (item.type === 'pending') {
       const sr = item.data;
       const lastMsg = sr.messages?.[sr.messages.length - 1];
@@ -228,7 +260,12 @@ export default function ChatsScreen({ navigation }) {
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>MENSAJES</Text>
-          <View style={{ width: 36 }} />
+          <TouchableOpacity
+            style={s.addBtn}
+            onPress={() => navigation.navigate('CreateGroup')}
+          >
+            <Ionicons name="add" size={22} color={colors.c1} />
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -386,4 +423,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 4,
   },
   comingSoonTxt: { color: colors.c1, fontSize: 10, fontWeight: '800', letterSpacing: 2 },
+  addBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center' },
+  groupItem:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)', gap: 12, backgroundColor: 'rgba(255,255,255,0.03)', paddingHorizontal: 8, borderRadius: 12, marginBottom: 2 },
+  groupBadge:  { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)' },
+  groupBadgeTxt: { color: colors.c1, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
+  groupImg:    { width: 48, height: 48, borderRadius: 12 },
+  groupImgPlaceholder: { width: 48, height: 48, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center' },
 });

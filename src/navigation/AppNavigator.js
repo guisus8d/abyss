@@ -22,6 +22,8 @@ import PostDetailScreen      from '../screens/PostDetailScreen';
 import TopScreen             from '../screens/TopScreen';
 import FrameDetailScreen     from '../screens/FrameDetailScreen';
 import FrameSelectorScreen   from '../screens/FrameSelectorScreen';
+import CreateGroupScreen    from '../screens/CreateGroupScreen';
+import GroupRoomScreen      from '../screens/GroupRoomScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -60,6 +62,8 @@ export default function AppNavigator() {
             <Stack.Screen name="Top"             component={TopScreen} />
             <Stack.Screen name="FrameDetail"     component={FrameDetailScreen} />
             <Stack.Screen name="FrameSelector"   component={FrameSelectorScreen} />
+            <Stack.Screen name="CreateGroup"      component={CreateGroupScreen} />
+            <Stack.Screen name="GroupRoom"         component={GroupRoomScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
