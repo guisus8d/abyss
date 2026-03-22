@@ -28,10 +28,11 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [audioPreview, setAudioPreview] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [fullImg, setFullImg]   = useState(null);
-  const flatRef     = useRef(null);
-  const socketRef   = useRef(null);
+  const flatRef      = useRef(null);
+  const socketRef    = useRef(null);
   const recordingRef = useRef(null);
   const recTimerRef  = useRef(null);
+  const recSecondsRef = useRef(0);
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user) === user?._id && m.role === 'admin'
@@ -83,6 +84,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     });
     setText('');
     setSending(false);
+    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
   }
 
   // ── Imagen ───────────────────────────────────────────────────────────────────
@@ -110,6 +112,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         type: 'image',
         mediaUrl: data.url,
       });
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) { console.log('confirmSendImage error:', e.message); }
     finally { setUploading(false); }
   }
@@ -123,7 +126,11 @@ export default function GroupRoomScreen({ route, navigation }) {
       recordingRef.current = recording;
       setIsRecording(true);
       setRecSeconds(0);
-      recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+      recSecondsRef.current = 0;
+      recTimerRef.current = setInterval(() => {
+        recSecondsRef.current += 1;
+        setRecSeconds(recSecondsRef.current);
+      }, 1000);
     } catch (e) { console.log('startRecording error:', e.message); }
   }
 
@@ -131,7 +138,8 @@ export default function GroupRoomScreen({ route, navigation }) {
     try {
       setIsRecording(false);
       clearInterval(recTimerRef.current);
-      const secs = recSeconds;
+      const secs = recSecondsRef.current;
+      recSecondsRef.current = 0;
       setRecSeconds(0);
       await recordingRef.current?.stopAndUnloadAsync();
       const uri = recordingRef.current?.getURI();
@@ -160,6 +168,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         mediaUrl: data.url,
         audioDuration: preview.duration,
       });
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) { console.log('sendAudioPreview error:', e.message); Alert.alert('Error', 'No se pudo enviar el audio'); }
     finally { setUploading(false); }
   }
@@ -326,7 +335,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             keyExtractor={(m, i) => m._id || String(i)}
             renderItem={renderMessage}
             contentContainerStyle={s.messageList}
-            onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
+            onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
           />}
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
