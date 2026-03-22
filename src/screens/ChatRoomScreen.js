@@ -298,7 +298,9 @@ export default function ChatRoomScreen({ route, navigation }) {
     const prevMsg = messages[index - 1];
     const prevSender = prevMsg?.sender?._id || prevMsg?.sender;
     const thisSender = item.sender?._id || item.sender;
-    const showName = false;
+    const prevIsMe = (prevMsg?.sender?._id || prevMsg?.sender)?.toString() === user._id?.toString();
+    const sameAsPrev = !isMe && prevMsg && !prevIsMe && (prevMsg?.sender?._id || prevMsg?.sender)?.toString() === thisSender?.toString();
+    const showName = !isMe && !sameAsPrev;
     const showAvatar = showName;
     return (
       <>
@@ -309,12 +311,12 @@ export default function ChatRoomScreen({ route, navigation }) {
             <View style={s.dateLine} />
           </View>
         )}
-        {showName && (
-          <Text style={s.msgSenderName}>@{other.username}</Text>
+        {showName && !isMe && (
+          <Text style={s.msgSenderName}>{other.username}</Text>
         )}
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
         {!isMe && (
-          <View style={[{ opacity: showAvatar ? 1 : 0 }]}>
+          <View style={{ opacity: showAvatar ? 1 : 0 }}>
             <AvatarWithFrame
               size={28}
               avatarUrl={other.avatarUrl}
@@ -414,7 +416,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Text style={s.backTxt}>←</Text>
+            <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('PublicProfile', { username: other.username })}
@@ -550,7 +552,7 @@ export default function ChatRoomScreen({ route, navigation }) {
               colors={text.trim() ? ['#006b63','#00e5cc'] : ['#1a2a2a','#1a2a2a']}
               style={s.sendBtn}
             >
-              <Text style={s.sendTxt}>↑</Text>
+              <Ionicons name="send" size={18} color={colors.black} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -595,7 +597,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12,
   },
-  backBtn:     { padding: 4 },
+  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   backTxt:     { color: colors.c1, fontSize: 22 },
   headerAv:    {
     width: 36, height: 36, borderRadius: 18,
@@ -619,9 +621,10 @@ const s = StyleSheet.create({
   },
   msgAvatarTxt:{ color: colors.c1, fontSize: 11, fontWeight: 'bold' },
   bubble:      { maxWidth: '75%', borderRadius: 16, padding: 12, borderWidth: 1 },
-  bubbleMe:    { backgroundColor: 'rgba(0,100,90,0.4)', borderColor: 'rgba(0,229,204,0.2)', borderBottomRightRadius: 4 },
+  bubbleMe:    { backgroundColor: 'rgba(0,180,160,0.85)', borderColor: 'rgba(0,229,204,0.4)', borderBottomRightRadius: 4 },
   bubbleThem:  { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius: 4 },
   bubbleTxt:   { color: '#ffffff', fontSize: 14, lineHeight: 20 },
+  msgSenderName: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700', marginLeft: 44, marginBottom: 2 },
   bubbleTime:  { color: colors.textDim, fontSize: 9, marginTop: 4, textAlign: 'right' },
   mediaBtn:    { padding: 8, justifyContent: 'center', alignItems: 'center' },
   mediaBtnActive: { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 20 },
@@ -676,7 +679,7 @@ const s = StyleSheet.create({
   replyText:    { color: '#666', fontSize: 11 },
   msgReactions: { flexDirection: 'row', gap: 2, marginTop: 4 },
   msgReactionEmoji: { fontSize: 16 },
-  msgSenderName: { color: '#888', fontSize: 11, marginBottom: 2, marginLeft: 40 },
+
   mentionDropdown: { backgroundColor: '#1a1a1a', borderTopWidth: 1, borderTopColor: '#333' },
   mentionItem:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, gap: 4, borderBottomWidth: 1, borderBottomColor: '#222' },
   mentionAt:       { color: '#666', fontSize: 14 },

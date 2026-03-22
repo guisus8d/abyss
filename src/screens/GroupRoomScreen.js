@@ -90,36 +90,53 @@ export default function GroupRoomScreen({ route, navigation }) {
     ]);
   }
 
-  function renderMessage({ item: msg }) {
-    const isMe = (msg.sender?._id || msg.sender) === user?._id;
+  function renderMessage({ item: msg, index }) {
+    const isMe = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
     const sender = msg.sender;
+    const prevMsg = messages[index - 1];
+    const prevSender = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
+    const thisSender = (sender?._id || sender)?.toString();
+    const sameAsPrev = !isMe && prevMsg && prevSender === thisSender;
+    const showName = !isMe && !sameAsPrev;
+    const showAvatar = !isMe;
+
     return (
-      <TouchableOpacity
-        style={[s.msgRow, isMe && s.msgRowMe]}
-        onLongPress={() => {
-          if (isAdmin || isMe) {
-            Alert.alert('Opciones', '', [
-              { text: 'Borrar mensaje', style: 'destructive', onPress: () => deleteMessage(msg._id) },
-              isAdmin && !isMe ? { text: `Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) } : null,
-              { text: 'Cancelar', style: 'cancel' },
-            ].filter(Boolean));
-          }
-        }}
-      >
-        {!isMe && (
-          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: sender?.username })}>
-            <AvatarWithFrame size={32} avatarUrl={sender?.avatarUrl} username={sender?.username}
-              profileFrame={sender?.profileFrame} frameUrl={sender?.profileFrameUrl} />
-          </TouchableOpacity>
+      <View style={{ marginBottom: 4 }}>
+        {/* Nombre arriba de la burbuja */}
+        {showName && (
+          <Text style={s.msgSenderName}>{sender?.username}</Text>
         )}
-        <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}>
-          {!isMe && <Text style={s.bubbleSender}>{sender?.username}</Text>}
-          <Text style={s.bubbleText}>{msg.text}</Text>
-          <Text style={s.bubbleTime}>
-            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+        <View style={[s.msgRow, isMe && s.msgRowMe]}>
+          {/* Avatar arriba a la izquierda */}
+          {showAvatar && (
+            <TouchableOpacity
+              style={{ alignSelf: 'flex-start' }}
+              onPress={() => navigation.navigate('PublicProfile', { username: sender?.username })}>
+              {showName
+                ? <AvatarWithFrame size={30} avatarUrl={sender?.avatarUrl} username={sender?.username}
+                    profileFrame={sender?.profileFrame} frameUrl={sender?.profileFrameUrl} />
+                : <View style={{ width: 30 }} />}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}
+            onLongPress={() => {
+              if (isAdmin || isMe) {
+                Alert.alert('Opciones', '', [
+                  { text: 'Borrar mensaje', style: 'destructive', onPress: () => deleteMessage(msg._id) },
+                  isAdmin && !isMe ? { text: `Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) } : null,
+                  { text: 'Cancelar', style: 'cancel' },
+                ].filter(Boolean));
+              }
+            }}
+          >
+            <Text style={s.bubbleText}>{msg.text}</Text>
+            <Text style={s.bubbleTime}>
+              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   }
 
@@ -196,10 +213,10 @@ const s = StyleSheet.create({
   msgRow:   { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
   msgRowMe: { flexDirection: 'row-reverse' },
   bubble:       { maxWidth: '75%', borderRadius: 16, padding: 10, gap: 4 },
-  bubbleMe:     { backgroundColor: colors.c1, borderBottomRightRadius: 4 },
+  bubbleMe:     { backgroundColor: 'rgba(0,180,160,0.85)', borderBottomRightRadius: 4 },
   bubbleThem:   { backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
-  bubbleSender: { color: colors.c1, fontSize: 10, fontWeight: '700' },
-  bubbleText:   { color: colors.textHi, fontSize: 14, lineHeight: 20 },
+  msgSenderName: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700', marginLeft: 44, marginBottom: 2 },
+  bubbleText:   { color: '#ffffff', fontSize: 14, lineHeight: 20 },
   bubbleTime:   { color: 'rgba(255,255,255,0.4)', fontSize: 9, alignSelf: 'flex-end' },
 
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },

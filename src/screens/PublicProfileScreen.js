@@ -178,23 +178,10 @@ export default function PublicProfileScreen({ route, navigation }) {
     <View style={s.root}>
 
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <SafeAreaView>
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#ffffff" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>{profile?.username}</Text>
-          {!isMe ? (
-            <TouchableOpacity onPress={handleBlock}>
-              <Ionicons name={blocked ? 'lock-open-outline' : 'ban-outline'} size={20} color={colors.textDim} />
-            </TouchableOpacity>
-          ) : <View style={{ width: 32 }} />}
-        </View>
-      </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
-        <LinearGradient colors={['rgba(0,110,100,0.2)','rgba(2,5,9,1)']} style={s.hero}>
+        <View style={s.hero}>
           {profile?.profileBannerType === 'image' && profile?.profileBanner
             ? <><Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} /></>
@@ -202,6 +189,17 @@ export default function PublicProfileScreen({ route, navigation }) {
               ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBanner }]} />
               : <LinearGradient colors={['rgba(0,110,100,0.35)','rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
           }
+          <View style={s.heroTopRow}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+              <Ionicons name="arrow-back" size={20} color="#ffffff" />
+            </TouchableOpacity>
+            {!isMe && (
+              <TouchableOpacity onPress={handleBlock} style={s.blockBtn}>
+                <Ionicons name={blocked ? 'lock-open-outline' : 'ban-outline'} size={18} color={colors.textDim} />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <TouchableOpacity
             onPress={handleFramePress}
             activeOpacity={profile?.profileFrame && profile.profileFrame !== 'default' && profile.profileFrame !== 'frame_001' ? 0.8 : 1}
@@ -273,9 +271,7 @@ export default function PublicProfileScreen({ route, navigation }) {
               <Text style={s.blockedTxt}>Usuario bloqueado</Text>
             </View>
           )}
-        </LinearGradient>
-
-
+        </View>
 
         {/* Tabs */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
@@ -389,10 +385,11 @@ const s = StyleSheet.create({
   fullBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   fullBgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 0 },
   fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 4, color: '#ffffff' },
+  heroTopRow:  { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
+  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  blockBtn:    { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
 
-  hero:     { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 },
+  hero:     { alignItems: 'center', paddingTop: 60, paddingBottom: 60, paddingHorizontal: 24, overflow: 'hidden', position: 'relative' },
   username: { color: colors.textHi, fontSize: 22, fontWeight: '700', marginTop: 14, marginBottom: 6 },
   bio:      { color: colors.textDim, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18, maxWidth: 260 },
   xpSimple: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', marginTop: 4, marginBottom: 12 },
@@ -431,7 +428,7 @@ const s = StyleSheet.create({
   heroStatVal:  { color: '#ffffff', fontSize: 18, fontWeight: '700' },
   heroStatLbl:  { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
   heroStatDiv:  { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  profileSection:  { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120 },
+  profileSection:  { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', padding: 16, position: 'relative', minHeight: 120, backgroundColor: 'rgba(255,255,255,0.04)' },
   sectionBgImage:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
   blocksContainer: { gap: 8, paddingBottom: 8 },
   emptyPage:       { alignItems: 'center', paddingVertical: 24 },

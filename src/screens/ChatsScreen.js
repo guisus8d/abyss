@@ -21,6 +21,17 @@ const TABS = [
 ];
 const TAB_W = (W - 32) / TABS.length;
 
+function chatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = (now - d) / (1000 * 60 * 60 * 24);
+  if (diff < 1) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (diff < 2) return 'Ayer';
+  if (diff < 7) return ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()];
+  return `${d.getDate()}/${d.getMonth()+1}`;
+}
+
 export default function ChatsScreen({ navigation }) {
   const { user } = useAuthStore();
   const [tab, setTab]           = useState('privado');
@@ -92,7 +103,7 @@ export default function ChatsScreen({ navigation }) {
   }
 
   function getOther(chat) {
-    return chat.participants?.find(p => p._id !== user._id) || chat.participants?.[0];
+    return chat.participants?.find(p => p._id?.toString() !== user._id?.toString()) || chat.participants?.[0];
   }
 
   function switchTab(key) {
@@ -136,11 +147,14 @@ export default function ChatsScreen({ navigation }) {
               {g.lastMessageText || g.description || 'Grupo privado'}
             </Text>
           </View>
-          {unread > 0 && (
-            <View style={s.unreadBadge}>
-              <Text style={s.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text>
-            </View>
-          )}
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            <Text style={s.chatDate}>{chatDate(g.lastMessage)}</Text>
+            {unread > 0 && (
+              <View style={s.unreadBadge}>
+                <Text style={s.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       );
     }
@@ -185,11 +199,14 @@ export default function ChatsScreen({ navigation }) {
             {chat.lastMessageText || 'Toca para chatear'}
           </Text>
         </View>
-        {unread > 0 && (
-          <View style={s.unreadBadge}>
-            <Text style={s.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text>
-          </View>
-        )}
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <Text style={s.chatDate}>{chatDate(chat.lastMessage)}</Text>
+          {unread > 0 && (
+            <View style={s.unreadBadge}>
+              <Text style={s.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     );
   }
@@ -370,6 +387,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   chatUser:    { color: colors.textHi, fontWeight: '600', fontSize: 14, marginBottom: 3 },
+  chatDate:    { color: colors.textDim, fontSize: 10 },
   chatPreview: { color: colors.textDim, fontSize: 12 },
   chatPreviewUnread: { color: colors.textMid, fontWeight: '600' },
   unreadBadge: {
