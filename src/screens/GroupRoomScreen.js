@@ -28,6 +28,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [audioPreview, setAudioPreview] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [fullImg, setFullImg]       = useState(null);
+  const [replyTo, setReplyTo]       = useState(null);
 
   const flatRef       = useRef(null);
   const socketRef     = useRef(null);
@@ -100,8 +101,14 @@ export default function GroupRoomScreen({ route, navigation }) {
       groupId: group._id,
       text:    text.trim(),
       type:    'text',
+      replyTo: replyTo ? {
+        messageId:      replyTo._id,
+        text:           replyTo.text,
+        senderUsername: replyTo.sender?.username || '',
+      } : undefined,
     });
     setText('');
+    setReplyTo(null);
     setSending(false);
   }
 
@@ -207,10 +214,18 @@ export default function GroupRoomScreen({ route, navigation }) {
   }
 
   // ── Acciones ──────────────────────────────────────────────────────────────
-  async function deleteMessage(msgId) {
+  async function deleteMessage(msgId, forAll = false) {
     try {
-      await api.delete(`/groups/${group._id}/message/${msgId}`);
-      setMessages(prev => prev.filter(m => m._id !== msgId));
+      await api.delete(`/groups/${group._id}/message/${msgId}?forAll=${forAll}`);
+      if (forAll) {
+        setMessages(prev => prev.filter(m => m._id !== msgId));
+      } else {
+        setMessages(prev => prev.map(m =>
+          m._id === msgId
+            ? { ...m, deletedFor: [...(m.deletedFor || []), user._id] }
+            : m
+        ));
+      }
     } catch {}
   }
 
@@ -274,26 +289,44 @@ export default function GroupRoomScreen({ route, navigation }) {
           <TouchableOpacity
             style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}
             onLongPress={() => {
-              if (isAdmin || isMe) {
-                Alert.alert('Opciones', '', [
-                  { text: 'Borrar mensaje', style: 'destructive', onPress: () => deleteMessage(msg._id) },
-                  isAdmin && !isMe
-                    ? { text: `Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) }
-                    : null,
-                  { text: 'Cancelar', style: 'cancel' },
-                ].filter(Boolean));
+              const options = [];
+              // Responder — todos pueden
+              options.push({ text: '↩ Responder', onPress: () => setReplyTo(msg) });
+              if (isMe) {
+                // Dueño: borrar para todos o solo para mí
+                options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) });
+                options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) });
+              } else if (isAdmin) {
+                // Admin sobre mensaje ajeno: borrar para todos + banear
+                options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) });
+                options.push({ text: `🚫 Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) });
+              } else {
+                // Usuario normal sobre mensaje ajeno: solo borrar para mí
+                options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) });
               }
+              options.push({ text: 'Cancelar', style: 'cancel' });
+              Alert.alert('Opciones', '', options);
             }}
           >
-            {msg.type === 'audio' && msg.mediaUrl
-              ? <AudioMessage uri={msg.mediaUrl} isMe={isMe} duration={msg.audioDuration || 0} />
-              : msg.type === 'image' && msg.mediaUrl
-              ? <TouchableOpacity onPress={() => setFullImg(msg.mediaUrl)} activeOpacity={0.9}>
-                  <Image source={{ uri: msg.mediaUrl }}
-                    style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }}
-                    resizeMode="cover" />
-                </TouchableOpacity>
-              : <Text style={s.bubbleText}>{msg.text}</Text>}
+            {msg.deletedFor?.map(d => d.toString()).includes(user._id.toString())
+              ? <Text style={[s.bubbleText, { opacity: 0.4, fontStyle: 'italic' }]}>Mensaje eliminado</Text>
+              : <>
+                  {msg.replyTo?.text && (
+                    <View style={s.replyPreview}>
+                      <Text style={s.replyUser}>↩ {msg.replyTo.senderUsername}</Text>
+                      <Text style={s.replyText} numberOfLines={1}>{msg.replyTo.text}</Text>
+                    </View>
+                  )}
+                  {msg.type === 'audio' && msg.mediaUrl
+                    ? <AudioMessage uri={msg.mediaUrl} isMe={isMe} duration={msg.audioDuration || 0} />
+                    : msg.type === 'image' && msg.mediaUrl
+                    ? <TouchableOpacity onPress={() => setFullImg(msg.mediaUrl)} activeOpacity={0.9}>
+                        <Image source={{ uri: msg.mediaUrl }}
+                          style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }}
+                          resizeMode="cover" />
+                      </TouchableOpacity>
+                    : <Text style={s.bubbleText}>{msg.text}</Text>}
+                </>}
             <Text style={s.bubbleTime}>
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
@@ -370,6 +403,17 @@ export default function GroupRoomScreen({ route, navigation }) {
           />}
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {replyTo && (
+          <View style={s.replyBar}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.replyBarUser}>↩ {replyTo.sender?.username || replyTo.sender?.senderUsername || 'usuario'}</Text>
+              <Text style={s.replyBarTxt} numberOfLines={1}>{replyTo.text}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding: 8 }}>
+              <Text style={{ color: '#888', fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {audioPreview ? (
           <View style={s.audioPreviewRow}>
             <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -464,6 +508,12 @@ const s = StyleSheet.create({
   recTimer:        { color: colors.c1, fontSize: 13, fontWeight: '700', minWidth: 38 },
   recStop:         { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.8)', alignItems: 'center', justifyContent: 'center' },
 
+  replyBar:     { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
+  replyBarUser: { color: 'rgba(0,229,204,0.8)', fontSize: 11, fontWeight: '700' },
+  replyBarTxt:  { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
+  replyPreview: { backgroundColor: 'rgba(255,255,255,0.06)', borderLeftWidth: 2, borderLeftColor: 'rgba(0,229,204,0.5)', paddingLeft: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 4 },
+  replyUser:    { color: 'rgba(0,229,204,0.8)', fontSize: 10, fontWeight: '700' },
+  replyText:    { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
   audioPreviewRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
   audioPreviewCancel: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center', justifyContent: 'center' },
   audioPreviewSend:   { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,229,204,0.8)', alignItems: 'center', justifyContent: 'center' },
