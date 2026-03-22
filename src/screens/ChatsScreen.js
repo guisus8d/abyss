@@ -58,9 +58,12 @@ export default function ChatsScreen({ navigation }) {
       s.on('chat:notification', () => {
         api.get('/chats').then(r => setChats(r.data.chats)).catch(() => {});
       });
+      s.on('group:notification', () => {
+        api.get('/groups').then(r => setGroups(r.data.groups || [])).catch(() => {});
+      });
     });
     return () => {
-      if (socket) { socket.off('chat:read_ack'); socket.off('chat:notification'); }
+      if (socket) { socket.off('chat:read_ack'); socket.off('chat:notification'); socket.off('group:notification'); }
     };
   }, []));
 
