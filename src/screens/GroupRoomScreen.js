@@ -288,6 +288,13 @@ export default function GroupRoomScreen({ route, navigation }) {
 
           <TouchableOpacity
             style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}
+            delayLongPress={350}
+            onPress={() => { if (Platform.OS === 'web') { const options = [];
+              options.push({ text: '↩ Responder', onPress: () => setReplyTo(msg) });
+              if (isMe) { options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) }); options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) }); }
+              else if (isAdmin) { options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) }); options.push({ text: `🚫 Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) }); }
+              else { options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) }); }
+              options.push({ text: 'Cancelar', style: 'cancel' }); Alert.alert('Opciones', '', options); } }}
             onLongPress={() => {
               const options = [];
               // Responder — todos pueden
