@@ -16,27 +16,46 @@ import AudioMessage from '../components/AudioMessage';
 
 export default function GroupRoomScreen({ route, navigation }) {
   const { group: initialGroup } = route.params;
-  const { user } = useAuthStore();
-  const [group, setGroup]       = useState(initialGroup);
-  const [messages, setMessages] = useState([]);
-  const [text, setText]         = useState('');
-  const [loading, setLoading]   = useState(true);
-  const [sending, setSending]   = useState(false);
+  const { user }  = useAuthStore();
+  const [group, setGroup]           = useState(initialGroup);
+  const [messages, setMessages]     = useState([]);
+  const [text, setText]             = useState('');
+  const [loading, setLoading]       = useState(true);
+  const [sending, setSending]       = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recSeconds, setRecSeconds]   = useState(0);
   const [audioPreview, setAudioPreview] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [fullImg, setFullImg]   = useState(null);
-  const flatRef      = useRef(null);
-  const socketRef    = useRef(null);
-  const recordingRef = useRef(null);
-  const recTimerRef  = useRef(null);
-  const recSecondsRef = useRef(0);
+  const [fullImg, setFullImg]       = useState(null);
+
+  const flatRef       = useRef(null);
+  const socketRef     = useRef(null);
+  const recordingRef  = useRef(null);
+  const recTimerRef   = useRef(null);
+  const recSecsRef    = useRef(0);       // evita stale closure en stopRecording
+  const isInitial     = useRef(true);    // primer carga no anima scroll
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user) === user?._id && m.role === 'admin'
   );
+
+  // ── Scroll al fondo ───────────────────────────────────────────────────────
+  function scrollToEnd(animated = true) {
+    setTimeout(() => flatRef.current?.scrollToEnd({ animated }), 120);
+  }
+
+  // ── Scroll automático cuando llegan mensajes nuevos ───────────────────────
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (isInitial.current) {
+      // Primera carga: sin animación
+      scrollToEnd(false);
+      isInitial.current = false;
+    } else {
+      scrollToEnd(true);
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     loadGroup();
@@ -46,6 +65,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         socketRef.current.emit('group:leave', { groupId: group._id });
         socketRef.current.off('group:message');
       }
+      clearInterval(recTimerRef.current);
     };
   }, []);
 
@@ -54,8 +74,8 @@ export default function GroupRoomScreen({ route, navigation }) {
       const { data } = await api.get(`/groups/${group._id}`);
       setGroup(data.group);
       setMessages(data.group.messages || []);
-      await api.post(`/groups/${group._id}/read`);
-    } catch {}
+      api.post(`/groups/${group._id}/read`).catch(() => {});
+    } catch (e) { console.log('loadGroup error:', e.message); }
     finally { setLoading(false); }
   }
 
@@ -68,29 +88,29 @@ export default function GroupRoomScreen({ route, navigation }) {
       setMessages(prev =>
         prev.some(m => m._id === message._id) ? prev : [...prev, message]
       );
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 80);
       api.post(`/groups/${group._id}/read`).catch(() => {});
     });
   }
 
-  // ── Texto ────────────────────────────────────────────────────────────────────
+  // ── Texto ─────────────────────────────────────────────────────────────────
   function sendMessage() {
     if (!text.trim() || sending) return;
     setSending(true);
     socketRef.current?.emit('group:message', {
       groupId: group._id,
-      text: text.trim(),
-      type: 'text',
+      text:    text.trim(),
+      type:    'text',
     });
     setText('');
     setSending(false);
-    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
   }
 
-  // ── Imagen ───────────────────────────────────────────────────────────────────
+  // ── Imagen ────────────────────────────────────────────────────────────────
   async function pickImage() {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], allowsEditing: true, quality: 0.8,
+      });
       if (result.canceled) return;
       setImagePreview(result.assets[0].uri);
     } catch (e) { console.log('pickImage error:', e.message); }
@@ -105,53 +125,59 @@ export default function GroupRoomScreen({ route, navigation }) {
       const formData = new FormData();
       const blob = await fetch(uri).then(r => r.blob());
       formData.append('file', blob, 'group.jpg');
-      const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data } = await api.post('/chats/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       socketRef.current?.emit('group:message', {
-        groupId: group._id,
-        text: '',
-        type: 'image',
+        groupId:  group._id,
+        text:     '',
+        type:     'image',
         mediaUrl: data.url,
       });
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) { console.log('confirmSendImage error:', e.message); }
     finally { setUploading(false); }
   }
 
-  // ── Audio ────────────────────────────────────────────────────────────────────
+  // ── Audio ─────────────────────────────────────────────────────────────────
   async function startRecording() {
     try {
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current  = recording;
+      recSecsRef.current    = 0;
       setIsRecording(true);
       setRecSeconds(0);
-      recSecondsRef.current = 0;
       recTimerRef.current = setInterval(() => {
-        recSecondsRef.current += 1;
-        setRecSeconds(recSecondsRef.current);
+        recSecsRef.current += 1;
+        setRecSeconds(recSecsRef.current);
       }, 1000);
     } catch (e) { console.log('startRecording error:', e.message); }
   }
 
   async function stopRecording() {
+    clearInterval(recTimerRef.current);
+    const secs = recSecsRef.current;
+    recSecsRef.current = 0;
+    setIsRecording(false);
+    setRecSeconds(0);
     try {
-      setIsRecording(false);
-      clearInterval(recTimerRef.current);
-      const secs = recSecondsRef.current;
-      recSecondsRef.current = 0;
-      setRecSeconds(0);
       await recordingRef.current?.stopAndUnloadAsync();
       const uri = recordingRef.current?.getURI();
+      recordingRef.current = null;
       if (!uri) return;
       setAudioPreview({ uri, duration: secs });
-    } catch (e) { console.log('stopRecording error:', e.message); }
-    finally { recordingRef.current = null; }
+    } catch (e) {
+      console.log('stopRecording error:', e.message);
+      recordingRef.current = null;
+    }
   }
 
   async function sendAudioPreview() {
     if (!audioPreview) return;
-    const preview = audioPreview;
+    const preview = { ...audioPreview };
     setAudioPreview(null);
     try {
       setUploading(true);
@@ -162,14 +188,16 @@ export default function GroupRoomScreen({ route, navigation }) {
         headers: { 'Content-Type': 'multipart/form-data', 'x-file-type': 'audio' },
       });
       socketRef.current?.emit('group:message', {
-        groupId: group._id,
-        text: '',
-        type: 'audio',
-        mediaUrl: data.url,
+        groupId:       group._id,
+        text:          '',
+        type:          'audio',
+        mediaUrl:      data.url,
         audioDuration: preview.duration,
       });
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (e) { console.log('sendAudioPreview error:', e.message); Alert.alert('Error', 'No se pudo enviar el audio'); }
+    } catch (e) {
+      console.log('sendAudioPreview error:', e.message);
+      Alert.alert('Error', 'No se pudo enviar el audio');
+    }
     finally { setUploading(false); }
   }
 
@@ -178,7 +206,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     recordingRef.current = null;
   }
 
-  // ── Acciones ─────────────────────────────────────────────────────────────────
+  // ── Acciones ──────────────────────────────────────────────────────────────
   async function deleteMessage(msgId) {
     try {
       await api.delete(`/groups/${group._id}/message/${msgId}`);
@@ -201,7 +229,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     ]);
   }
 
-  // ── Render mensaje ───────────────────────────────────────────────────────────
+  // ── Render mensaje ────────────────────────────────────────────────────────
   function renderMessage({ item: msg, index }) {
     const isMe         = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
     const sender       = msg.sender;
@@ -211,7 +239,9 @@ export default function GroupRoomScreen({ route, navigation }) {
     const sameAsPrev   = prevMsg && prevSenderId === thisSenderId;
     const showName     = !sameAsPrev;
     const displayName  = isMe ? (user?.username || 'Tú') : (sender?.username || '');
-    const senderRole   = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
+    const senderRole   = group?.members?.find(
+      m => (m.user?._id || m.user)?.toString() === thisSenderId
+    )?.role;
     const senderIsAdmin = senderRole === 'admin';
 
     return (
@@ -259,7 +289,9 @@ export default function GroupRoomScreen({ route, navigation }) {
               ? <AudioMessage uri={msg.mediaUrl} isMe={isMe} duration={msg.audioDuration || 0} />
               : msg.type === 'image' && msg.mediaUrl
               ? <TouchableOpacity onPress={() => setFullImg(msg.mediaUrl)} activeOpacity={0.9}>
-                  <Image source={{ uri: msg.mediaUrl }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+                  <Image source={{ uri: msg.mediaUrl }}
+                    style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }}
+                    resizeMode="cover" />
                 </TouchableOpacity>
               : <Text style={s.bubbleText}>{msg.text}</Text>}
             <Text style={s.bubbleTime}>
@@ -294,7 +326,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Visor imagen fullscreen */}
+      {/* Visor fullscreen */}
       <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
         <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
           {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
@@ -335,7 +367,6 @@ export default function GroupRoomScreen({ route, navigation }) {
             keyExtractor={(m, i) => m._id || String(i)}
             renderItem={renderMessage}
             contentContainerStyle={s.messageList}
-            onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
           />}
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -346,23 +377,25 @@ export default function GroupRoomScreen({ route, navigation }) {
             </TouchableOpacity>
             <AudioMessage uri={audioPreview.uri} isMe={true} duration={audioPreview.duration} />
             <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.audioPreviewSend}>
-              {uploading ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+              {uploading
+                ? <ActivityIndicator size={16} color="#fff" />
+                : <Ionicons name="send" size={16} color="#fff" />}
             </TouchableOpacity>
           </View>
         ) : (
           <View style={s.inputRow}>
-            {/* Imagen */}
             <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
               {uploading
                 ? <ActivityIndicator size={16} color={colors.c1} />
                 : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
             </TouchableOpacity>
 
-            {/* Audio */}
             {isRecording ? (
               <View style={s.recRow}>
                 <View style={s.recDot} />
-                <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
+                <Text style={s.recTimer}>
+                  {String(Math.floor(recSeconds / 60)).padStart(2,'0')}:{String(recSeconds % 60).padStart(2,'0')}
+                </Text>
                 <TouchableOpacity onPress={stopRecording} style={s.recStop}>
                   <Ionicons name="stop" size={14} color={colors.c1} />
                 </TouchableOpacity>
