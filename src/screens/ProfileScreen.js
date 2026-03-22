@@ -527,7 +527,7 @@ const s = StyleSheet.create({
   avatarWrap: { position: 'relative', marginBottom: 14 },
   cameraBtn:  { position: 'absolute', bottom: 2, right: 2, backgroundColor: colors.deep, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', zIndex: 20 },
   username:   { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  xpSimple:   { color: colors.c1, fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 12 },
+  xpSimple:   { color: '#ffffff', fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 12 },
   heroStats:    { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   heroStat:     { flex: 1, alignItems: 'center' },
   heroStatVal:  { color: '#ffffff', fontSize: 18, fontWeight: '700' },

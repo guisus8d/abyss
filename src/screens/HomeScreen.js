@@ -396,3 +396,4 @@ const s = StyleSheet.create({
   niLbl:    { fontSize: 9, color: colors.textDim, letterSpacing: 0.5 },
   niCreate: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', shadowColor: colors.c1, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
 });
+// force rebuild dom 22 mar 2026 10:47:26 CST

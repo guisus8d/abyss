@@ -131,7 +131,7 @@ export default function PublicProfileScreen({ route, navigation }) {
         if (data.chat) {
           navigation.navigate('ChatRoom', {
             chat: data.chat,
-            other: { _id: profile._id, username: profile.username, avatarUrl: profile.avatarUrl }
+            other: { _id: profile._id, username: profile.username, avatarUrl: profile.avatarUrl, profileFrame: profile.profileFrame, profileFrameUrl: profile.profileFrameUrl }
           });
         }
       } catch (err) {
@@ -141,7 +141,7 @@ export default function PublicProfileScreen({ route, navigation }) {
     }
     navigation.navigate('ChatRoom', {
       chat: { _id: null, participants: [] },
-      other: { _id: profile._id, username: profile.username, avatarUrl: profile.avatarUrl },
+      other: { _id: profile._id, username: profile.username, avatarUrl: profile.avatarUrl, profileFrame: profile.profileFrame, profileFrameUrl: profile.profileFrameUrl },
       requestMode: true,
       alreadyRequested: chatStatus === 'requested',
     });
@@ -394,7 +394,7 @@ const s = StyleSheet.create({
   bio:      { color: colors.textDim, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18, maxWidth: 260 },
   xpSimple: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', marginTop: 4, marginBottom: 12 },
 
-  actionRow:      { flexDirection: 'row', gap: 12, width: '100%', marginTop: 4 },
+  actionRow:      { flexDirection: 'row', gap: 12, width: '100%', marginTop: 20 },
   btnFollow:      { borderRadius: 12, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
   btnFollowTxt:   { color: '#001a18', fontWeight: '700', fontSize: 14 },
   btnUnfollow:    { borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.borderC, flexDirection: 'row', justifyContent: 'center', gap: 6 },
