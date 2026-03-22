@@ -102,13 +102,20 @@ export default function GroupRoomScreen({ route, navigation }) {
     const sameAsPrev  = prevMsg && prevSenderId === thisSenderId;
     const showName    = !sameAsPrev;
     const displayName = isMe ? (user?.username || 'Tú') : (sender?.username || '');
+    const senderRole  = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
+    const senderIsAdmin = senderRole === 'admin';
 
     return (
       <View style={{ marginBottom: 4 }}>
         {showName && (
-          <Text style={[s.msgSenderName, isMe && s.msgSenderNameMe]}>
-            {displayName}
-          </Text>
+          <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
+            <Text style={s.msgSenderName}>{displayName}</Text>
+            {senderIsAdmin && (
+              <View style={s.adminBadge}>
+                <Text style={s.adminBadgeTxt}>Admin</Text>
+              </View>
+            )}
+          </View>
         )}
 
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
@@ -237,8 +244,11 @@ const s = StyleSheet.create({
   messageList:       { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   msgRow:            { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
   msgRowMe:          { flexDirection: 'row-reverse' },
-  msgSenderName:     { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700', marginLeft: 44, marginBottom: 2 },
-  msgSenderNameMe:   { textAlign: 'right', marginLeft: 0, marginRight: 44 },
+  msgSenderRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 44, marginBottom: 2 },
+  msgSenderRowMe:  { flexDirection: 'row-reverse', marginLeft: 0, marginRight: 44 },
+  msgSenderName:   { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700' },
+  adminBadge:      { backgroundColor: 'rgba(0,200,120,0.12)', borderRadius: 4, borderWidth: 1, borderColor: 'rgba(0,200,120,0.4)', paddingHorizontal: 4, paddingVertical: 1 },
+  adminBadgeTxt:   { color: 'rgba(0,220,130,1)', fontSize: 7.5, fontWeight: '800', letterSpacing: 0.3 },
 
   bubble:          { maxWidth: '75%', borderRadius: 16, padding: 10, gap: 4 },
   bubbleMe:        { backgroundColor: 'rgba(0,180,160,0.85)', borderBottomRightRadius: 4 },
