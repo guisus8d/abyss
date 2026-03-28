@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
-  StyleSheet, StatusBar, SafeAreaView, ActivityIndicator,
+  StyleSheet, StatusBar, ActivityIndicator,
   Animated, Alert, Modal, TextInput, Dimensions,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -38,6 +39,7 @@ const BG_COLORS = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user, logout, updateUser } = useAuthStore();
   const [profile, setProfile]       = useState(null);
   const [posts, setPosts]           = useState([]);
@@ -46,7 +48,7 @@ export default function ProfileScreen({ navigation }) {
   const [tab, setTab]               = useState('profile');
   const [frameModal, setFrameModal] = useState(false);
   const [bgModal, setBgModal]       = useState(false);
-  const [bgTarget, setBgTarget]       = useState('banner'); // 'banner' | 'card'
+  const [bgTarget, setBgTarget]     = useState('banner');
   const [equipping, setEquipping]   = useState(false);
   const [saving, setSaving]         = useState(false);
   const [openPickerId, setOpenPickerId] = useState(null);
@@ -80,10 +82,7 @@ export default function ProfileScreen({ navigation }) {
     } catch {}
   }
 
-  const [editBioMode, setEditBioMode]   = useState(false);
-  const [editBio, setEditBio]           = useState('');
-  const [prefs, setPrefs]               = useState({ showXp: true, showFollowers: true, showFollowing: true, showPosts: true });
-
+  const [prefs, setPrefs] = useState({ showXp: true, showFollowers: true, showFollowing: true, showPosts: true });
   const tabIndicator = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -93,7 +92,6 @@ export default function ProfileScreen({ navigation }) {
     ]).then(([profileRes, postsRes]) => {
       const u = profileRes.data.user;
       setProfile(u);
-      setEditBio(u.bio || '');
       if (u.profilePrefs) setPrefs({ showXp: true, showFollowers: true, showFollowing: true, showPosts: true, ...u.profilePrefs });
       setPosts(postsRes.data.posts || []);
     }).finally(() => setLoading(false));
@@ -107,7 +105,6 @@ export default function ProfileScreen({ navigation }) {
     const idx = TABS.findIndex(t => t.key === key);
     Animated.spring(tabIndicator, { toValue: idx, friction: 8, useNativeDriver: true }).start();
     setTab(key);
-    setEditBioMode(false);
   }
 
   async function handlePickAvatar() {
@@ -120,8 +117,7 @@ export default function ProfileScreen({ navigation }) {
       const asset = result.assets[0];
       const formData = new FormData();
       if (asset.uri.startsWith('blob:') || asset.uri.startsWith('data:') || asset.uri.startsWith('http')) {
-        const res  = await fetch(asset.uri);
-        const blob = await res.blob();
+        const blob = await fetch(asset.uri).then(r => r.blob());
         formData.append('avatar', blob, 'avatar.jpg');
       } else {
         formData.append('avatar', { uri: asset.uri, type: 'image/jpeg', name: 'avatar.jpg' });
@@ -145,8 +141,7 @@ export default function ProfileScreen({ navigation }) {
       const asset = result.assets[0];
       const formData = new FormData();
       if (asset.uri.startsWith('blob:') || asset.uri.startsWith('data:') || asset.uri.startsWith('http')) {
-        const res  = await fetch(asset.uri);
-        const blob = await res.blob();
+        const blob = await fetch(asset.uri).then(r => r.blob());
         formData.append('banner', blob, 'bg.jpg');
       } else {
         formData.append('banner', { uri: asset.uri, type: 'image/jpeg', name: 'bg.jpg' });
@@ -156,7 +151,6 @@ export default function ProfileScreen({ navigation }) {
         setProfile(data.user);
         if (updateUser) updateUser(data.user);
       } else {
-        // card bg — subir como banner pero guardar en profileBg
         const { data } = await api.post('/users/me/banner', formData);
         await savePatch({ profileBg: data.bannerUrl, profileBgType: 'image' });
       }
@@ -202,26 +196,23 @@ export default function ProfileScreen({ navigation }) {
     <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 80 }} /></View>
   );
 
-  const xpProgress = Math.min((profile?.xp || 0) % 100, 100);
-  const hasFrame   = profile?.profileFrame === 'frame_001';
-  const canUnlock  = (profile?.xp || 0) >= 10;
-  const TAB_W      = (W - 32) / TABS.length;
-  const hasBg      = !!profile?.profileBg;
-  const isImageBg  = profile?.profileBgType === 'image';
-  const hasBanner    = !!profile?.profileBanner;
-  const isBannerImg  = profile?.profileBannerType === 'image';
+  const hasFrame  = profile?.profileFrame === 'frame_001';
+  const canUnlock = (profile?.xp || 0) >= 10;
+  const TAB_W     = (W - 32) / TABS.length;
+  const hasBg     = !!profile?.profileBg;
+  const isImageBg = profile?.profileBgType === 'image';
 
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero */}
-        <View style={s.heroBanner}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        {/* Hero — paddingTop dinámico con insets */}
+        <View style={[s.heroBanner, { paddingTop: insets.top + 100 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[s.backBtn, { top: insets.top + 12 }]}>
             <Ionicons name="arrow-back" size={22} color="#ffffff" />
           </TouchableOpacity>
+
           {profile?.profileBannerType === 'image' && profile?.profileBanner
             ? <><Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} /></>
@@ -229,8 +220,8 @@ export default function ProfileScreen({ navigation }) {
               ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBanner }]} />
               : <LinearGradient colors={['rgba(0,110,100,0.35)','rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
           }
+
           <View style={s.avatarWrap}>
-            {/* Tap en avatar → selector de marcos */}
             <TouchableOpacity onPress={() => navigation.navigate('FrameSelector')} activeOpacity={0.85}>
               <AvatarWithFrame
                 size={88}
@@ -241,12 +232,11 @@ export default function ProfileScreen({ navigation }) {
                 bgColor="rgba(0,229,204,0.12)"
               />
             </TouchableOpacity>
-
           </View>
+
           <Text style={s.username}>{profile?.username}</Text>
-          {prefs.showXp && (
-          <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>
-          )}
+          {prefs.showXp && <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>}
+
           <View style={s.heroStats}>
             {prefs.showFollowing && (
               <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'following' })}>
@@ -271,8 +261,6 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-
-
         {/* Tabs */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
           {TABS.map((t, i) => (
@@ -286,10 +274,9 @@ export default function ProfileScreen({ navigation }) {
           }]} />
         </View>
 
-        {/* ── Tab: Perfil ── */}
+        {/* Tab: Perfil */}
         {tab === 'profile' && (
           <View style={s.padded}>
-            {/* Sección con fondo personalizable */}
             <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }, !hasBg && s.pageSectionGlass]}>
               {isImageBg && profile?.profileBg
                 ? <><Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
@@ -298,49 +285,45 @@ export default function ProfileScreen({ navigation }) {
               {!isImageBg && hasBg
                 ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg, borderRadius: 16 }]} />
                 : null}
-              {/* Mini stats dentro de la card */}
-{/* Bloques */}
               <View style={s.blocksContainer}>
-              {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
-                <View style={s.emptyPage}>
-                  <Ionicons name="brush-outline" size={28} color={colors.textDim} />
-                  <Text style={s.emptyPageTxt}>Página vacía — toca el lápiz para editar</Text>
-                </View>
-              )}
-              {(profile?.profileBlocks || []).map((block, i) => {
-                if (block.type === 'text') return (
-                  <Text key={block.id || i} style={{ fontSize: block.fontSize || 14, fontWeight: block.bold ? '700' : '400', textAlign: block.align || 'left', color: colors.textHi, lineHeight: (block.fontSize || 14) * 1.5, marginBottom: 8 }}>
-                    {block.content}
-                  </Text>
-                );
-                if (block.type === 'image' && block.imageUrl) return (
-                  <Image key={block.id || i} source={{ uri: block.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 14, marginBottom: 8 }} resizeMode="cover" />
-                );
-                if (block.type === 'mention') return (
-                  <TouchableOpacity key={block.id || i} style={s.mentionBlockView}
-                    onPress={() => navigation.navigate('PublicProfile', { username: block.mentionUsername })}>
-                    <View style={s.mentionBlockAv}>
-                      {block.mentionAvatar
-                        ? <Image source={{ uri: block.mentionAvatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
-                        : <Text style={{ color: colors.c1, fontWeight: '700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
-                    </View>
-                    <Text style={s.mentionBlockAt}>@{block.mentionUsername}</Text>
-                    <Ionicons name="arrow-forward" size={14} color={colors.c1} />
-                  </TouchableOpacity>
-                );
-                return null;
-              })}
+                {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
+                  <View style={s.emptyPage}>
+                    <Ionicons name="brush-outline" size={28} color={colors.textDim} />
+                    <Text style={s.emptyPageTxt}>Página vacía — toca el lápiz para editar</Text>
+                  </View>
+                )}
+                {(profile?.profileBlocks || []).map((block, i) => {
+                  if (block.type === 'text') return (
+                    <Text key={block.id || i} style={{ fontSize: block.fontSize || 14, fontWeight: block.bold ? '700' : '400', textAlign: block.align || 'left', color: colors.textHi, lineHeight: (block.fontSize || 14) * 1.5, marginBottom: 8 }}>
+                      {block.content}
+                    </Text>
+                  );
+                  if (block.type === 'image' && block.imageUrl) return (
+                    <Image key={block.id || i} source={{ uri: block.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 14, marginBottom: 8 }} resizeMode="cover" />
+                  );
+                  if (block.type === 'mention') return (
+                    <TouchableOpacity key={block.id || i} style={s.mentionBlockView}
+                      onPress={() => navigation.navigate('PublicProfile', { username: block.mentionUsername })}>
+                      <View style={s.mentionBlockAv}>
+                        {block.mentionAvatar
+                          ? <Image source={{ uri: block.mentionAvatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+                          : <Text style={{ color: colors.c1, fontWeight: '700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
+                      </View>
+                      <Text style={s.mentionBlockAt}>@{block.mentionUsername}</Text>
+                      <Ionicons name="arrow-forward" size={14} color={colors.c1} />
+                    </TouchableOpacity>
+                  );
+                  return null;
+                })}
+              </View>
+              <TouchableOpacity style={s.editFab} onPress={() => navigation.navigate('EditProfilePage', { profile })}>
+                <Ionicons name="pencil" size={16} color={colors.black} />
+              </TouchableOpacity>
             </View>
-
-            {/* Lápiz editar */}
-            <TouchableOpacity style={s.editFab} onPress={() => navigation.navigate('EditProfilePage', { profile })}>
-              <Ionicons name="pencil" size={16} color={colors.black} />
-            </TouchableOpacity>
-            </View>{/* end pageSection */}
           </View>
         )}
 
-        {/* ── Tab: Posts ── */}
+        {/* Tab: Posts */}
         {tab === 'posts' && (
           <View>
             {posts.length === 0 ? (
@@ -364,7 +347,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
-        {/* ── Tab: Badges ── */}
+        {/* Tab: Badges */}
         {tab === 'badges' && (
           <View style={s.padded}>
             {!profile?.badges?.length ? (
@@ -387,7 +370,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
-        {/* ── Tab: Ajustes ── */}
+        {/* Tab: Ajustes */}
         {tab === 'settings' && (
           <View style={s.padded}>
             <View style={s.settingsGroup}>
@@ -397,7 +380,6 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={s.settingsRowTxt}>Cambiar foto de perfil</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
-
               <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('banner'); setBgModal(true); }}>
                 <Ionicons name="image-outline" size={20} color={colors.textMid} />
                 <Text style={s.settingsRowTxt}>Fondo del hero (banner)</Text>
@@ -415,14 +397,13 @@ export default function ProfileScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Visibilidad del perfil */}
             <View style={[s.settingsGroup, { marginTop: 20 }]}>
               <Text style={s.settingsGroupLabel}>VISIBILIDAD DEL PERFIL</Text>
               {[
-                { key: 'showXp',        label: 'Mostrar XP',         icon: 'flash-outline' },
-                { key: 'showFollowers', label: 'Mostrar seguidores',  icon: 'people-outline' },
-                { key: 'showFollowing', label: 'Mostrar siguiendo',   icon: 'person-add-outline' },
-                { key: 'showPosts',    label: 'Mostrar posts',        icon: 'grid-outline' },
+                { key: 'showXp',        label: 'Mostrar XP',        icon: 'flash-outline' },
+                { key: 'showFollowers', label: 'Mostrar seguidores', icon: 'people-outline' },
+                { key: 'showFollowing', label: 'Mostrar siguiendo',  icon: 'person-add-outline' },
+                { key: 'showPosts',     label: 'Mostrar posts',      icon: 'grid-outline' },
               ].map(item => (
                 <TouchableOpacity key={item.key} style={s.settingsRow} onPress={async () => {
                   const newPrefs = { ...prefs, [item.key]: !prefs[item.key] };
@@ -454,33 +435,25 @@ export default function ProfileScreen({ navigation }) {
         <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* ── Modal Fondo ── */}
+      {/* Modal Fondo */}
       <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.bgModalBox}>
             <Text style={s.modalTitle}>{bgTarget === 'banner' ? 'FONDO DEL BANNER' : 'FONDO DE LA CARD'}</Text>
-
             <View style={s.colorGrid}>
               {BG_COLORS.map(c => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[s.colorSwatch,
-                    c.value ? { backgroundColor: c.value, borderWidth: 2 } : { borderWidth: 1 },
-                    (bgTarget === 'banner' ? profile?.profileBanner : profile?.profileBg) === c.value && { borderColor: colors.c1, borderWidth: 2 },
-                  ]}
-                  onPress={() => savePatch(bgTarget === 'banner' ? { profileBanner: c.value, profileBannerType: 'color' } : { profileBg: c.value, profileBgType: 'color' }).then(() => setBgModal(false))}
-                >
+                <TouchableOpacity key={c.id}
+                  style={[s.colorSwatch, c.value ? { backgroundColor: c.value, borderWidth: 2 } : { borderWidth: 1 },
+                    (bgTarget === 'banner' ? profile?.profileBanner : profile?.profileBg) === c.value && { borderColor: colors.c1, borderWidth: 2 }]}
+                  onPress={() => savePatch(bgTarget === 'banner' ? { profileBanner: c.value, profileBannerType: 'color' } : { profileBg: c.value, profileBgType: 'color' }).then(() => setBgModal(false))}>
                   {!c.value && <Ionicons name="close" size={16} color={colors.textDim} />}
                 </TouchableOpacity>
               ))}
-
-              {/* Botón imagen */}
               <TouchableOpacity style={s.colorSwatchImg} onPress={handlePickBgImage}>
                 <Ionicons name="image-outline" size={20} color={colors.c1} />
                 <Text style={{ color: colors.c1, fontSize: 9, marginTop: 3 }}>Imagen</Text>
               </TouchableOpacity>
             </View>
-
             <TouchableOpacity style={s.closeBtn} onPress={() => setBgModal(false)}>
               <Text style={s.closeBtnTxt}>Cerrar</Text>
             </TouchableOpacity>
@@ -488,7 +461,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* ── Modal Marco ── */}
+      {/* Modal Marco */}
       <Modal visible={frameModal} transparent animationType="fade" onRequestClose={() => setFrameModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
@@ -514,100 +487,47 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: colors.black },
-  fullBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
-  fullBgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 0 },
-  fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
-
-  backBtn:     { position: 'absolute', top: 16, left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 6, color: '#ffffff' },
-
-  heroBanner: { alignItems: 'center', paddingTop: 60, paddingBottom: 60, paddingHorizontal: 24, overflow: 'hidden' },
-  hero:       { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24 },
-  avatarWrap: { position: 'relative', marginBottom: 14 },
-  cameraBtn:  { position: 'absolute', bottom: 2, right: 2, backgroundColor: colors.deep, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', zIndex: 20 },
-  username:   { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  xpSimple:   { color: '#ffffff', fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 12 },
+  root:         { flex: 1, backgroundColor: colors.black },
+  backBtn:      { position: 'absolute', left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  heroBanner:   { alignItems: 'center', paddingBottom: 40, paddingHorizontal: 24, overflow: 'hidden' },
+  avatarWrap:   { position: 'relative', marginBottom: 14 },
+  username:     { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 8 },
+  xpSimple:     { color: '#ffffff', fontSize: 12, fontWeight: '700', marginBottom: 12 },
   heroStats:    { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   heroStat:     { flex: 1, alignItems: 'center' },
   heroStatVal:  { color: '#ffffff', fontSize: 18, fontWeight: '700' },
   heroStatLbl:  { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
   heroStatDiv:  { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-
-  statsRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 16, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18 },
-  stat:     { flex: 1, alignItems: 'center' },
-  statVal:  { color: colors.textHi, fontSize: 20, fontWeight: '700' },
-  statLbl:  { color: colors.textDim, fontSize: 8, letterSpacing: 2, marginTop: 3 },
-  statDiv:  { width: 1, backgroundColor: colors.border },
-
   tabBar:       { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 16, overflow: 'hidden', position: 'relative' },
   tabBtn:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
   tabIndicator: { position: 'absolute', bottom: 0, height: 2, backgroundColor: '#ffffff', borderRadius: 1 },
-
-  padded: { paddingHorizontal: 16 },
-
-  profileSection: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 140, marginBottom: 8 },
-  pageSection:    { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120, marginBottom: 8 },
+  padded:       { paddingHorizontal: 16 },
+  pageSection:      { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120, marginBottom: 8 },
   pageSectionGlass: { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' },
-  pageBgImage:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
-  toggle:         { width: 40, height: 22, borderRadius: 11, backgroundColor: colors.border, justifyContent: 'center', padding: 2 },
-  toggleOn:       { backgroundColor: 'rgba(0,229,204,0.3)' },
-  toggleThumb:    { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.textDim },
-  toggleThumbOn:  { backgroundColor: colors.c1, alignSelf: 'flex-end' },
-  sectionBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
-
-  blocksContainer: { paddingBottom: 48, gap: 8 },
-  emptyPage:       { alignItems: 'center', paddingVertical: 32, gap: 10 },
-  emptyPageTxt:    { color: colors.textDim, fontSize: 12, textAlign: 'center' },
-  mentionBlockView:{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,229,204,0.07)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', padding: 12 },
-  mentionBlockAv:  { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  mentionBlockAt:  { flex: 1, color: colors.c1, fontWeight: '700', fontSize: 14 },
-
-  bioBlock:   { marginBottom: 16 },
-  bioCardLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, marginBottom: 10 },
-  bioText:    { color: colors.textHi, fontSize: 14, lineHeight: 22 },
-  editFab:    { position: 'absolute', bottom: 24, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', shadowColor: colors.c1, shadowOpacity: 0.5, shadowRadius: 10, elevation: 8, zIndex: 20 },
-  bgBtn:      { position: 'absolute', bottom: 14, right: 58, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center', zIndex: 10 },
-
-  sectionDivider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
-
-  textBlock:      { position: 'relative', paddingBottom: 36 },
-  profileFreeText:{ color: colors.textMid, fontSize: 14, lineHeight: 22 },
-  editFabText:    { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center' },
-
-  bgBtn: { position: 'absolute', top: 12, right: 56, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center' },
-
-  bioInput:      { color: colors.textHi, fontSize: 14, lineHeight: 22, minHeight: 60, textAlignVertical: 'top' },
-  freeTextInput: { color: colors.textMid, fontSize: 14, lineHeight: 22, minHeight: 80, textAlignVertical: 'top', padding: 0 },
-  charCount:     { color: colors.textDim, fontSize: 10, textAlign: 'right', marginTop: 4 },
-  editActions:   { flexDirection: 'row', gap: 10, marginTop: 12 },
-  cancelBtn:     { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, alignItems: 'center' },
-  cancelBtnTxt:  { color: colors.textDim, fontSize: 13 },
-  saveBtn:       { flex: 1, borderRadius: 10, overflow: 'hidden' },
-  saveBtnGrad:   { paddingVertical: 11, alignItems: 'center' },
-  saveBtnTxt:    { color: '#001a18', fontWeight: '800', fontSize: 13 },
-
-  postsGrid:   { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 2 },
-  postTile:    { backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'center', padding: 6 },
-  postTileTxt: { color: colors.textDim, fontSize: 10, lineHeight: 14 },
-
-  emptyTab:  { alignItems: 'center', paddingVertical: 48, gap: 12, width: '100%' },
-  emptyTxt:  { color: colors.textDim, fontSize: 14 },
-  emptyHint: { color: colors.textDim, fontSize: 11, opacity: 0.6 },
-
-  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeCard:  { alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.borderC, padding: 14, width: (W - 52) / 3 },
-  badgeIcon:  { fontSize: 28, marginBottom: 6 },
-  badgeName:  { color: colors.c1, fontSize: 9, letterSpacing: 1, textAlign: 'center' },
-  badgeDesc:  { color: colors.textDim, fontSize: 9, textAlign: 'center', marginTop: 2 },
-
+  pageBgImage:      { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+  blocksContainer:  { paddingBottom: 48, gap: 8 },
+  emptyPage:        { alignItems: 'center', paddingVertical: 32, gap: 10 },
+  emptyPageTxt:     { color: colors.textDim, fontSize: 12, textAlign: 'center' },
+  mentionBlockView: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,229,204,0.07)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', padding: 12 },
+  mentionBlockAv:   { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  mentionBlockAt:   { flex: 1, color: colors.c1, fontWeight: '700', fontSize: 14 },
+  editFab:      { position: 'absolute', bottom: 24, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', elevation: 8, zIndex: 20 },
+  toggle:       { width: 40, height: 22, borderRadius: 11, backgroundColor: colors.border, justifyContent: 'center', padding: 2 },
+  toggleOn:     { backgroundColor: 'rgba(0,229,204,0.3)' },
+  toggleThumb:  { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.textDim },
+  toggleThumbOn:{ backgroundColor: colors.c1, alignSelf: 'flex-end' },
+  emptyTab:     { alignItems: 'center', paddingVertical: 48, gap: 12 },
+  emptyTxt:     { color: colors.textDim, fontSize: 14 },
+  emptyHint:    { color: colors.textDim, fontSize: 11, opacity: 0.6 },
+  badgesGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgeCard:    { alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.borderC, padding: 14, width: (W - 52) / 3 },
+  badgeIcon:    { fontSize: 28, marginBottom: 6 },
+  badgeName:    { color: colors.c1, fontSize: 9, letterSpacing: 1, textAlign: 'center' },
+  badgeDesc:    { color: colors.textDim, fontSize: 9, textAlign: 'center', marginTop: 2 },
   settingsGroup:      { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   settingsGroupLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, padding: 14, paddingBottom: 8 },
   settingsRow:        { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
   settingsRowTxt:     { flex: 1, color: colors.textMid, fontSize: 14 },
-  frameStatus:        { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: colors.border },
-  frameStatusOn:      { borderColor: colors.c1, backgroundColor: 'rgba(0,229,204,0.08)' },
-
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
   modalBox:     { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 28, width: '82%', alignItems: 'center' },
   modalTitle:   { fontSize: 12, letterSpacing: 4, color: colors.c1, fontWeight: '800', marginBottom: 20 },
@@ -618,9 +538,8 @@ const s = StyleSheet.create({
   equipBtnTxt:  { color: colors.black, fontWeight: '800', fontSize: 14 },
   closeBtn:     { paddingVertical: 12 },
   closeBtnTxt:  { color: colors.textDim, fontSize: 13 },
-
-  bgModalBox:  { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 24, width: '90%', alignItems: 'center' },
-  colorGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginVertical: 16 },
-  colorSwatch: { width: 48, height: 48, borderRadius: 12, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  bgModalBox:   { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 24, width: '90%', alignItems: 'center' },
+  colorGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginVertical: 16 },
+  colorSwatch:  { width: 48, height: 48, borderRadius: 12, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   colorSwatchImg: { width: 48, height: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,229,204,0.05)' },
 });

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  Image, FlatList, StatusBar, SafeAreaView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Pressable,
+  Image, FlatList, StatusBar,
+  ActivityIndicator, Alert, Modal, Pressable, Linking,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Audio } from 'expo-av';
+import { AudioRecorder, AudioQuality, setAudioModeAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -14,8 +15,119 @@ import { connectSocket } from '../services/socket';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import AudioMessage from '../components/AudioMessage';
 
+// ─── Caché global de previews (evita fetch repetido al re-entrar) ─────────────
+const postLinkCache = {};
+
+// ─── Slot fijo del avatar ──────────────────────────────────────────────────────
+const AVATAR_SLOT = 38;
+
+// ─── Render texto con menciones y links ───────────────────────────────────────
+function renderRichText(text, navigation) {
+  if (!text) return null;
+  const parts = text.split(/(@\w+|https?:\/\/[^\s]+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@')) {
+      const username = part.slice(1);
+      return (
+        <Text key={i} style={{ fontWeight: '700', color: '#fff' }}
+          onPress={() => navigation.navigate('PublicProfile', { username })}>
+          {part}
+        </Text>
+      );
+    }
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <Text key={i}
+          style={{ color: '#00e5cc', textDecorationLine: 'underline' }}
+          onPress={() => Linking.openURL(part).catch(() => {})}>
+          {part}
+        </Text>
+      );
+    }
+    return <Text key={i}>{part}</Text>;
+  });
+}
+
+// ─── SharedPostBubble ─────────────────────────────────────────────────────────
+function SharedPostBubble({ sharedPost, navigation, isMe, onLongPress }) {
+  if (!sharedPost?.postId) return null;
+  const hasImage = !!sharedPost.imageUrl;
+  const bgColor  = isMe ? 'rgba(0,140,126,0.22)' : 'rgba(13,29,46,0.9)';
+  const borderCol = isMe ? 'rgba(0,229,204,0.30)' : 'rgba(255,255,255,0.09)';
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('PostDetail', { postId: sharedPost.postId.toString() })}
+      onLongPress={onLongPress}
+      activeOpacity={0.82}
+      style={{ borderRadius: 14, borderWidth: 1, overflow: 'hidden', width: 224, marginBottom: 4, backgroundColor: bgColor, borderColor: borderCol }}
+    >
+      <View style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:9, gap:7, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' }}>
+        <View style={{ width:2, height:16, backgroundColor:'#00e5cc', borderRadius:1 }} />
+        <Text style={{ color:'#00e5cc', fontSize:11, fontWeight:'700', flex:1 }}>@{sharedPost.authorUsername}</Text>
+        <Ionicons name="open-outline" size={13} color="rgba(0,229,204,0.5)" />
+      </View>
+      {hasImage && <Image source={{ uri: sharedPost.imageUrl }} style={{ width:'100%', height:110 }} resizeMode="cover" />}
+      <View style={{ paddingHorizontal:10, paddingVertical:8, gap:3 }}>
+        {sharedPost.title ? <Text style={{ color:'#e8f4f8', fontSize:13, fontWeight:'700' }} numberOfLines={2}>{sharedPost.title}</Text> : null}
+        {sharedPost.content ? <Text style={{ color:'rgba(232,244,248,0.58)', fontSize:12, lineHeight:17 }} numberOfLines={hasImage ? 1 : 3}>{sharedPost.content}</Text> : null}
+      </View>
+      <View style={{ flexDirection:'row', alignItems:'center', gap:4, paddingHorizontal:10, paddingBottom:8 }}>
+        <Ionicons name="arrow-forward-circle-outline" size={12} color="rgba(0,229,204,0.45)" />
+        <Text style={{ color:'rgba(0,229,204,0.45)', fontSize:10, fontWeight:'600' }}>Ver post completo</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── PostLinkPreview — con caché ──────────────────────────────────────────────
+function PostLinkPreview({ url, navigation, isMe, onLongPress }) {
+  const postId = url.match(/abyss\.social\/post\/([a-f0-9]{24})/i)?.[1];
+  const [post,    setPost]    = useState(postLinkCache[postId] || null);
+  const [loading, setLoading] = useState(!postLinkCache[postId] && !!postId);
+
+  useEffect(() => {
+    if (!postId || postLinkCache[postId]) return;
+    api.get(`/posts/${postId}`)
+      .then(({ data }) => {
+        const p = data.post || data;
+        postLinkCache[postId] = p;
+        setPost(p);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [postId]);
+
+  if (!postId || (!loading && !post)) {
+    return (
+      <Text style={{ color: '#00e5cc', textDecorationLine: 'underline' }}
+        onPress={() => Linking.openURL(url).catch(() => {})}
+        onLongPress={onLongPress}>
+        {url}
+      </Text>
+    );
+  }
+  if (loading) return <ActivityIndicator size="small" color="#00e5cc" style={{ marginVertical: 4 }} />;
+  return (
+    <SharedPostBubble
+      sharedPost={{ postId: post._id, title: post.title || '', content: post.content || '', imageUrl: post.imageUrl || null, authorUsername: post.author?.username || '', postType: post.postType || 'quick' }}
+      navigation={navigation} isMe={isMe} onLongPress={onLongPress}
+    />
+  );
+}
+
+// ─── RichMessage ──────────────────────────────────────────────────────────────
+function RichMessage({ text, navigation, isMe, textStyle, onLongPress }) {
+  if (!text) return null;
+  const trimmed = text.trim();
+  if (/^https?:\/\/(www\.)?abyss\.social\/post\/[a-f0-9]{24}$/i.test(trimmed)) {
+    return <PostLinkPreview url={trimmed} navigation={navigation} isMe={isMe} onLongPress={onLongPress} />;
+  }
+  return <Text style={textStyle}>{renderRichText(text, navigation)}</Text>;
+}
+
 export default function GroupRoomScreen({ route, navigation }) {
   const { group: initialGroup } = route.params;
+  const insets = useSafeAreaInsets();
   const { user }  = useAuthStore();
   const [group, setGroup]           = useState(initialGroup);
   const [messages, setMessages]     = useState([]);
@@ -29,34 +141,17 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [fullImg, setFullImg]       = useState(null);
   const [replyTo, setReplyTo]       = useState(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  const flatRef       = useRef(null);
-  const socketRef     = useRef(null);
-  const recordingRef  = useRef(null);
-  const recTimerRef   = useRef(null);
-  const recSecsRef    = useRef(0);       // evita stale closure en stopRecording
-  const isInitial     = useRef(true);    // primer carga no anima scroll
+  const flatRef      = useRef(null);
+  const socketRef    = useRef(null);
+  const recordingRef = useRef(null);
+  const recTimerRef  = useRef(null);
+  const recSecsRef   = useRef(0);
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user) === user?._id && m.role === 'admin'
   );
-
-  // ── Scroll al fondo ───────────────────────────────────────────────────────
-  function scrollToEnd(animated = true) {
-    setTimeout(() => flatRef.current?.scrollToEnd({ animated }), 120);
-  }
-
-  // ── Scroll automático cuando llegan mensajes nuevos ───────────────────────
-  useEffect(() => {
-    if (messages.length === 0) return;
-    if (isInitial.current) {
-      // Primera carga: sin animación
-      scrollToEnd(false);
-      isInitial.current = false;
-    } else {
-      scrollToEnd(true);
-    }
-  }, [messages.length]);
 
   useEffect(() => {
     loadGroup();
@@ -89,11 +184,11 @@ export default function GroupRoomScreen({ route, navigation }) {
       setMessages(prev =>
         prev.some(m => m._id === message._id) ? prev : [...prev, message]
       );
+      flatRef.current?.scrollToOffset({ offset: 0, animated: true });
       api.post(`/groups/${group._id}/read`).catch(() => {});
     });
   }
 
-  // ── Texto ─────────────────────────────────────────────────────────────────
   function sendMessage() {
     if (!text.trim() || sending) return;
     setSending(true);
@@ -112,7 +207,6 @@ export default function GroupRoomScreen({ route, navigation }) {
     setSending(false);
   }
 
-  // ── Imagen ────────────────────────────────────────────────────────────────
   async function pickImage() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -136,25 +230,22 @@ export default function GroupRoomScreen({ route, navigation }) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       socketRef.current?.emit('group:message', {
-        groupId:  group._id,
-        text:     '',
-        type:     'image',
-        mediaUrl: data.url,
+        groupId:  group._id, text: '', type: 'image', mediaUrl: data.url,
       });
     } catch (e) { console.log('confirmSendImage error:', e.message); }
     finally { setUploading(false); }
   }
 
-  // ── Audio ─────────────────────────────────────────────────────────────────
   async function startRecording() {
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current  = recording;
-      recSecsRef.current    = 0;
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) return;
+      await setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const recorder = new AudioRecorder({ quality: AudioQuality.HIGH });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      recordingRef.current = recorder;
+      recSecsRef.current   = 0;
       setIsRecording(true);
       setRecSeconds(0);
       recTimerRef.current = setInterval(() => {
@@ -171,8 +262,8 @@ export default function GroupRoomScreen({ route, navigation }) {
     setIsRecording(false);
     setRecSeconds(0);
     try {
-      await recordingRef.current?.stopAndUnloadAsync();
-      const uri = recordingRef.current?.getURI();
+      await recordingRef.current?.stop();
+      const uri = recordingRef.current?.uri;
       recordingRef.current = null;
       if (!uri) return;
       setAudioPreview({ uri, duration: secs });
@@ -195,11 +286,8 @@ export default function GroupRoomScreen({ route, navigation }) {
         headers: { 'Content-Type': 'multipart/form-data', 'x-file-type': 'audio' },
       });
       socketRef.current?.emit('group:message', {
-        groupId:       group._id,
-        text:          '',
-        type:          'audio',
-        mediaUrl:      data.url,
-        audioDuration: preview.duration,
+        groupId: group._id, text: '', type: 'audio',
+        mediaUrl: data.url, audioDuration: preview.duration,
       });
     } catch (e) {
       console.log('sendAudioPreview error:', e.message);
@@ -213,7 +301,6 @@ export default function GroupRoomScreen({ route, navigation }) {
     recordingRef.current = null;
   }
 
-  // ── Acciones ──────────────────────────────────────────────────────────────
   async function deleteMessage(msgId, forAll = false) {
     try {
       await api.delete(`/groups/${group._id}/message/${msgId}?forAll=${forAll}`);
@@ -244,7 +331,6 @@ export default function GroupRoomScreen({ route, navigation }) {
     ]);
   }
 
-  // ── Render mensaje ────────────────────────────────────────────────────────
   function renderMessage({ item: msg, index }) {
     const isMe         = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
     const sender       = msg.sender;
@@ -258,6 +344,25 @@ export default function GroupRoomScreen({ route, navigation }) {
       m => (m.user?._id || m.user)?.toString() === thisSenderId
     )?.role;
     const senderIsAdmin = senderRole === 'admin';
+    const isSoloPostUrl = msg.type === 'text' &&
+      /^https?:\/\/(www\.)?abyss\.social\/post\/[a-f0-9]{24}$/i.test(msg.text?.trim());
+    const isPostType = msg.type === 'shared_post' || isSoloPostUrl;
+
+    const msgOptions = () => {
+      const options = [];
+      options.push({ text: '↩ Responder', onPress: () => setReplyTo(msg) });
+      if (isMe) {
+        options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) });
+        options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) });
+      } else if (isAdmin) {
+        options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) });
+        options.push({ text: `🚫 Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) });
+      } else {
+        options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) });
+      }
+      options.push({ text: 'Cancelar', style: 'cancel' });
+      Alert.alert('Opciones', '', options);
+    };
 
     return (
       <View style={{ marginBottom: 4 }}>
@@ -273,47 +378,32 @@ export default function GroupRoomScreen({ route, navigation }) {
         )}
 
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
-          {isMe ? (
-            <View style={{ opacity: sameAsPrev ? 0 : 1, alignSelf: 'flex-start' }}>
-              <AvatarWithFrame size={30} avatarUrl={user?.avatarUrl} username={user?.username}
-                profileFrame={user?.profileFrame} frameUrl={user?.profileFrameUrl} />
-            </View>
-          ) : (
-            <TouchableOpacity style={{ alignSelf: 'flex-start', opacity: sameAsPrev ? 0 : 1 }}
-              onPress={() => navigation.navigate('PublicProfile', { username: sender?.username })}>
-              <AvatarWithFrame size={30} avatarUrl={sender?.avatarUrl} username={sender?.username}
-                profileFrame={sender?.profileFrame} frameUrl={sender?.profileFrameUrl} />
-            </TouchableOpacity>
-          )}
+          {/* Slot fijo — evita que el frame desplace la burbuja */}
+          <TouchableOpacity
+            style={{ width: AVATAR_SLOT, alignSelf: 'flex-end', alignItems: 'center' }}
+            onPress={() => !isMe && navigation.navigate('PublicProfile', { username: sender?.username })}
+            activeOpacity={isMe ? 1 : 0.7}
+          >
+            {showName && (
+              <AvatarWithFrame
+                size={30}
+                avatarUrl={isMe ? user?.avatarUrl : sender?.avatarUrl}
+                username={isMe ? user?.username : sender?.username}
+                profileFrame={isMe ? user?.profileFrame : sender?.profileFrame}
+                frameUrl={isMe ? user?.profileFrameUrl : sender?.profileFrameUrl}
+              />
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}
+            style={[
+              s.bubble,
+              isMe ? s.bubbleMe : s.bubbleThem,
+              isPostType && s.bubblePost,
+            ]}
             delayLongPress={350}
-            onPress={() => { if (Platform.OS === 'web') { const options = [];
-              options.push({ text: '↩ Responder', onPress: () => setReplyTo(msg) });
-              if (isMe) { options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) }); options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) }); }
-              else if (isAdmin) { options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) }); options.push({ text: `🚫 Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) }); }
-              else { options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) }); }
-              options.push({ text: 'Cancelar', style: 'cancel' }); Alert.alert('Opciones', '', options); } }}
-            onLongPress={() => {
-              const options = [];
-              // Responder — todos pueden
-              options.push({ text: '↩ Responder', onPress: () => setReplyTo(msg) });
-              if (isMe) {
-                // Dueño: borrar para todos o solo para mí
-                options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) });
-                options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) });
-              } else if (isAdmin) {
-                // Admin sobre mensaje ajeno: borrar para todos + banear
-                options.push({ text: '🗑 Borrar para todos', style: 'destructive', onPress: () => deleteMessage(msg._id, true) });
-                options.push({ text: `🚫 Banear a ${sender?.username}`, style: 'destructive', onPress: () => banUser(sender?._id, sender?.username) });
-              } else {
-                // Usuario normal sobre mensaje ajeno: solo borrar para mí
-                options.push({ text: '🗑 Borrar para mí', onPress: () => deleteMessage(msg._id, false) });
-              }
-              options.push({ text: 'Cancelar', style: 'cancel' });
-              Alert.alert('Opciones', '', options);
-            }}
+            onPress={msgOptions}
+            onLongPress={msgOptions}
           >
             {msg.deletedFor?.map(d => d.toString()).includes(user._id.toString())
               ? <Text style={[s.bubbleText, { opacity: 0.4, fontStyle: 'italic' }]}>Mensaje eliminado</Text>
@@ -324,7 +414,9 @@ export default function GroupRoomScreen({ route, navigation }) {
                       <Text style={s.replyText} numberOfLines={1}>{msg.replyTo.text}</Text>
                     </View>
                   )}
-                  {msg.type === 'audio' && msg.mediaUrl
+                  {msg.type === 'shared_post' && msg.sharedPost
+                    ? <SharedPostBubble sharedPost={msg.sharedPost} navigation={navigation} isMe={isMe} onLongPress={msgOptions} />
+                    : msg.type === 'audio' && msg.mediaUrl
                     ? <AudioMessage uri={msg.mediaUrl} isMe={isMe} duration={msg.audioDuration || 0} />
                     : msg.type === 'image' && msg.mediaUrl
                     ? <TouchableOpacity onPress={() => setFullImg(msg.mediaUrl)} activeOpacity={0.9}>
@@ -332,11 +424,13 @@ export default function GroupRoomScreen({ route, navigation }) {
                           style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }}
                           resizeMode="cover" />
                       </TouchableOpacity>
-                    : <Text style={s.bubbleText}>{msg.text}</Text>}
+                    : <RichMessage text={msg.text} navigation={navigation} isMe={isMe} textStyle={s.bubbleText} onLongPress={msgOptions} />}
                 </>}
-            <Text style={s.bubbleTime}>
-              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
+            {!isPostType && (
+              <Text style={s.bubbleTime}>
+                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -347,7 +441,6 @@ export default function GroupRoomScreen({ route, navigation }) {
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
 
-      {/* Preview imagen */}
       <Modal visible={!!imagePreview} transparent animationType="fade" onRequestClose={() => setImagePreview(null)}>
         <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding:20 }}>
           {imagePreview && <Image source={{ uri: imagePreview }} style={{ width:'100%', height:'60%', borderRadius:16 }} resizeMode="contain" />}
@@ -366,7 +459,6 @@ export default function GroupRoomScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Visor fullscreen */}
       <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
         <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
           {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
@@ -399,21 +491,25 @@ export default function GroupRoomScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
-      {loading
-        ? <ActivityIndicator color={colors.c1} style={{ marginTop: 40 }} />
-        : <FlatList
-            ref={flatRef}
-            data={messages}
-            keyExtractor={(m, i) => m._id || String(i)}
-            renderItem={renderMessage}
-            contentContainerStyle={s.messageList}
-          />}
+      <View style={{ flex: 1 }}>
+        {loading
+          ? <ActivityIndicator color={colors.c1} style={{ marginTop: 40 }} />
+          : <FlatList
+              ref={flatRef}
+              style={{ flex: 1 }}
+              data={[...messages].reverse()}
+              keyExtractor={(m, i) => `${m._id || i}_${i}`}
+              renderItem={renderMessage}
+              contentContainerStyle={s.messageList}
+              inverted
+              onScroll={(e) => setShowScrollBtn(e.nativeEvent.contentOffset.y > 150)}
+              scrollEventThrottle={32}
+            />}
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {replyTo && (
           <View style={s.replyBar}>
             <View style={{ flex: 1 }}>
-              <Text style={s.replyBarUser}>↩ {replyTo.sender?.username || replyTo.sender?.senderUsername || 'usuario'}</Text>
+              <Text style={s.replyBarUser}>↩ {replyTo.sender?.username || 'usuario'}</Text>
               <Text style={s.replyBarTxt} numberOfLines={1}>{replyTo.text}</Text>
             </View>
             <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding: 8 }}>
@@ -421,6 +517,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         )}
+
         {audioPreview ? (
           <View style={s.audioPreviewRow}>
             <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -428,19 +525,14 @@ export default function GroupRoomScreen({ route, navigation }) {
             </TouchableOpacity>
             <AudioMessage uri={audioPreview.uri} isMe={true} duration={audioPreview.duration} />
             <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.audioPreviewSend}>
-              {uploading
-                ? <ActivityIndicator size={16} color="#fff" />
-                : <Ionicons name="send" size={16} color="#fff" />}
+              {uploading ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={s.inputRow}>
+          <View style={[s.inputRow, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
             <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
-              {uploading
-                ? <ActivityIndicator size={16} color={colors.c1} />
-                : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
+              {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
             </TouchableOpacity>
-
             {isRecording ? (
               <View style={s.recRow}>
                 <View style={s.recDot} />
@@ -456,7 +548,6 @@ export default function GroupRoomScreen({ route, navigation }) {
                 <Ionicons name="mic-outline" size={20} color={colors.textDim} />
               </TouchableOpacity>
             )}
-
             <TextInput
               style={s.input}
               value={text}
@@ -474,7 +565,15 @@ export default function GroupRoomScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         )}
-      </KeyboardAvoidingView>
+      </View>
+
+      {showScrollBtn && (
+        <TouchableOpacity
+          style={s.scrollDownBtn}
+          onPress={() => flatRef.current?.scrollToOffset({ offset: 0, animated: true })}>
+          <Ionicons name="chevron-down" size={20} color={colors.c1} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -492,8 +591,8 @@ const s = StyleSheet.create({
   messageList:     { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   msgRow:          { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
   msgRowMe:        { flexDirection: 'row-reverse' },
-  msgSenderRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 44, marginBottom: 2 },
-  msgSenderRowMe:  { flexDirection: 'row-reverse', marginLeft: 0, marginRight: 44 },
+  msgSenderRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: AVATAR_SLOT + 8, marginBottom: 2 },
+  msgSenderRowMe:  { flexDirection: 'row-reverse', marginLeft: 0, marginRight: AVATAR_SLOT + 8 },
   msgSenderName:   { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700' },
   adminBadge:      { backgroundColor: 'rgba(0,200,120,0.12)', borderRadius: 4, borderWidth: 1, borderColor: 'rgba(0,200,120,0.4)', paddingHorizontal: 4, paddingVertical: 1 },
   adminBadgeTxt:   { color: 'rgba(0,220,130,1)', fontSize: 7.5, fontWeight: '800', letterSpacing: 0.3 },
@@ -501,6 +600,7 @@ const s = StyleSheet.create({
   bubble:          { maxWidth: '75%', borderRadius: 16, padding: 10, gap: 4 },
   bubbleMe:        { backgroundColor: 'rgba(0,180,160,0.85)', borderBottomRightRadius: 4 },
   bubbleThem:      { backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
+  bubblePost:      { padding: 0, backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0 },
   bubbleText:      { color: '#ffffff', fontSize: 14, lineHeight: 20 },
   bubbleTime:      { color: 'rgba(255,255,255,0.4)', fontSize: 9, alignSelf: 'flex-end' },
 
@@ -524,4 +624,5 @@ const s = StyleSheet.create({
   audioPreviewRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
   audioPreviewCancel: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center', justifyContent: 'center' },
   audioPreviewSend:   { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,229,204,0.8)', alignItems: 'center', justifyContent: 'center' },
+  scrollDownBtn:      { position: 'absolute', bottom: 130, right: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center', elevation: 5 },
 });

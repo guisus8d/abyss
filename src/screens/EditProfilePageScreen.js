@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
-  StyleSheet, StatusBar, SafeAreaView, TextInput,
+  StyleSheet, StatusBar, TextInput,
   Dimensions, Alert, Modal, ActivityIndicator,
   KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,6 +14,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 
 const W = Dimensions.get('window').width;
+const DISPLAY_NAME_MAX = 30;
 
 const BG_COLORS = [
   { id: 'none',   value: '',                        label: 'Ninguno'  },
@@ -42,11 +44,12 @@ export default function EditProfilePageScreen({ route, navigation }) {
   const { profile } = route.params || {};
   const { updateUser } = useAuthStore();
 
+  const [displayName, setDisplayName] = useState(profile?.displayName || profile?.username || '');
   const [blocks, setBlocks]       = useState(profile?.profileBlocks || []);
   const [bg, setBg]               = useState(profile?.profileBg || '');
   const [bgType, setBgType]       = useState(profile?.profileBgType || 'color');
   const [saving, setSaving]       = useState(false);
-  const [uploading, setUploading] = useState(null); // block id or 'bg'
+  const [uploading, setUploading] = useState(null);
   const [bgModal, setBgModal]     = useState(false);
   const [addModal, setAddModal]   = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -171,6 +174,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
     setSaving(true);
     try {
       const { data } = await api.patch('/users/me/profile', {
+        displayName: displayName.trim() || profile?.username,
         profileBlocks: blocks,
         profileBg: bg,
         profileBgType: bgType,
@@ -188,10 +192,8 @@ export default function EditProfilePageScreen({ route, navigation }) {
   function renderBlock(block, idx) {
     const isEditing = editingId === block.id;
 
-    // ── TEXT ──
     if (block.type === 'text') return (
       <View key={block.id} style={s.blockWrap}>
-        {/* Controles bloque */}
         <View style={s.blockBar}>
           <TouchableOpacity onPress={() => move(block.id, -1)} style={s.blockBarBtn}>
             <Ionicons name="chevron-up" size={13} color={colors.textDim} />
@@ -223,7 +225,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
             <Ionicons name="trash-outline" size={13} color="rgba(239,68,68,0.7)" />
           </TouchableOpacity>
         </View>
-
         <View style={s.textCard}>
           {isEditing ? (
             <>
@@ -256,7 +257,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </View>
     );
 
-    // ── IMAGE ──
     if (block.type === 'image') return (
       <View key={block.id} style={s.blockWrap}>
         <View style={s.blockBar}>
@@ -275,12 +275,10 @@ export default function EditProfilePageScreen({ route, navigation }) {
               </View>
             </>
           ) : (
-            <>
-              <View style={s.imageCardEmpty}>
-                <Ionicons name="image-outline" size={36} color={colors.textDim} />
-                <Text style={s.imageCardHint}>Toca para agregar imagen</Text>
-              </View>
-            </>
+            <View style={s.imageCardEmpty}>
+              <Ionicons name="image-outline" size={36} color={colors.textDim} />
+              <Text style={s.imageCardHint}>Toca para agregar imagen</Text>
+            </View>
           )}
           {uploading === block.id && (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, alignItems: 'center', justifyContent: 'center' }]}>
@@ -291,7 +289,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </View>
     );
 
-    // ── MENTION ──
     if (block.type === 'mention') return (
       <View key={block.id} style={s.blockWrap}>
         <View style={s.blockBar}>
@@ -342,6 +339,31 @@ export default function EditProfilePageScreen({ route, navigation }) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
 
+          {/* ── Nombre de perfil ── */}
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>NOMBRE DE PERFIL</Text>
+            <View style={s.nameInputWrap}>
+              <TextInput
+                style={s.nameInput}
+                value={displayName}
+                onChangeText={t => t.length <= DISPLAY_NAME_MAX && setDisplayName(t)}
+                placeholder={profile?.username || 'Tu nombre...'}
+                placeholderTextColor={colors.textDim}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              <Text style={[
+                s.nameCounter,
+                displayName.length >= DISPLAY_NAME_MAX && { color: 'rgba(239,68,68,0.8)' }
+              ]}>
+                {displayName.length}/{DISPLAY_NAME_MAX}
+              </Text>
+            </View>
+            <Text style={s.sectionHint}>
+              Puedes usar emojis y caracteres especiales ✦  El @{profile?.username} no cambia.
+            </Text>
+          </View>
+
           {/* Canvas */}
           <View style={s.canvas}>
             {isImageBg && bg
@@ -354,7 +376,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
               ? <View style={[StyleSheet.absoluteFill, { backgroundColor: bg, borderRadius: 20 }]} />
               : null}
 
-            {/* Canvas top bar */}
             <View style={s.canvasTopBar}>
               <TouchableOpacity style={s.bgChip} onPress={() => setBgModal(true)}>
                 {uploading === 'bg'
@@ -364,7 +385,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Blocks */}
             <View style={s.blocksWrap}>
               {blocks.length === 0
                 ? (
@@ -395,7 +415,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>AGREGAR BLOQUE</Text>
             <View style={s.blockTypesRow}>
-
               <TouchableOpacity style={s.blockTypeCard} onPress={() => addBlock('text')}>
                 <LinearGradient colors={['rgba(0,229,204,0.15)','rgba(0,229,204,0.03)']} style={s.blockTypeCardInner}>
                   <View style={[s.blockTypeIcon, { borderColor: 'rgba(0,229,204,0.3)' }]}>
@@ -405,7 +424,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
                   <Text style={s.blockTypeHint}>Párrafo libre</Text>
                 </LinearGradient>
               </TouchableOpacity>
-
               <TouchableOpacity style={s.blockTypeCard} onPress={() => addBlock('image')}>
                 <LinearGradient colors={['rgba(147,51,234,0.15)','rgba(147,51,234,0.03)']} style={s.blockTypeCardInner}>
                   <View style={[s.blockTypeIcon, { borderColor: 'rgba(167,139,250,0.3)' }]}>
@@ -415,7 +433,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
                   <Text style={s.blockTypeHint}>Foto del carrete</Text>
                 </LinearGradient>
               </TouchableOpacity>
-
               <TouchableOpacity style={s.blockTypeCard} onPress={() => { setAddModal('mention'); setMentionQ(''); setMentionResults([]); }}>
                 <LinearGradient colors={['rgba(236,72,153,0.15)','rgba(236,72,153,0.03)']} style={s.blockTypeCardInner}>
                   <View style={[s.blockTypeIcon, { borderColor: 'rgba(244,114,182,0.3)' }]}>
@@ -425,7 +442,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
                   <Text style={s.blockTypeHint}>Enlaza un usuario</Text>
                 </LinearGradient>
               </TouchableOpacity>
-
             </View>
             <TouchableOpacity style={s.sheetCancelBtn} onPress={() => setAddModal(false)}>
               <Text style={s.sheetCancelTxt}>Cancelar</Text>
@@ -516,6 +532,14 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 12, fontWeight: '900', letterSpacing: 5, color: colors.c1 },
   saveBtn:     { backgroundColor: colors.c1, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 8, minWidth: 44, alignItems: 'center' },
   saveBtnTxt:  { color: '#001a18', fontWeight: '900', fontSize: 13 },
+
+  // ── Sección nombre ──
+  section:       { marginHorizontal: 16, marginTop: 20, marginBottom: 4 },
+  sectionLabel:  { fontSize: 10, fontWeight: '900', letterSpacing: 4, color: colors.c1, marginBottom: 10 },
+  sectionHint:   { fontSize: 11, color: colors.textDim, marginTop: 8, lineHeight: 16 },
+  nameInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 12 },
+  nameInput:     { flex: 1, color: colors.textHi, fontSize: 16, fontWeight: '600' },
+  nameCounter:   { color: colors.textDim, fontSize: 11, marginLeft: 8 },
 
   canvas:      { margin: 16, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', minHeight: 320, position: 'relative', backgroundColor: 'rgba(255,255,255,0.02)' },
   canvasBg:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },

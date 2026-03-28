@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import LoginScreen           from '../screens/LoginScreen';
 import HomeScreen            from '../screens/HomeScreen';
@@ -22,8 +23,8 @@ import PostDetailScreen      from '../screens/PostDetailScreen';
 import TopScreen             from '../screens/TopScreen';
 import FrameDetailScreen     from '../screens/FrameDetailScreen';
 import FrameSelectorScreen   from '../screens/FrameSelectorScreen';
-import CreateGroupScreen    from '../screens/CreateGroupScreen';
-import GroupRoomScreen      from '../screens/GroupRoomScreen';
+import CreateGroupScreen     from '../screens/CreateGroupScreen';
+import GroupRoomScreen       from '../screens/GroupRoomScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,42 +34,53 @@ export default function AppNavigator() {
 
   if (isRestoring) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#020509', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#00e5cc" size="large" />
-      </View>
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: '#020509', alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="#00e5cc" size="large" />
+        </View>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <>
-            <Stack.Screen name="Home"            component={HomeScreen} />
-            <Stack.Screen name="Chats"           component={ChatsScreen} />
-            <Stack.Screen name="ChatRoom"        component={ChatRoomScreen} />
-            <Stack.Screen name="Profile"         component={ProfileScreen} />
-            <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
-            <Stack.Screen name="EditProfilePage" component={EditProfilePageScreen} />
-            <Stack.Screen name="PostImage"       component={PostImageScreen} />
-            <Stack.Screen name="PostNoticia"     component={PostNoticiaScreen} />
-            <Stack.Screen name="Settings"        component={SettingsScreen} />
-            <Stack.Screen name="Collection"      component={CollectionScreen} />
-            <Stack.Screen name="CreateFrame"     component={CreateFrameScreen} />
-            <Stack.Screen name="ModPanel"        component={ModPanelScreen} />
-            <Stack.Screen name="Notifications"   component={NotificationsScreen} />
-            <Stack.Screen name="FollowList"      component={FollowListScreen} />
-            <Stack.Screen name="PostDetail"      component={PostDetailScreen} />
-            <Stack.Screen name="Top"             component={TopScreen} />
-            <Stack.Screen name="FrameDetail"     component={FrameDetailScreen} />
-            <Stack.Screen name="FrameSelector"   component={FrameSelectorScreen} />
-            <Stack.Screen name="CreateGroup"      component={CreateGroupScreen} />
-            <Stack.Screen name="GroupRoom"         component={GroupRoomScreen} />
-          </>
-        ) : (
-          <Stack.Screen name="Login" component={LoginScreen} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#020509' },
+            // Animación nativa fluida
+            animation: 'slide_from_right',
+          }}
+        >
+          {user ? (
+            <>
+              <Stack.Screen name="Home"            component={HomeScreen} />
+              <Stack.Screen name="Chats"           component={ChatsScreen} />
+              <Stack.Screen name="ChatRoom"        component={ChatRoomScreen} />
+              <Stack.Screen name="Profile"         component={ProfileScreen} />
+              <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
+              <Stack.Screen name="EditProfilePage" component={EditProfilePageScreen} />
+              <Stack.Screen name="PostImage"       component={PostImageScreen} />
+              <Stack.Screen name="PostNoticia"     component={PostNoticiaScreen} />
+              <Stack.Screen name="Settings"        component={SettingsScreen} />
+              <Stack.Screen name="Collection"      component={CollectionScreen} />
+              <Stack.Screen name="CreateFrame"     component={CreateFrameScreen} />
+              <Stack.Screen name="ModPanel"        component={ModPanelScreen} />
+              <Stack.Screen name="Notifications"   component={NotificationsScreen} />
+              <Stack.Screen name="FollowList"      component={FollowListScreen} />
+              <Stack.Screen name="PostDetail"      component={PostDetailScreen} />
+              <Stack.Screen name="Top"             component={TopScreen} />
+              <Stack.Screen name="FrameDetail"     component={FrameDetailScreen} />
+              <Stack.Screen name="FrameSelector"   component={FrameSelectorScreen} />
+              <Stack.Screen name="CreateGroup"     component={CreateGroupScreen} />
+              <Stack.Screen name="GroupRoom"       component={GroupRoomScreen} />
+            </>
+          ) : (
+            <Stack.Screen name="Login" component={LoginScreen} />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

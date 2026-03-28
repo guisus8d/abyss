@@ -1,18 +1,18 @@
 import React, { useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Modal, Animated, Dimensions,
+  Modal, Animated, useWindowDimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 
 const OPTIONS = [
   {
     key: 'quick',
-    icon: 'flash-outline',
+    icon: 'flash',
     label: 'Post rápido',
-    hint: 'Texto o imagen simple',
+    hint: 'Texto o imagen',
     color: colors.c1,
     bg: 'rgba(0,229,204,0.12)',
     border: 'rgba(0,229,204,0.3)',
@@ -20,9 +20,9 @@ const OPTIONS = [
   },
   {
     key: 'image',
-    icon: 'image-outline',
+    icon: 'image',
     label: 'Post imagen',
-    hint: 'Foto con descripción',
+    hint: 'Foto + descripción',
     color: 'rgba(167,139,250,1)',
     bg: 'rgba(147,51,234,0.12)',
     border: 'rgba(147,51,234,0.3)',
@@ -30,9 +30,9 @@ const OPTIONS = [
   },
   {
     key: 'news',
-    icon: 'newspaper-outline',
-    label: 'Post noticia',
-    hint: 'Título, imagen y cuerpo',
+    icon: 'newspaper',
+    label: 'Noticia',
+    hint: 'Título + cuerpo',
     color: 'rgba(251,191,36,1)',
     bg: 'rgba(234,179,8,0.12)',
     border: 'rgba(234,179,8,0.3)',
@@ -40,9 +40,9 @@ const OPTIONS = [
   },
   {
     key: 'frame',
-    icon: 'sparkles-outline',
+    icon: 'sparkles',
     label: 'Crear marco',
-    hint: 'Requiere 200 XP',
+    hint: '200 XP mínimo',
     color: 'rgba(244,114,182,1)',
     bg: 'rgba(236,72,153,0.08)',
     border: 'rgba(236,72,153,0.2)',
@@ -50,8 +50,8 @@ const OPTIONS = [
   },
   {
     key: 'channel',
-    icon: 'radio-outline',
-    label: 'Crear canal',
+    icon: 'radio',
+    label: 'Canal',
     hint: 'Próximamente',
     color: 'rgba(96,165,250,1)',
     bg: 'rgba(41,121,255,0.08)',
@@ -61,19 +61,27 @@ const OPTIONS = [
 ];
 
 export default function CreatePostMenu({ visible, onClose, onSelect }) {
-  const slideAnim = useRef(new Animated.Value(300)).current;
+  const slideAnim = useRef(new Animated.Value(400)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
+
+  const { width: W } = useWindowDimensions();
+  // 3 columnas con gap de 10 y padding horizontal de 20 a cada lado
+  const CARD_W = (W - 40 - 20) / 3;
+
+  const insets = useSafeAreaInsets();
+  // Solo el inset real de la nav bar — sin suma extra
+  const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, friction: 9, tension: 60, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 300, duration: 200, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 400, duration: 200, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
       ]).start();
     }
   }, [visible]);
@@ -82,7 +90,12 @@ export default function CreatePostMenu({ visible, onClose, onSelect }) {
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View style={[s.overlay, { opacity: fadeAnim }]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View
+          style={[
+            s.sheet,
+            { paddingBottom: bottomPad, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
           <View style={s.handle} />
           <Text style={s.title}>CREAR</Text>
 
@@ -90,7 +103,11 @@ export default function CreatePostMenu({ visible, onClose, onSelect }) {
             {OPTIONS.map(opt => (
               <TouchableOpacity
                 key={opt.key}
-                style={[s.card, { borderColor: opt.border, backgroundColor: opt.bg }, !opt.active && s.cardDisabled]}
+                style={[
+                  s.card,
+                  { width: CARD_W, borderColor: opt.border, backgroundColor: opt.bg },
+                  !opt.active ? s.cardDisabled : null,
+                ]}
                 onPress={() => {
                   if (!opt.active) return;
                   onClose();
@@ -98,16 +115,23 @@ export default function CreatePostMenu({ visible, onClose, onSelect }) {
                 }}
                 activeOpacity={opt.active ? 0.7 : 1}
               >
+                {/* ✅ Ícono más pequeño y compacto para reducir altura */}
                 <View style={[s.iconWrap, { borderColor: opt.border }]}>
-                  <Ionicons name={opt.icon} size={24} color={opt.active ? opt.color : colors.textDim} />
+                  <Ionicons
+                    name={opt.icon}
+                    size={20}
+                    color={opt.active ? opt.color : colors.textDim}
+                  />
                 </View>
-                <Text style={[s.cardLabel, { color: opt.active ? opt.color : colors.textDim }]}>{opt.label}</Text>
+                <Text style={[s.cardLabel, { color: opt.active ? opt.color : colors.textDim }]}>
+                  {opt.label}
+                </Text>
                 <Text style={s.cardHint}>{opt.hint}</Text>
-                {!opt.active && (
+                {!opt.active ? (
                   <View style={s.soonBadge}>
                     <Text style={s.soonTxt}>PRONTO</Text>
                   </View>
-                )}
+                ) : null}
               </TouchableOpacity>
             ))}
           </View>
@@ -121,25 +145,46 @@ export default function CreatePostMenu({ visible, onClose, onSelect }) {
   );
 }
 
-const W = Dimensions.get('window').width;
-const CARD_W = (W - 48 - 12) / 3;
-
 const s = StyleSheet.create({
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet:     { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 44, borderTopWidth: 1, borderTopColor: colors.border },
-  handle:    { width: 44, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  title:     { fontSize: 11, letterSpacing: 5, color: colors.c1, fontWeight: '900', textAlign: 'center', marginBottom: 24 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    // ✅ FIX ALTURA: padding reducido (20 en vez de 24), paddingBottom manejado inline
+    paddingTop: 14,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  handle:  { width: 36, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  title:   { fontSize: 10, letterSpacing: 5, color: colors.c1, fontWeight: '900', textAlign: 'center', marginBottom: 16 },
 
-  grid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
-  card:      { width: CARD_W, borderRadius: 18, borderWidth: 1, padding: 14, alignItems: 'center', gap: 8, position: 'relative' },
-  cardDisabled: { opacity: 0.5 },
-  iconWrap:  { width: 52, height: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
-  cardLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  cardHint:  { fontSize: 10, color: colors.textDim, textAlign: 'center' },
+  grid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
 
-  soonBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
-  soonTxt:   { fontSize: 7, color: colors.textDim, letterSpacing: 1, fontWeight: '700' },
+  // ✅ Cards más compactas — padding reducido de 14 a 10, gap de 8 a 6
+  card: {
+    borderRadius: 16, borderWidth: 1,
+    padding: 10, gap: 6,
+    alignItems: 'center', position: 'relative',
+  },
+  cardDisabled: { opacity: 0.45 },
 
-  cancelBtn: { marginTop: 20, alignItems: 'center' },
-  cancelTxt: { color: colors.textDim, fontSize: 14, paddingVertical: 6 },
+  // ✅ Ícono más chico — 40x40 en vez de 52x52
+  iconWrap: {
+    width: 40, height: 40, borderRadius: 12, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  cardLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  cardHint:  { fontSize: 9, color: colors.textDim, textAlign: 'center' },
+
+  soonBadge: {
+    position: 'absolute', top: 6, right: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 5, paddingHorizontal: 4, paddingVertical: 2,
+  },
+  soonTxt: { fontSize: 6, color: colors.textDim, letterSpacing: 1, fontWeight: '700' },
+
+  cancelBtn: { marginTop: 14, alignItems: 'center' },
+  cancelTxt: { color: colors.textDim, fontSize: 14, paddingVertical: 8 },
 });

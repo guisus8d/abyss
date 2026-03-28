@@ -1,47 +1,119 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Modal, TouchableOpacity, Image,
-  StyleSheet, StatusBar, SafeAreaView, ActivityIndicator,
-  TextInput, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, ActivityIndicator, TextInput, Platform, Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 
+// ─── Paleta ──────────────────────────────────────────────────────────────────
+const C = {
+  card:         '#0b1521',
+  cardBorder:   'rgba(255,255,255,0.07)',
+  surface:      '#0d1d2e',
+  accent:       '#0fe3b8',
+  accentDim:    'rgba(15,227,184,0.10)',
+  accentBorder: 'rgba(15,227,184,0.28)',
+  textHi:       '#e6f0ff',
+  textMid:      'rgba(230,240,255,0.65)',
+  textDim:      'rgba(230,240,255,0.35)',
+  red:          '#ef4444',
+  gold:         'rgba(251,191,36,1)',
+  goldDim:      'rgba(251,191,36,0.12)',
+  goldBorder:   'rgba(251,191,36,0.35)',
+  divider:      'rgba(255,255,255,0.06)',
+};
+
+const isWeb = Platform.OS === 'web';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function timeAgo(date) {
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s/60)}m`;
-  if (s < 86400) return `${Math.floor(s/3600)}h`;
-  return `${Math.floor(s/86400)}d`;
+  if (s < 60)    return `${s}s`;
+  if (s < 3600)  return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d`;
 }
 
+function formatDate(date) {
+  return new Date(date).toLocaleDateString('es-MX', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+// ─── ConfirmModal ─────────────────────────────────────────────────────────────
+function ConfirmModal({ visible, onConfirm, onCancel }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={cm.overlay}>
+        <View style={cm.box}>
+          <Text style={cm.title}>¿Borrar comentario?</Text>
+          <Text style={cm.body}>Esta acción no se puede deshacer</Text>
+          <View style={cm.row}>
+            <TouchableOpacity onPress={onCancel} style={cm.btnCancel} activeOpacity={0.7}>
+              <Text style={cm.btnCancelTxt}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onConfirm} style={cm.btnDanger} activeOpacity={0.7}>
+              <Text style={cm.btnDangerTxt}>Borrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const cm = StyleSheet.create({
+  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  box:          { backgroundColor: C.card, borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, borderWidth: 1, borderColor: C.cardBorder },
+  title:        { color: C.textHi, fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 6 },
+  body:         { color: C.textDim, fontSize: 13, textAlign: 'center', marginBottom: 24 },
+  row:          { flexDirection: 'row', gap: 10 },
+  btnCancel:    { flex: 1, paddingVertical: 13, borderRadius: 14, borderWidth: 1, borderColor: C.cardBorder, alignItems: 'center' },
+  btnCancelTxt: { color: C.textDim, fontWeight: '600', fontSize: 14 },
+  btnDanger:    { flex: 1, paddingVertical: 13, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.75)', alignItems: 'center' },
+  btnDangerTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+});
+
+// ─── IconBtn — nuevo estilo con fondo visible ─────────────────────────────────
+// variant: 'accent' | 'muted' | 'ghost'
+function IconBtn({ name, size = 20, onPress, variant = 'muted', style }) {
+  const btnStyle = {
+    accent: s.iconBtnAccent,
+    muted:  s.iconBtnMuted,
+    ghost:  s.iconBtnGhost,
+  }[variant] || s.iconBtnMuted;
+
+  const iconColor = variant === 'accent' ? C.accent : C.textHi;
+
+  return (
+    <TouchableOpacity style={[s.iconBtnBase, btnStyle, style]} onPress={onPress} activeOpacity={0.75}>
+      <Ionicons name={name} size={size} color={iconColor} />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
 export default function PostDetailScreen({ route, navigation }) {
   const { postId } = route.params;
-  const { user } = useAuthStore();
-  const [post, setPost]           = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [comment, setComment]     = useState('');
-  const [sending, setSending]     = useState(false);
-  const [replyTo, setReplyTo]     = useState(null);
+  const { user }   = useAuthStore();
+  const insets     = useSafeAreaInsets();
+
+  const [post,               setPost]              = useState(null);
+  const [loading,            setLoading]            = useState(true);
+  const [comment,            setComment]            = useState('');
+  const [sending,            setSending]            = useState(false);
+  const [replyTo,            setReplyTo]            = useState(null);
   const [deleteCommentModal, setDeleteCommentModal] = useState(null);
+
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    let mounted = true;
-    api.get(`/posts/${postId}`)
-      .then(({ data }) => {
-        if (mounted && data.post) setPost(data.post);
-      })
-      .catch(e => console.log('PostDetail err:', e.message))
-      .finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
-  }, [postId]);
-
-  async function loadPost() {
+  // ✅ FIX: un solo fetch, sin duplicado
+  const loadPost = useCallback(async () => {
     try {
       const { data } = await api.get(`/posts/${postId}`);
       if (data.post) setPost(data.post);
@@ -50,9 +122,14 @@ export default function PostDetailScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [postId]);
 
-  async function handleComment() {
+  useEffect(() => {
+    loadPost();
+  }, [loadPost]);
+
+  // ── Comentar ─────────────────────────────────────────────────────────────
+  const handleComment = useCallback(async () => {
     if (!comment.trim() || sending) return;
     setSending(true);
     try {
@@ -67,266 +144,412 @@ export default function PostDetailScreen({ route, navigation }) {
     } finally {
       setSending(false);
     }
-  }
+  }, [comment, sending, replyTo, postId, loadPost]);
 
-  async function handleDeleteComment(commentId) {
+  // ── Borrar comentario ─────────────────────────────────────────────────────
+  const handleDeleteComment = useCallback(async (commentId) => {
     try {
       const { data } = await api.delete(`/posts/${postId}/comment/${commentId}`);
       if (data.comments) setPost(prev => ({ ...prev, comments: data.comments }));
-    } catch (e) { Alert.alert('Error', 'No se pudo eliminar'); }
-    finally { setDeleteCommentModal(null); }
-  }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo eliminar');
+    } finally {
+      setDeleteCommentModal(null);
+    }
+  }, [postId]);
 
+  // ── Share ─────────────────────────────────────────────────────────────────
+  const handleShare = useCallback(() => {
+    if (isWeb && navigator?.share) {
+      navigator.share({
+        title: post?.title || 'Post en Abyss',
+        url: `https://abyss.social/post/${postId}`,
+      }).catch(() => {});
+    }
+  }, [post, postId]);
+
+  // ── Loading / vacío ───────────────────────────────────────────────────────
   if (loading) return (
-    <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 60 }} /></View>
+    <View style={[s.root, { paddingTop: insets.top }]}>
+      <ActivityIndicator color={C.accent} style={{ marginTop: 60 }} />
+    </View>
   );
   if (!post) return null;
 
   const isNews = post.postType === 'news';
+  const inputBottomPad = isWeb ? 12 : Math.max(insets.bottom, 12);
 
+  // ── Render comentario ─────────────────────────────────────────────────────
+  // ✅ FIX: eliminado el <TouchableOpacity> anidado dentro de otro
+  // Era la causa del "Text strings must be rendered within a <Text> component"
+  const renderComment = (c, isReply = false) => {
+    const uid        = c.user?._id?.toString() || c.user?.toString();
+    const isOwn      = uid === user?._id?.toString();
+    const parentId   = isReply ? c.replyTo?.commentId : c._id;
+    const replyData  = { commentId: parentId, username: c.user?.username, text: c.text };
+
+    return (
+      <View key={c._id || String(Math.random())} style={[s.commentWrap, isReply && s.commentWrapReply]}>
+        {isReply && <View style={s.replyLine} />}
+
+        <View style={s.commentRow}>
+
+          {/* Avatar — presionable, sin anidar en otro Touchable */}
+          <TouchableOpacity
+            style={{ marginRight: 10 }}
+            onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
+            activeOpacity={0.8}
+          >
+            <AvatarWithFrame
+              size={isReply ? 28 : 34}
+              avatarUrl={c.user?.avatarUrl}
+              username={c.user?.username}
+            />
+          </TouchableOpacity>
+
+          {/* Burbuja de comentario */}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onLongPress={() => { if (isOwn) setDeleteCommentModal(c._id); }}
+            onPress={() => {
+              setReplyTo(replyData);
+              inputRef.current?.focus();
+            }}
+            activeOpacity={0.85}
+            delayLongPress={400}
+          >
+            {/* Cita de la respuesta */}
+            {isReply && c.replyTo?.text ? (
+              <View style={s.replyPreview}>
+                <Text style={s.replyPreviewTxt} numberOfLines={1}>
+                  {'↩ @'}{c.replyTo.username}{': '}{c.replyTo.text}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* ✅ FIX: nombre como Text simple, no como <TouchableOpacity> anidado */}
+            <Text
+              style={s.commentUser}
+              onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
+            >
+              {'@'}{c.user?.username}
+            </Text>
+
+            <Text style={s.commentTxt}>{c.text}</Text>
+          </TouchableOpacity>
+
+          {/* Botón reply */}
+          <TouchableOpacity
+            onPress={() => {
+              setReplyTo(replyData);
+              inputRef.current?.focus();
+            }}
+            style={{ paddingLeft: 10, paddingVertical: 4 }}
+          >
+            <Ionicons name="return-down-back-outline" size={14} color={C.textDim} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Respuestas anidadas (solo en nivel raíz) */}
+        {!isReply
+          ? (post.comments || [])
+              .filter(r => r.replyTo?.commentId?.toString() === c._id?.toString())
+              .map(r => renderComment(r, true))
+          : null
+        }
+      </View>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={s.root}>
-      <Modal visible={!!deleteCommentModal} transparent animationType="fade" onRequestClose={() => setDeleteCommentModal(null)}>
-        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', alignItems:'center', justifyContent:'center', padding:24 }}>
-          <View style={{ backgroundColor:'#0d1f2d', borderRadius:20, padding:24, width:'100%', borderWidth:1, borderColor:'rgba(255,255,255,0.08)' }}>
-            <Text style={{ color:'#fff', fontSize:16, fontWeight:'700', textAlign:'center', marginBottom:8 }}>¿Borrar comentario?</Text>
-            <Text style={{ color:'rgba(255,255,255,0.4)', fontSize:13, textAlign:'center', marginBottom:24 }}>Esta acción no se puede deshacer</Text>
-            <View style={{ flexDirection:'row', gap:12 }}>
-              <TouchableOpacity onPress={() => setDeleteCommentModal(null)}
-                style={{ flex:1, paddingVertical:12, borderRadius:14, borderWidth:1, borderColor:'rgba(255,255,255,0.12)', alignItems:'center' }}>
-                <Text style={{ color:'rgba(255,255,255,0.5)', fontWeight:'600' }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDeleteComment(deleteCommentModal)}
-                style={{ flex:1, paddingVertical:12, borderRadius:14, backgroundColor:'rgba(239,68,68,0.8)', alignItems:'center' }}>
-                <Text style={{ color:'#fff', fontWeight:'700' }}>Borrar</Text>
-              </TouchableOpacity>
+      <ConfirmModal
+        visible={!!deleteCommentModal}
+        onConfirm={() => handleDeleteComment(deleteCommentModal)}
+        onCancel={() => setDeleteCommentModal(null)}
+      />
+
+      {/* ── Header ── */}
+      <View style={[s.header, { paddingTop: insets.top + 10 }]}>
+        {/* ✅ REDISEÑO: IconBtn con fondo visible, variant accent para acción primaria */}
+        <IconBtn
+          name="arrow-back"
+          variant="accent"
+          onPress={() => navigation.goBack()}
+        />
+
+        <Text style={s.headerDate}>{formatDate(post.createdAt)}</Text>
+
+        <IconBtn
+          name="share-social-outline"
+          variant="muted"
+          onPress={handleShare}
+        />
+      </View>
+
+      {/* ── Contenido ── */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 16 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Autor */}
+        <TouchableOpacity
+          style={s.authorRow}
+          onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })}
+          activeOpacity={0.8}
+        >
+          <AvatarWithFrame
+            size={44}
+            avatarUrl={post.author?.avatarUrl}
+            username={post.author?.username}
+            profileFrame={post.author?.profileFrame}
+            frameUrl={post.author?.profileFrameUrl}
+          />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Text style={s.authorName}>{'@'}{post.author?.username}</Text>
+            <Text style={s.authorMeta}>
+              {'XP '}{post.author?.xp || 0}{' · '}{timeAgo(post.createdAt)}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={C.textDim} />
+        </TouchableOpacity>
+
+        {/* ── Cuerpo del post ── */}
+        {isNews ? (
+          <View style={s.newsWrap}>
+            {post.imageUrl ? (
+              <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" />
+            ) : null}
+            <View style={s.newsBody}>
+              <View style={s.newsBadge}>
+                <Ionicons name="newspaper-outline" size={11} color={C.gold} />
+                <Text style={s.newsBadgeTxt}>NOTICIA</Text>
+              </View>
+              {post.title   ? <Text style={s.newsTitle}>{post.title}</Text>     : null}
+              {post.content ? <Text style={s.newsContent}>{post.content}</Text> : null}
             </View>
           </View>
-        </View>
-      </Modal>
+        ) : (
+          <View style={s.postWrap}>
+            {post.content  ? <Text style={s.postContent}>{post.content}</Text> : null}
+            {post.imageUrl ? (
+              <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="cover" />
+            ) : null}
+          </View>
+        )}
 
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
-      <SafeAreaView>
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.c1} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>{isNews ? 'NOTICIA' : 'POST'}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
-
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-
-          {/* Autor */}
-          <TouchableOpacity style={s.authorRow}
-            onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })}>
-            <AvatarWithFrame size={42} avatarUrl={post.author?.avatarUrl}
-              username={post.author?.username} profileFrame={post.author?.profileFrame}
-              frameUrl={post.author?.profileFrameUrl} />
-            <View style={{ marginLeft: 10, flex: 1 }}>
-              <Text style={s.authorName}>@{post.author?.username}</Text>
-              <Text style={s.authorMeta}>XP {post.author?.xp || 0} · {timeAgo(post.createdAt)}</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Contenido según tipo */}
-          {isNews ? (
-            <View style={s.newsWrap}>
-              {post.imageUrl && (
-                <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" />
-              )}
-              <View style={s.newsBody}>
-                <View style={s.newsBadge}>
-                  <Ionicons name="newspaper-outline" size={11} color="rgba(251,191,36,1)" />
-                  <Text style={s.newsBadgeTxt}>NOTICIA</Text>
-                </View>
-                {post.title ? <Text style={s.newsTitle}>{post.title}</Text> : null}
-                {post.content ? <Text style={s.newsContent}>{post.content}</Text> : null}
+        {/* Tags */}
+        {post.tags?.length > 0 ? (
+          <View style={s.tagsRow}>
+            {post.tags.map((t, i) => (
+              <View key={i} style={s.tagPill}>
+                <Text style={s.tagTxt}>{t}</Text>
               </View>
-            </View>
-          ) : (
-            <View style={s.quickWrap}>
-              {post.content ? <Text style={s.postContent}>{post.content}</Text> : null}
-              {post.imageUrl && (
-                <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="contain" />
-              )}
-            </View>
-          )}
+            ))}
+          </View>
+        ) : null}
 
-          {/* Tags */}
-          {post.tags?.length > 0 && (
-            <View style={s.tagsRow}>
-              {post.tags.map((t, i) => <Text key={i} style={s.tag}>{t}</Text>)}
-            </View>
-          )}
+        <View style={s.divider} />
 
-          <View style={s.divider} />
+        {/* Header comentarios */}
+        <View style={s.commentsHeader}>
+          <Ionicons name="chatbubble-outline" size={13} color={C.textDim} />
+          <Text style={s.commentsTitle}>
+            {post.comments?.length || 0}
+            {post.comments?.length !== 1 ? ' comentarios' : ' comentario'}
+          </Text>
+        </View>
 
-          {/* Comentarios */}
-          <Text style={s.commentsTitle}>COMENTARIOS ({post.comments?.length || 0})</Text>
+        {/* Sin comentarios */}
+        {post.comments?.length === 0 ? (
+          <View style={s.emptyComments}>
+            <Ionicons name="chatbubble-outline" size={32} color={C.textDim} />
+            <Text style={s.emptyCommentsTxt}>Sin comentarios aún</Text>
+            <Text style={[s.emptyCommentsTxt, { fontSize: 12, marginTop: 2 }]}>
+              sé el primero 👇
+            </Text>
+          </View>
+        ) : null}
 
-          {post.comments?.length === 0 && (
-            <View style={s.emptyComments}>
-              <Ionicons name="chatbubble-outline" size={28} color={colors.textDim} />
-              <Text style={s.emptyCommentsTxt}>Sin comentarios aún — sé el primero</Text>
-            </View>
-          )}
+        {/* Lista de comentarios (solo raíz; las respuestas se renderizan dentro) */}
+        {(post.comments || [])
+          .filter(c => !c.replyTo?.commentId)
+          .map(c => renderComment(c, false))
+        }
 
-          {(() => {
-            const comments = post.comments || [];
-            const parents  = comments.filter(c => !c.replyTo?.commentId);
-            const replies  = comments.filter(c => !!c.replyTo?.commentId);
+        <View style={{ height: 80 }} />
+      </ScrollView>
 
-            const getReplies = (parentId) =>
-              replies.filter(r => r.replyTo?.commentId?.toString() === parentId?.toString());
-
-            const renderComment = (c, isReply = false) => (
-              <View key={c._id || Math.random()} style={[s.commentWrap, isReply && s.commentWrapReply]}>
-                {isReply && <View style={s.replyLine} />}
-                <View style={s.commentRow}>
-                  {/* Avatar con marco — tappable */}
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
-                    style={{ marginRight: 10 }}
-                  >
-                    <AvatarWithFrame
-                      size={isReply ? 28 : 34}
-                      avatarUrl={c.user?.avatarUrl}
-                      username={c.user?.username}
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{ flex: 1 }}
-                    onLongPress={() => {
-                      const uid = c.user?._id?.toString() || c.user?.toString();
-                      if (uid === user?._id?.toString()) setDeleteCommentModal(c._id);
-                    }}
-                    onPress={() => {
-                      const parentId = isReply ? c.replyTo?.commentId : c._id;
-                      setReplyTo({ commentId: parentId, username: c.user?.username, text: c.text });
-                      inputRef.current?.focus();
-                    }}
-                  >
-                    {/* Preview del comentario al que responde */}
-                    {isReply && c.replyTo?.text && (
-                      <View style={s.replyPreview}>
-                        <Text style={s.replyTxt} numberOfLines={1}>↩ @{c.replyTo.username}: {c.replyTo.text}</Text>
-                      </View>
-                    )}
-                    {/* Username tappable */}
-                    <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>
-                      <Text style={s.commentUser}>@{c.user?.username}</Text>
-                    </TouchableOpacity>
-                    <Text style={s.commentTxt}>{c.text}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      const parentId = isReply ? c.replyTo?.commentId : c._id;
-                      setReplyTo({ commentId: parentId, username: c.user?.username, text: c.text });
-                      inputRef.current?.focus();
-                    }}
-                    style={{ paddingLeft: 8 }}
-                  >
-                    <Ionicons name="return-down-back-outline" size={14} color={colors.textDim} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Respuestas anidadas */}
-                {!isReply && getReplies(c._id).map(r => renderComment(r, true))}
-              </View>
-            );
-
-            return parents.map(c => renderComment(c, false));
-          })()}
-        </ScrollView>
-
-        {/* Input comentar */}
-        <View style={s.inputWrap}>
-          {replyTo && (
-            <View style={s.replyBanner}>
-              <Text style={s.replyBannerTxt}>↩ Respondiendo a @{replyTo.username}</Text>
-              <TouchableOpacity onPress={() => setReplyTo(null)}>
-                <Ionicons name="close" size={14} color={colors.textDim} />
-              </TouchableOpacity>
-            </View>
-          )}
-          <View style={s.inputRow}>
-            <TextInput
-              ref={inputRef}
-              style={s.input}
-              value={comment}
-              onChangeText={setComment}
-              placeholder="Escribe un comentario..."
-              placeholderTextColor={colors.textDim}
-              multiline
-              maxLength={500}
-            />
-            <TouchableOpacity
-              style={[s.sendBtn, (!comment.trim() || sending) && s.sendBtnDisabled]}
-              onPress={handleComment}
-              disabled={!comment.trim() || sending}
-            >
-              {sending
-                ? <ActivityIndicator size="small" color={colors.black} />
-                : <Ionicons name="send" size={16} color={colors.black} />}
+      {/* ── Input fijo al fondo ── */}
+      <View style={[s.inputWrap, { paddingBottom: inputBottomPad }]}>
+        {replyTo ? (
+          <View style={s.replyBanner}>
+            <View style={s.replyBannerAccent} />
+            <Text style={s.replyBannerTxt} numberOfLines={1}>
+              {'↩ Respondiendo a @'}{replyTo.username}
+            </Text>
+            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding: 4 }}>
+              <Ionicons name="close" size={14} color={C.textDim} />
             </TouchableOpacity>
           </View>
+        ) : null}
+
+        <View style={s.inputRow}>
+          <TextInput
+            ref={inputRef}
+            style={s.input}
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Escribe un comentario..."
+            placeholderTextColor={C.textDim}
+            multiline
+            maxLength={500}
+            onKeyPress={
+              isWeb
+                ? (e) => {
+                    if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+                      handleComment();
+                    }
+                  }
+                : undefined
+            }
+          />
+          <TouchableOpacity
+            style={[s.sendBtn, (!comment.trim() || sending) && s.sendBtnDisabled]}
+            onPress={handleComment}
+            disabled={!comment.trim() || sending}
+            activeOpacity={0.8}
+          >
+            {sending
+              ? <ActivityIndicator size="small" color="#020509" />
+              : <Ionicons name="send" size={15} color="#020509" />
+            }
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: colors.black },
-  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerTitle:{ fontSize: 13, fontWeight: '900', letterSpacing: 5, color: colors.c1 },
-  backBtn:    { width: 40 },
+  root: { flex: 1, backgroundColor: '#080f18' },
 
-  authorRow:  { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 12 },
-  authorName: { color: colors.textHi, fontWeight: '700', fontSize: 14 },
-  authorMeta: { color: colors.textDim, fontSize: 11, marginTop: 2 },
+  // ── Icon buttons ── (✅ REDISEÑO: fondos visibles, no solo líneas)
+  iconBtnBase: {
+    width: 40, height: 40,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  // Acento cyan: para acción principal (back, enviar)
+  iconBtnAccent: {
+    backgroundColor: 'rgba(15,227,184,0.13)',
+    borderColor: 'rgba(15,227,184,0.35)',
+  },
+  // Muted: para acciones secundarias (share, más)
+  iconBtnMuted: {
+    backgroundColor: 'rgba(230,240,255,0.06)',
+    borderColor: 'rgba(230,240,255,0.12)',
+  },
+  // Ghost: mínima presencia visual
+  iconBtnGhost: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+  },
 
-  newsWrap:   { marginHorizontal: 16, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', marginBottom: 16 },
-  newsCover:  { width: '100%', height: 220 },
-  newsBody:   { padding: 16, gap: 10 },
-  newsBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(234,179,8,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
-  newsBadgeTxt:{ color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  newsTitle:  { color: colors.textHi, fontSize: 22, fontWeight: '800', lineHeight: 28 },
-  newsContent:{ color: colors.textMid, fontSize: 15, lineHeight: 24 },
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.cardBorder,
+    backgroundColor: '#080f18',
+  },
+  headerDate: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
 
-  quickWrap:  { paddingHorizontal: 16, marginBottom: 12 },
-  postContent:{ color: colors.textHi, fontSize: 16, lineHeight: 24, marginBottom: 12 },
-  postImage:  { width: '100%', aspectRatio: 1, borderRadius: 14 },
+  // Autor
+  authorRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 16,
+  },
+  authorName: { color: C.textHi, fontWeight: '700', fontSize: 15 },
+  authorMeta: { color: C.textDim, fontSize: 11, marginTop: 3 },
 
-  tagsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, marginBottom: 12 },
-  tag:        { color: colors.c1, fontSize: 12, backgroundColor: 'rgba(0,229,204,0.08)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  // Noticia
+  newsWrap:     { marginHorizontal: 14, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(234,179,8,0.22)', marginBottom: 16, backgroundColor: C.surface },
+  newsCover:    { width: '100%', height: 230 },
+  newsBody:     { padding: 16, gap: 10 },
+  newsBadge:    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.goldDim, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
+  newsBadgeTxt: { color: C.gold, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+  newsTitle:    { color: C.textHi, fontSize: 22, fontWeight: '800', lineHeight: 30 },
+  newsContent:  { color: C.textMid, fontSize: 15, lineHeight: 24 },
 
-  divider:    { height: 1, backgroundColor: colors.border, marginVertical: 8 },
+  // Post normal
+  postWrap:    { paddingHorizontal: 16, marginBottom: 14 },
+  postContent: { color: C.textHi, fontSize: 16, lineHeight: 26, marginBottom: 14, letterSpacing: 0.1 },
+  postImage:   { width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: C.surface },
 
-  commentsTitle:{ color: colors.textDim, fontSize: 10, letterSpacing: 3, paddingHorizontal: 16, marginBottom: 8, marginTop: 8 },
+  // Tags
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, marginBottom: 14 },
+  tagPill: { backgroundColor: C.accentDim, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: C.accentBorder },
+  tagTxt:  { color: C.accent, fontSize: 11, fontWeight: '600' },
 
-  emptyComments:  { alignItems: 'center', paddingVertical: 32, gap: 10 },
-  emptyCommentsTxt:{ color: colors.textDim, fontSize: 13 },
+  divider: { height: 1, backgroundColor: C.divider, marginHorizontal: 16, marginVertical: 10 },
 
-  commentWrap:     { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  commentWrapReply:{ paddingLeft: 36, borderBottomWidth: 0, paddingVertical: 6 },
-  replyLine:       { position: 'absolute', left: 28, top: 0, bottom: 0, width: 1.5, backgroundColor: colors.border },
-  commentRow:      { flexDirection: 'row', alignItems: 'flex-start' },
-  commentUser:     { color: colors.c1, fontWeight: '700', fontSize: 12, marginBottom: 3 },
-  commentTxt:      { color: colors.textMid, fontSize: 13, lineHeight: 18 },
-  replyPreview:    { backgroundColor: colors.card, borderLeftWidth: 2, borderLeftColor: colors.borderC, paddingLeft: 8, paddingVertical: 4, borderRadius: 4, marginBottom: 6 },
-  replyTxt:        { color: colors.textDim, fontSize: 11 },
+  // Comentarios
+  commentsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 10 },
+  commentsTitle:  { color: C.textDim, fontSize: 12, fontWeight: '600', letterSpacing: 0.5 },
 
-  inputWrap:  { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, padding: 12 },
-  replyBanner:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, paddingBottom: 8 },
-  replyBannerTxt:{ color: colors.textDim, fontSize: 12 },
-  inputRow:   { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
-  input:      { flex: 1, backgroundColor: colors.card, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, color: colors.textHi, fontSize: 14, maxHeight: 100, borderWidth: 1, borderColor: colors.border },
-  sendBtn:    { backgroundColor: colors.c1, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled:{ backgroundColor: 'rgba(0,229,204,0.3)' },
+  emptyComments:    { alignItems: 'center', paddingVertical: 40, gap: 6 },
+  emptyCommentsTxt: { color: C.textDim, fontSize: 13 },
+
+  commentWrap:      { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.divider },
+  commentWrapReply: { paddingLeft: 40, borderBottomWidth: 0, paddingVertical: 8 },
+  replyLine:        { position: 'absolute', left: 30, top: 0, bottom: 0, width: 1.5, backgroundColor: C.accentBorder },
+  commentRow:       { flexDirection: 'row', alignItems: 'flex-start' },
+  commentUser:      { color: C.accent, fontWeight: '700', fontSize: 12, marginBottom: 3 },
+  commentTxt:       { color: C.textMid, fontSize: 13, lineHeight: 19 },
+
+  replyPreview:    { backgroundColor: C.accentDim, borderLeftWidth: 2, borderLeftColor: C.accent, paddingLeft: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 0 },
+  replyPreviewTxt: { color: C.textDim, fontSize: 11 },
+
+  // Input
+  inputWrap: {
+    backgroundColor: C.card,
+    borderTopWidth: 1, borderTopColor: C.cardBorder,
+    paddingTop: 10, paddingHorizontal: 12,
+  },
+  replyBanner: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.accentDim,
+    borderRadius: 10, borderWidth: 1, borderColor: C.accentBorder,
+    marginBottom: 8, overflow: 'hidden',
+  },
+  replyBannerAccent: { width: 3, backgroundColor: C.accent, alignSelf: 'stretch' },
+  replyBannerTxt:    { color: C.textDim, fontSize: 12, flex: 1, paddingVertical: 8, paddingHorizontal: 8 },
+
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  input: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    paddingHorizontal: 14, paddingVertical: 10,
+    color: C.textHi, fontSize: 14,
+    maxHeight: 100,
+    borderWidth: 1, borderColor: C.cardBorder,
+    ...(isWeb ? { outlineStyle: 'none' } : {}),
+  },
+  sendBtn:         { backgroundColor: C.accent, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { backgroundColor: 'rgba(15,227,184,0.2)' },
 });
