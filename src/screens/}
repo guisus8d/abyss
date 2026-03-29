@@ -234,14 +234,12 @@ export default function GroupRoomScreen({ route, navigation }) {
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   useEffect(() => {
-    let mounted = true;
     loadGroup();
-    setupSocket(mounted);
+    setupSocket();
     return () => {
-      mounted = false;
       if (socketRef.current) {
-        socketRef.current.off('group:message');
         socketRef.current.emit('group:leave', { groupId: group._id });
+        socketRef.current.off('group:message');
       }
       clearInterval(recTimerRef.current);
     };
@@ -257,16 +255,14 @@ export default function GroupRoomScreen({ route, navigation }) {
     finally { setLoading(false); }
   }
 
-  async function setupSocket(mounted) {
+  async function setupSocket() {
     const socket = await connectSocket();
-    if (!mounted) return;                     // component unmounted before promise resolved
-    socket.off('group:message');              // clear any stale listeners before adding new one
     socketRef.current = socket;
     socket.emit('group:join', { groupId: group._id });
     socket.on('group:message', ({ groupId, message }) => {
-      if (groupId?.toString() !== group._id?.toString()) return;
+      if (groupId !== group._id) return;
       setMessages(prev =>
-        prev.some(m => m._id?.toString() === message._id?.toString()) ? prev : [...prev, message]
+        prev.some(m => m._id === message._id) ? prev : [...prev, message]
       );
       flatRef.current?.scrollToOffset({ offset: 0, animated: true });
       api.post(`/groups/${group._id}/read`).catch(() => {});

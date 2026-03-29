@@ -2,10 +2,16 @@ import { io } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let socket = null;
+let activeToken = null;  // ← trackea el token actual
 
 export async function connectSocket() {
-  if (socket?.connected) return socket;
   const token = await AsyncStorage.getItem('token');
+
+  // Si el socket está conectado pero el token cambió (cambio de cuenta) → reconectar
+  if (socket?.connected && activeToken === token) return socket;
+  if (socket) { socket.disconnect(); socket = null; }  // ← mata el socket viejo
+
+  activeToken = token;
   socket = io(process.env.EXPO_PUBLIC_SOCKET_URL || 'https://abyss-production-7171.up.railway.app', {
     auth: { token },
     transports: ['websocket'],
@@ -16,4 +22,9 @@ export async function connectSocket() {
 }
 
 export function getSocket() { return socket; }
-export function disconnectSocket() { socket?.disconnect(); socket = null; }
+
+export function disconnectSocket() {
+  socket?.disconnect();
+  socket = null;
+  activeToken = null;  // ← limpia el token también
+}
