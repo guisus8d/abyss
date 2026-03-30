@@ -14,7 +14,7 @@ export async function connectSocket() {
   activeToken = token;
   socket = io(process.env.EXPO_PUBLIC_SOCKET_URL || 'https://abyss-production-7171.up.railway.app', {
     auth: { token },
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
   });
   socket.on('connect', () => console.log('🔌 Socket conectado'));
   socket.on('connect_error', (e) => console.error('Socket error:', e.message));
