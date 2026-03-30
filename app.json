@@ -27,9 +27,11 @@
       "navigationBarColor": "#020509",
       "navigationBarStyle": "dark"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+  "web": {
+  "favicon": "./assets/favicon.png",
+      "template": "./web/index.html",
+  "template": "./web/index.html"
+  },
     "newArchEnabled": true,
     "plugins": [
       "react-native-edge-to-edge",
