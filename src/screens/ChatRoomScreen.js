@@ -623,8 +623,9 @@ export default function ChatRoomScreen({ route, navigation }) {
               placeholderTextColor={colors.textDim}
               value={text}
               onChangeText={handleTyping}
-              onSubmitEditing={handleSend}
+              onSubmitEditing={require('react-native').Platform.OS !== 'web' ? handleSend : undefined}
               returnKeyType="send"
+              onKeyPress={require('react-native').Platform.OS === 'web' ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); handleSend(); } } : undefined}
               blurOnSubmit={false}
             />
             <TouchableOpacity onPress={handleSend} disabled={!text.trim()}>
