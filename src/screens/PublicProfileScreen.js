@@ -171,14 +171,8 @@ export default function PublicProfileScreen({ route, navigation }) {
     if (!frameId || frameId === 'default' || frameId === 'frame_001') return;
     try {
       const { data } = await api.get(`/frames/${frameId}`);
-      navigation.navigate('FrameDetail', {
-        frame: data.frame,
-        units: null,
-        mode: 'viewer',
-      });
-    } catch {
-      // si falla, el avatar queda sin acción
-    }
+      navigation.navigate('FrameDetail', { frame: data.frame, units: null, mode: 'viewer' });
+    } catch {}
   }
 
   if (loading) return (
@@ -188,20 +182,18 @@ export default function PublicProfileScreen({ route, navigation }) {
   const theyFollowMe = profile?.following?.some(f => f._id === me._id || f === me._id);
   const isMutual     = following && theyFollowMe;
   const isMe      = profile?._id === me._id;
-  const daysSince = Math.floor((Date.now() - new Date(profile?.createdAt)) / 86400000);
   const isImageBg = profile?.profileBgType === 'image';
   const hasBg     = !!profile?.profileBg;
   const prefs     = { showXp: true, showFollowers: true, showFollowing: true, showPosts: true, ...(profile?.profilePrefs || {}) };
   const TABS = TABS_BASE.filter(t => t.key !== "posts" || prefs.showPosts);
-  const TAB_W     = (W - 32) / TABS.length;
+  const TAB_W = (W - 32) / TABS.length;
 
   return (
     <View style={s.root}>
-
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero */}
+        {/* ── Hero ── */}
         <View style={[s.hero, { paddingTop: insets.top + 100 }]}>
           {profile?.profileBannerType === 'image' && profile?.profileBanner
             ? <><Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -210,37 +202,38 @@ export default function PublicProfileScreen({ route, navigation }) {
               ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBanner }]} />
               : <LinearGradient colors={['rgba(0,110,100,0.35)','rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
           }
+
           <View style={[s.heroTopRow, { top: insets.top + 12 }]}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
               <Ionicons name="arrow-back" size={20} color="#ffffff" />
             </TouchableOpacity>
             {!isMe && (
               <TouchableOpacity onPress={() => setMenuVisible(true)} style={s.blockBtn}>
-                <Ionicons name="ellipsis-vertical" size={18} color={colors.textDim} />
+                <Ionicons name="ellipsis-vertical" size={18} color="#ffffff" />
               </TouchableOpacity>
             )}
           </View>
 
           {/* Menu desplegable */}
           <Modal transparent visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
-              <Pressable style={s.menuOverlay} onPress={() => setMenuVisible(false)}>
-                <View style={[s.menuBox, { top: insets.top + 52, right: 16 }]}>
-                  <TouchableOpacity style={s.menuItem} onPress={handleShare}>
-                    <Ionicons name="share-social-outline" size={16} color={colors.textHi} />
-                    <Text style={s.menuItemTxt}>Compartir perfil</Text>
-                  </TouchableOpacity>
-                  <View style={s.menuDivider} />
-                  <TouchableOpacity style={s.menuItem} onPress={handleCopyLink}>
-                    <Ionicons name="link-outline" size={16} color={colors.textHi} />
-                    <Text style={s.menuItemTxt}>Copiar enlace</Text>
-                  </TouchableOpacity>
-                  <View style={s.menuDivider} />
-                  <TouchableOpacity style={s.menuItem} onPress={() => { setMenuVisible(false); handleBlock(); }}>
-                    <Ionicons name={blocked ? 'lock-open-outline' : 'ban-outline'} size={16} color="rgba(239,68,68,0.8)" />
-                    <Text style={[s.menuItemTxt, { color: 'rgba(239,68,68,0.8)' }]}>{blocked ? 'Desbloquear' : 'Bloquear'}</Text>
-                  </TouchableOpacity>
-                </View>
-              </Pressable>
+            <Pressable style={s.menuOverlay} onPress={() => setMenuVisible(false)}>
+              <View style={[s.menuBox, { top: insets.top + 52, right: 16 }]}>
+                <TouchableOpacity style={s.menuItem} onPress={handleShare}>
+                  <Ionicons name="share-social-outline" size={16} color={colors.textHi} />
+                  <Text style={s.menuItemTxt}>Compartir perfil</Text>
+                </TouchableOpacity>
+                <View style={s.menuDivider} />
+                <TouchableOpacity style={s.menuItem} onPress={handleCopyLink}>
+                  <Ionicons name="link-outline" size={16} color={colors.textHi} />
+                  <Text style={s.menuItemTxt}>Copiar enlace</Text>
+                </TouchableOpacity>
+                <View style={s.menuDivider} />
+                <TouchableOpacity style={s.menuItem} onPress={() => { setMenuVisible(false); handleBlock(); }}>
+                  <Ionicons name={blocked ? 'lock-open-outline' : 'ban-outline'} size={16} color="rgba(239,68,68,0.8)" />
+                  <Text style={[s.menuItemTxt, { color: 'rgba(239,68,68,0.8)' }]}>{blocked ? 'Desbloquear' : 'Bloquear'}</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
           </Modal>
 
           <TouchableOpacity
@@ -257,10 +250,9 @@ export default function PublicProfileScreen({ route, navigation }) {
               bgColor="rgba(0,229,204,0.12)"
             />
           </TouchableOpacity>
+
           <Text style={s.username}>{profile?.username}</Text>
-          {prefs.showXp && (
-            <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>
-          )}
+          {prefs.showXp && <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>}
 
           <View style={s.heroStats}>
             {prefs.showFollowing && (
@@ -269,14 +261,12 @@ export default function PublicProfileScreen({ route, navigation }) {
                 <Text style={s.heroStatLbl}>SIGUIENDO</Text>
               </TouchableOpacity>
             )}
-            {prefs.showFollowing && prefs.showPosts && <View style={s.heroStatDiv} />}
             {prefs.showPosts && (
               <View style={s.heroStat}>
                 <Text style={s.heroStatVal}>{posts.length}</Text>
                 <Text style={s.heroStatLbl}>POSTS</Text>
               </View>
             )}
-            {prefs.showPosts && prefs.showFollowers && <View style={s.heroStatDiv} />}
             {prefs.showFollowers && (
               <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type: 'followers' })}>
                 <Text style={s.heroStatVal}>{profile?.followers?.length || 0}</Text>
@@ -285,11 +275,13 @@ export default function PublicProfileScreen({ route, navigation }) {
             )}
           </View>
 
+          {/* ── Botones Seguir / Chat ── */}
           {!isMe && !blocked && (
             <View style={s.actionRow}>
               <TouchableOpacity onPress={handleFollow} disabled={loadingBtn} style={{ flex: 1 }}>
                 {following ? (
                   <View style={s.btnUnfollow}>
+                    <Ionicons name={isMutual ? 'people' : 'checkmark'} size={14} color={colors.c1} />
                     <Text style={s.btnUnfollowTxt}>{loadingBtn ? '...' : isMutual ? 'Amigos' : 'Siguiendo'}</Text>
                   </View>
                 ) : (
@@ -300,13 +292,18 @@ export default function PublicProfileScreen({ route, navigation }) {
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={s.btnChat} onPress={handleChat}>
-                <Ionicons name="chatbubble-outline" size={15} color={colors.textMid} />
-                <Text style={s.btnChatTxt}>
+                <Ionicons
+                  name={chatStatus === 'active' ? 'chatbubble' : chatStatus === 'requested' ? 'time-outline' : 'chatbubble-outline'}
+                  size={15}
+                  color={chatStatus === 'active' ? colors.c1 : colors.textMid}
+                />
+                <Text style={[s.btnChatTxt, chatStatus === 'active' && { color: colors.c1 }]}>
                   {chatStatus === 'active' ? 'Chat' : chatStatus === 'requested' ? 'Pendiente' : 'Chatear'}
                 </Text>
               </TouchableOpacity>
             </View>
           )}
+
           {blocked && (
             <View style={s.blockedBanner}>
               <Ionicons name="ban-outline" size={14} color="rgba(239,68,68,0.7)" />
@@ -315,7 +312,7 @@ export default function PublicProfileScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Tabs */}
+        {/* ── Tabs ── */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} style={[s.tabBtn, { width: TAB_W }]} onPress={() => setTab(t.key)}>
@@ -325,16 +322,23 @@ export default function PublicProfileScreen({ route, navigation }) {
           ))}
         </View>
 
-        {/* Tab: Perfil */}
+        {/* ── Tab: Perfil — full width, sin padded ── */}
         {tab === 'profile' && (
-          <View style={s.padded}>
-            <View style={[s.profileSection, profile?.profileBgType === 'image' && { overflow: 'hidden' }]}>
-              {profile?.profileBgType === 'image' && profile?.profileBg
-                ? <><Image source={{ uri: profile.profileBg }} style={s.sectionBgImage} resizeMode="cover" blurRadius={1} />
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }]} /></>
+          <View>
+            <View style={[
+              s.profileSection,
+              isImageBg && { overflow: 'hidden' },
+              { borderRadius: 0, borderLeftWidth: 0, borderRightWidth: 0, paddingHorizontal: 20 },
+            ]}>
+              {isImageBg && profile?.profileBg
+                ? <>
+                    {/* Sin borderRadius en Image — el parent clipea con overflow:hidden */}
+                    <Image source={{ uri: profile.profileBg }} style={s.sectionBgImage} resizeMode="cover" />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
+                  </>
                 : null}
-              {profile?.profileBgType !== 'image' && profile?.profileBg
-                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg, borderRadius: 16 }]} />
+              {!isImageBg && profile?.profileBg
+                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
                 : null}
               <View style={s.blocksContainer}>
                 {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
@@ -370,7 +374,7 @@ export default function PublicProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Posts feed */}
+        {/* ── Tab: Posts ── */}
         {tab === 'posts' && prefs.showPosts && (
           <View>
             {posts.length === 0 ? (
@@ -394,10 +398,10 @@ export default function PublicProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Badges */}
+        {/* ── Tab: Badges ── */}
         {tab === 'badges' && (
           <View style={s.padded}>
-            {profile?.badges?.length === 0 ? (
+            {!profile?.badges?.length ? (
               <View style={s.emptyTab}>
                 <Ionicons name="ribbon-outline" size={40} color={colors.textDim} />
                 <Text style={s.emptyTxt}>Sin emblemas aún</Text>
@@ -424,25 +428,30 @@ export default function PublicProfileScreen({ route, navigation }) {
 
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.black },
-  fullBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
-  fullBgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 0 },
-  fullBgColor: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   heroTopRow:  { position: 'absolute', left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
   backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   blockBtn:    { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
 
-  hero:     { alignItems: 'center', paddingBottom: 60, paddingHorizontal: 24, overflow: 'hidden', position: 'relative' },
+  // ✅ Banner: ancho completo, sin borde circular
+  hero: { alignItems: 'center', paddingBottom: 60, paddingHorizontal: 24, overflow: 'hidden', width: W, alignSelf: 'stretch', position: 'relative' },
+
   username: { color: colors.textHi, fontSize: 22, fontWeight: '700', marginTop: 14, marginBottom: 6 },
-  bio:      { color: colors.textDim, fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18, maxWidth: 260 },
   xpSimple: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', marginTop: 4, marginBottom: 12 },
 
   actionRow:      { flexDirection: 'row', gap: 12, width: '100%', marginTop: 20 },
+
+  // Seguir — gradiente verde
   btnFollow:      { borderRadius: 12, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
   btnFollowTxt:   { color: '#001a18', fontWeight: '700', fontSize: 14 },
-  btnUnfollow:    { borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.borderC, flexDirection: 'row', justifyContent: 'center', gap: 6 },
+
+  // Siguiendo / Amigos — fondo sutil teal
+  btnUnfollow:    { borderRadius: 12, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,229,204,0.22)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.5)' },
   btnUnfollowTxt: { color: colors.c1, fontWeight: '700', fontSize: 14 },
-  btnChat:        { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 20, borderWidth: 1, borderColor: colors.border, alignItems: 'center', flexDirection: 'row', gap: 6 },
+
+  // Chat — fondo oscuro con borde
+  btnChat:        { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', flexDirection: 'row', gap: 6 },
   btnChatTxt:     { color: colors.textMid, fontSize: 14 },
+
   menuOverlay:   { flex: 1, backgroundColor: 'transparent' },
   menuBox:       { position: 'absolute', backgroundColor: '#0f1923', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', minWidth: 200, overflow: 'hidden', elevation: 10, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12 },
   menuItem:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 18 },
@@ -451,41 +460,30 @@ const s = StyleSheet.create({
   blockedBanner:  { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', flexDirection: 'row', gap: 8, alignItems: 'center' },
   blockedTxt:     { color: 'rgba(239,68,68,0.7)', fontSize: 13 },
 
-  statsRow: { flexDirection: 'row', margin: 16, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18 },
-  stat:     { flex: 1, alignItems: 'center' },
-  statVal:  { color: colors.textHi, fontSize: 20, fontWeight: '700' },
-  statLbl:  { color: colors.textDim, fontSize: 8, letterSpacing: 2, marginTop: 3 },
-  statDiv:  { width: 1, backgroundColor: colors.border },
-
   tabBar:       { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 16, overflow: 'hidden' },
   tabBtn:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
   tabDot:       { position: 'absolute', bottom: 0, height: 2, backgroundColor: '#ffffff', borderRadius: 1 },
 
-  postsGrid:   { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 2 },
-  postTile:    { backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'center', padding: 6 },
-  postTileTxt: { color: colors.textDim, fontSize: 10, lineHeight: 14 },
-
-  padded:     { paddingHorizontal: 16 },
-  bioCard:    { backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 20, minHeight: 100 },
-  bioCardLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, marginBottom: 12 },
-  bioText:    { color: colors.textHi, fontSize: 14, lineHeight: 22 },
-
-  heroStats:    { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  heroStat:     { flex: 1, alignItems: 'center' },
+  heroStats:    { flexDirection: 'row', width: '100%', marginTop: 8, gap: 8, justifyContent: 'center' },
+  heroStat:     { width: 100, alignItems: 'center', paddingVertical: 12, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroStatVal:  { color: '#ffffff', fontSize: 18, fontWeight: '700' },
   heroStatLbl:  { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
   heroStatDiv:  { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  profileSection:  { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', padding: 16, position: 'relative', minHeight: 120, backgroundColor: 'rgba(255,255,255,0.04)' },
-  sectionBgImage:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+
+  // ✅ Section: sin borderRadius lateral para que tome 100% ancho
+  profileSection:  { borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', padding: 16, position: 'relative', minHeight: 120, backgroundColor: 'rgba(255,255,255,0.04)' },
+  // ✅ Sin borderRadius en Image — el parent con overflow:hidden clipea limpiamente
+  sectionBgImage:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   blocksContainer: { gap: 8, paddingBottom: 8 },
   emptyPage:       { alignItems: 'center', paddingVertical: 24 },
   emptyPageTxt:    { color: colors.textDim, fontSize: 12 },
   mentionBlockView:{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,229,204,0.07)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', padding: 12 },
   mentionBlockAv:  { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   mentionBlockAt:  { flex: 1, color: colors.c1, fontWeight: '700', fontSize: 14 },
+
+  padded:     { paddingHorizontal: 16 },
   emptyTab:   { alignItems: 'center', paddingVertical: 48, gap: 12, width: '100%' },
   emptyTxt:   { color: colors.textDim, fontSize: 14 },
-
   badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   badgeCard:  { alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.borderC, padding: 14, width: (W - 52) / 3 },
   badgeIcon:  { fontSize: 28, marginBottom: 6 },
