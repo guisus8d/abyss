@@ -10,7 +10,7 @@
       ]
     }
   ],
-  "buildCommand": "npx expo export --platform web",
+  "buildCommand": "bash deploy.sh",
   "outputDirectory": "dist",
   "installCommand": "npm install"
 }
