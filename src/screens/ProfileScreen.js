@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, StatusBar, ActivityIndicator,
-  Animated, Alert, Modal, TextInput, Dimensions,
+  Animated, Alert, Modal, Dimensions, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +17,7 @@ import PostCard from '../components/PostCard';
 
 const W         = Dimensions.get('window').width;
 const POST_TILE = (W - 32 - 4) / 3;
+const BASE_URL  = process.env.EXPO_PUBLIC_API_URL || 'https://abyss-production-7171.up.railway.app/api';
 
 const TABS = [
   { key: 'profile',  icon: 'person-outline'   },
@@ -26,40 +27,94 @@ const TABS = [
 ];
 
 const BG_COLORS = [
-  { id: 'none',    value: '',                label: 'Ninguno' },
-  { id: 'teal',    value: 'rgba(0,229,204,0.12)',  label: 'Teal' },
-  { id: 'purple',  value: 'rgba(147,51,234,0.15)', label: 'Púrpura' },
-  { id: 'red',     value: 'rgba(239,68,68,0.12)',  label: 'Rojo' },
-  { id: 'blue',    value: 'rgba(41,121,255,0.15)', label: 'Azul' },
-  { id: 'orange',  value: 'rgba(249,115,22,0.15)', label: 'Naranja' },
-  { id: 'pink',    value: 'rgba(236,72,153,0.15)', label: 'Rosa' },
-  { id: 'green',   value: 'rgba(34,197,94,0.12)',  label: 'Verde' },
-  { id: 'yellow',  value: 'rgba(234,179,8,0.15)',  label: 'Amarillo' },
-  { id: 'white',   value: 'rgba(255,255,255,0.06)',label: 'Blanco' },
+  { id: 'none',    value: '',                          label: 'Ninguno'  },
+  { id: 'teal',    value: 'rgba(0,229,204,0.12)',       label: 'Teal'     },
+  { id: 'purple',  value: 'rgba(147,51,234,0.15)',      label: 'Púrpura'  },
+  { id: 'red',     value: 'rgba(239,68,68,0.12)',       label: 'Rojo'     },
+  { id: 'blue',    value: 'rgba(41,121,255,0.15)',      label: 'Azul'     },
+  { id: 'orange',  value: 'rgba(249,115,22,0.15)',      label: 'Naranja'  },
+  { id: 'pink',    value: 'rgba(236,72,153,0.15)',      label: 'Rosa'     },
+  { id: 'green',   value: 'rgba(34,197,94,0.12)',       label: 'Verde'    },
+  { id: 'yellow',  value: 'rgba(234,179,8,0.15)',       label: 'Amarillo' },
+  { id: 'white',   value: 'rgba(255,255,255,0.06)',     label: 'Blanco'   },
 ];
+
+// ── Helper: upload con fetch nativo (funciona en web y en app) ────────────────
+async function uploadFile(path, fieldName, uri, filename) {
+  const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+  const token = await AsyncStorage.getItem('token');
+
+  const formData = new FormData();
+
+  if (Platform.OS === 'web') {
+    // En web: blob directo
+    const blob = await fetch(uri).then(r => r.blob());
+    formData.append(fieldName, blob, filename);
+  } else {
+    // En nativo: objeto con uri
+    formData.append(fieldName, { uri, type: 'image/jpeg', name: filename });
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Error al subir');
+  return data;
+}
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user, logout, updateUser } = useAuthStore();
-  const [profile, setProfile]       = useState(null);
-  const [posts, setPosts]           = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [uploading, setUploading]   = useState(false);
-  const [tab, setTab]               = useState('profile');
-  const [frameModal, setFrameModal] = useState(false);
-  const [bgModal, setBgModal]       = useState(false);
-  const [bgTarget, setBgTarget]     = useState('banner');
-  const [equipping, setEquipping]   = useState(false);
-  const [saving, setSaving]         = useState(false);
-  const [openPickerId, setOpenPickerId] = useState(null);
 
+  const [profile,       setProfile]       = useState(null);
+  const [posts,         setPosts]         = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [uploading,     setUploading]     = useState(false);
+  const [tab,           setTab]           = useState('profile');
+  const [frameModal,    setFrameModal]    = useState(false);
+  const [bgModal,       setBgModal]       = useState(false);
+  const [bgTarget,      setBgTarget]      = useState('banner');
+  const [equipping,     setEquipping]     = useState(false);
+  const [saving,        setSaving]        = useState(false);
+  const [openPickerId,  setOpenPickerId]  = useState(null);
+  const [prefs, setPrefs] = useState({
+    showXp: true, showFollowers: true, showFollowing: true, showPosts: true,
+  });
+
+  const tabIndicator = useRef(new Animated.Value(0)).current;
+
+  // ── Cargar perfil y posts ─────────────────────────────────────────────────
+  useEffect(() => {
+    Promise.all([
+      api.get('/users/me'),
+      api.get('/posts/user/me').catch(() => ({ data: { posts: [] } })),
+    ]).then(([profileRes, postsRes]) => {
+      const u = profileRes.data.user;
+      setProfile(u);
+      if (u.profilePrefs) setPrefs(prev => ({ ...prev, ...u.profilePrefs }));
+      setPosts(postsRes.data.posts || []);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    api.get('/users/me').then(r => setProfile(r.data.user)).catch(() => {});
+  }, []));
+
+  // ── Reacciones, comentarios, borrar post ──────────────────────────────────
   async function handleReact(postId, type) {
     setPosts(prev => prev.map(p => {
       if (p._id !== postId) return p;
-      const already = p.reactions.find(r => (r.user?._id||r.user) === user?._id && r.type === type);
-      return { ...p, reactions: already
-        ? p.reactions.filter(r => !((r.user?._id||r.user) === user?._id && r.type === type))
-        : [...p.reactions, { user: user?._id, type }] };
+      const already = p.reactions.find(r => (r.user?._id || r.user) === user?._id && r.type === type);
+      return {
+        ...p,
+        reactions: already
+          ? p.reactions.filter(r => !((r.user?._id || r.user) === user?._id && r.type === type))
+          : [...p.reactions, { user: user?._id, type }],
+      };
     }));
     try { await api.post(`/posts/${postId}/react`, { type }); } catch {}
   }
@@ -82,47 +137,22 @@ export default function ProfileScreen({ navigation }) {
     } catch {}
   }
 
-  const [prefs, setPrefs] = useState({ showXp: true, showFollowers: true, showFollowing: true, showPosts: true });
-  const tabIndicator = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Promise.all([
-      api.get('/users/me'),
-      api.get('/posts/user/me').catch(() => ({ data: { posts: [] } })),
-    ]).then(([profileRes, postsRes]) => {
-      const u = profileRes.data.user;
-      setProfile(u);
-      if (u.profilePrefs) setPrefs({ showXp: true, showFollowers: true, showFollowing: true, showPosts: true, ...u.profilePrefs });
-      setPosts(postsRes.data.posts || []);
-    }).finally(() => setLoading(false));
-  }, []);
-
-  useFocusEffect(useCallback(() => {
-    api.get('/users/me').then(r => setProfile(r.data.user)).catch(() => {});
-  }, []));
-
+  // ── Tabs ──────────────────────────────────────────────────────────────────
   function switchTab(key) {
     const idx = TABS.findIndex(t => t.key === key);
     Animated.spring(tabIndicator, { toValue: idx, friction: 8, useNativeDriver: true }).start();
     setTab(key);
   }
 
+  // ── Subir avatar ──────────────────────────────────────────────────────────
   async function handlePickAvatar() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: true, aspect: [1,1], quality: 0.8,
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.9,
     });
     if (result.canceled) return;
     setUploading(true);
     try {
-      const asset = result.assets[0];
-      const formData = new FormData();
-      if (asset.uri.startsWith('blob:') || asset.uri.startsWith('data:') || asset.uri.startsWith('http')) {
-        const blob = await fetch(asset.uri).then(r => r.blob());
-        formData.append('avatar', blob, 'avatar.jpg');
-      } else {
-        formData.append('avatar', { uri: asset.uri, type: 'image/jpeg', name: 'avatar.jpg' });
-      }
-      const { data } = await api.post('/users/me/avatar', formData);
+      const data = await uploadFile('/users/me/avatar', 'avatar', result.assets[0].uri, 'avatar.jpg');
       setProfile(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
       if (updateUser) updateUser(data.user);
     } catch {
@@ -132,34 +162,35 @@ export default function ProfileScreen({ navigation }) {
     }
   }
 
+  // ── Subir imagen de fondo (banner o card) ─────────────────────────────────
   async function handlePickBgImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: true, aspect: [4,2], quality: 0.7,
+      mediaTypes: ['images'],
+      allowsEditing: false, // sin recorte forzado → más calidad
+      quality: 1,
     });
     if (result.canceled) return;
+    setUploading(true);
     try {
       const asset = result.assets[0];
-      const formData = new FormData();
-      if (asset.uri.startsWith('blob:') || asset.uri.startsWith('data:') || asset.uri.startsWith('http')) {
-        const blob = await fetch(asset.uri).then(r => r.blob());
-        formData.append('banner', blob, 'bg.jpg');
-      } else {
-        formData.append('banner', { uri: asset.uri, type: 'image/jpeg', name: 'bg.jpg' });
-      }
       if (bgTarget === 'banner') {
-        const { data } = await api.post('/users/me/banner', formData);
+        const data = await uploadFile('/users/me/banner', 'banner', asset.uri, 'banner.jpg');
         setProfile(data.user);
         if (updateUser) updateUser(data.user);
       } else {
-        const { data } = await api.post('/users/me/banner', formData);
-        await savePatch({ profileBg: data.bannerUrl, profileBgType: 'image' });
+        const data = await uploadFile('/users/me/card-bg', 'cardBg', asset.uri, 'card-bg.jpg');
+        setProfile(data.user);
+        if (updateUser) updateUser(data.user);
       }
       setBgModal(false);
     } catch {
       Alert.alert('Error', 'No se pudo subir la imagen');
+    } finally {
+      setUploading(false);
     }
   }
 
+  // ── Guardar cambios de perfil ─────────────────────────────────────────────
   async function savePatch(payload) {
     setSaving(true);
     try {
@@ -173,6 +204,7 @@ export default function ProfileScreen({ navigation }) {
     }
   }
 
+  // ── Marco de perfil ───────────────────────────────────────────────────────
   async function handleEquipFrame() {
     if ((profile?.xp || 0) < 10) {
       Alert.alert('XP insuficiente', `Necesitas 10 XP.\nTienes ${profile?.xp || 0} XP.`);
@@ -207,18 +239,20 @@ export default function ProfileScreen({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero — paddingTop dinámico con insets */}
+        {/* ── Hero ── */}
         <View style={[s.heroBanner, { paddingTop: insets.top + 100 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={[s.backBtn, { top: insets.top + 12 }]}>
             <Ionicons name="arrow-back" size={22} color="#ffffff" />
           </TouchableOpacity>
 
           {profile?.profileBannerType === 'image' && profile?.profileBanner
-            ? <><Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-               <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} /></>
+            ? <>
+                <Image source={{ uri: profile.profileBanner }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
+              </>
             : profile?.profileBanner
               ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBanner }]} />
-              : <LinearGradient colors={['rgba(0,110,100,0.35)','rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
+              : <LinearGradient colors={['rgba(0,110,100,0.35)', 'rgba(2,5,9,1)']} style={StyleSheet.absoluteFill} />
           }
 
           <View style={s.avatarWrap}>
@@ -261,26 +295,33 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Tabs */}
+        {/* ── Tabs ── */}
         <View style={[s.tabBar, { marginHorizontal: 16 }]}>
-          {TABS.map((t, i) => (
+          {TABS.map((t) => (
             <TouchableOpacity key={t.key} style={[s.tabBtn, { width: TAB_W }]} onPress={() => switchTab(t.key)}>
               <Ionicons name={t.icon} size={20} color={tab === t.key ? '#ffffff' : colors.textDim} />
             </TouchableOpacity>
           ))}
           <Animated.View style={[s.tabIndicator, {
             width: TAB_W,
-            transform: [{ translateX: tabIndicator.interpolate({ inputRange:[0,1,2,3], outputRange:[0,TAB_W,TAB_W*2,TAB_W*3] }) }],
+            transform: [{
+              translateX: tabIndicator.interpolate({
+                inputRange:  [0, 1, 2, 3],
+                outputRange: [0, TAB_W, TAB_W * 2, TAB_W * 3],
+              }),
+            }],
           }]} />
         </View>
 
-        {/* Tab: Perfil */}
+        {/* ── Tab: Perfil ── */}
         {tab === 'profile' && (
           <View style={s.padded}>
             <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }, !hasBg && s.pageSectionGlass]}>
               {isImageBg && profile?.profileBg
-                ? <><Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }]} /></>
+                ? <>
+                    <Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }]} />
+                  </>
                 : null}
               {!isImageBg && hasBg
                 ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg, borderRadius: 16 }]} />
@@ -323,7 +364,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
-        {/* Tab: Posts */}
+        {/* ── Tab: Posts ── */}
         {tab === 'posts' && (
           <View>
             {posts.length === 0 ? (
@@ -347,7 +388,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
-        {/* Tab: Badges */}
+        {/* ── Tab: Badges ── */}
         {tab === 'badges' && (
           <View style={s.padded}>
             {!profile?.badges?.length ? (
@@ -370,26 +411,30 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
-        {/* Tab: Ajustes */}
+        {/* ── Tab: Ajustes ── */}
         {tab === 'settings' && (
           <View style={s.padded}>
             <View style={s.settingsGroup}>
               <Text style={s.settingsGroupLabel}>CUENTA</Text>
-              <TouchableOpacity style={s.settingsRow} onPress={handlePickAvatar}>
+
+              <TouchableOpacity style={s.settingsRow} onPress={handlePickAvatar} disabled={uploading}>
                 <Ionicons name="camera-outline" size={20} color={colors.textMid} />
                 <Text style={s.settingsRowTxt}>Cambiar foto de perfil</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+                {uploading ? <ActivityIndicator size="small" color={colors.c1} /> : <Ionicons name="chevron-forward" size={16} color={colors.textDim} />}
               </TouchableOpacity>
+
               <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('banner'); setBgModal(true); }}>
                 <Ionicons name="image-outline" size={20} color={colors.textMid} />
                 <Text style={s.settingsRowTxt}>Fondo del hero (banner)</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
+
               <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('card'); setBgModal(true); }}>
                 <Ionicons name="color-palette-outline" size={20} color={colors.textMid} />
                 <Text style={s.settingsRowTxt}>Fondo de la card</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
               </TouchableOpacity>
+
               <TouchableOpacity style={s.settingsRow} onPress={() => navigation.navigate('Top')}>
                 <Ionicons name="trophy-outline" size={20} color={colors.textMid} />
                 <Text style={s.settingsRowTxt}>Top Semanal</Text>
@@ -400,10 +445,10 @@ export default function ProfileScreen({ navigation }) {
             <View style={[s.settingsGroup, { marginTop: 20 }]}>
               <Text style={s.settingsGroupLabel}>VISIBILIDAD DEL PERFIL</Text>
               {[
-                { key: 'showXp',        label: 'Mostrar XP',        icon: 'flash-outline' },
-                { key: 'showFollowers', label: 'Mostrar seguidores', icon: 'people-outline' },
+                { key: 'showXp',        label: 'Mostrar XP',        icon: 'flash-outline'      },
+                { key: 'showFollowers', label: 'Mostrar seguidores', icon: 'people-outline'     },
                 { key: 'showFollowing', label: 'Mostrar siguiendo',  icon: 'person-add-outline' },
-                { key: 'showPosts',     label: 'Mostrar posts',      icon: 'grid-outline' },
+                { key: 'showPosts',     label: 'Mostrar posts',      icon: 'grid-outline'       },
               ].map(item => (
                 <TouchableOpacity key={item.key} style={s.settingsRow} onPress={async () => {
                   const newPrefs = { ...prefs, [item.key]: !prefs[item.key] };
@@ -435,25 +480,47 @@ export default function ProfileScreen({ navigation }) {
         <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* Modal Fondo */}
+      {/* ── Modal Fondo — sin bordes, ancho completo ── */}
       <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.bgModalBox}>
-            <Text style={s.modalTitle}>{bgTarget === 'banner' ? 'FONDO DEL BANNER' : 'FONDO DE LA CARD'}</Text>
+            <Text style={s.modalTitle}>
+              {bgTarget === 'banner' ? 'FONDO DEL BANNER' : 'FONDO DE LA CARD'}
+            </Text>
+
+            {/* Colores */}
             <View style={s.colorGrid}>
               {BG_COLORS.map(c => (
-                <TouchableOpacity key={c.id}
-                  style={[s.colorSwatch, c.value ? { backgroundColor: c.value, borderWidth: 2 } : { borderWidth: 1 },
-                    (bgTarget === 'banner' ? profile?.profileBanner : profile?.profileBg) === c.value && { borderColor: colors.c1, borderWidth: 2 }]}
-                  onPress={() => savePatch(bgTarget === 'banner' ? { profileBanner: c.value, profileBannerType: 'color' } : { profileBg: c.value, profileBgType: 'color' }).then(() => setBgModal(false))}>
+                <TouchableOpacity
+                  key={c.id}
+                  style={[
+                    s.colorSwatch,
+                    c.value ? { backgroundColor: c.value, borderWidth: 2 } : { borderWidth: 1 },
+                    (bgTarget === 'banner' ? profile?.profileBanner : profile?.profileBg) === c.value && { borderColor: colors.c1, borderWidth: 2 },
+                  ]}
+                  onPress={() => {
+                    const patch = bgTarget === 'banner'
+                      ? { profileBanner: c.value, profileBannerType: 'color' }
+                      : { profileBg: c.value, profileBgType: 'color' };
+                    savePatch(patch).then(() => setBgModal(false));
+                  }}
+                >
                   {!c.value && <Ionicons name="close" size={16} color={colors.textDim} />}
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity style={s.colorSwatchImg} onPress={handlePickBgImage}>
-                <Ionicons name="image-outline" size={20} color={colors.c1} />
-                <Text style={{ color: colors.c1, fontSize: 9, marginTop: 3 }}>Imagen</Text>
+
+              {/* Botón imagen */}
+              <TouchableOpacity style={s.colorSwatchImg} onPress={handlePickBgImage} disabled={uploading}>
+                {uploading
+                  ? <ActivityIndicator size="small" color={colors.c1} />
+                  : <>
+                      <Ionicons name="image-outline" size={20} color={colors.c1} />
+                      <Text style={{ color: colors.c1, fontSize: 9, marginTop: 3 }}>Imagen</Text>
+                    </>
+                }
               </TouchableOpacity>
             </View>
+
             <TouchableOpacity style={s.closeBtn} onPress={() => setBgModal(false)}>
               <Text style={s.closeBtnTxt}>Cerrar</Text>
             </TouchableOpacity>
@@ -461,7 +528,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* Modal Marco */}
+      {/* ── Modal Marco ── */}
       <Modal visible={frameModal} transparent animationType="fade" onRequestClose={() => setFrameModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
@@ -473,8 +540,14 @@ export default function ProfileScreen({ navigation }) {
             <Text style={s.frameDesc}>
               {canUnlock ? (hasFrame ? 'Marco equipado.' : 'Desbloqueado.') : `Requiere 10 XP — tienes ${profile?.xp || 0}`}
             </Text>
-            <TouchableOpacity style={[s.equipBtn, !canUnlock && s.equipBtnLocked]} onPress={handleEquipFrame} disabled={equipping || !canUnlock}>
-              <Text style={s.equipBtnTxt}>{equipping ? 'Guardando...' : hasFrame ? 'Quitar marco' : canUnlock ? 'Equipar marco' : 'Bloqueado'}</Text>
+            <TouchableOpacity
+              style={[s.equipBtn, !canUnlock && s.equipBtnLocked]}
+              onPress={handleEquipFrame}
+              disabled={equipping || !canUnlock}
+            >
+              <Text style={s.equipBtnTxt}>
+                {equipping ? 'Guardando...' : hasFrame ? 'Quitar marco' : canUnlock ? 'Equipar marco' : 'Bloqueado'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setFrameModal(false)}>
               <Text style={s.closeBtnTxt}>Cerrar</Text>
@@ -487,21 +560,24 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  root:         { flex: 1, backgroundColor: colors.black },
-  backBtn:      { position: 'absolute', left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  heroBanner:   { alignItems: 'center', paddingBottom: 40, paddingHorizontal: 24, overflow: 'hidden' },
-  avatarWrap:   { position: 'relative', marginBottom: 14 },
-  username:     { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 8 },
-  xpSimple:     { color: '#ffffff', fontSize: 12, fontWeight: '700', marginBottom: 12 },
-  heroStats:    { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  heroStat:     { flex: 1, alignItems: 'center' },
-  heroStatVal:  { color: '#ffffff', fontSize: 18, fontWeight: '700' },
-  heroStatLbl:  { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
-  heroStatDiv:  { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+  root:       { flex: 1, backgroundColor: colors.black },
+  backBtn:    { position: 'absolute', left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  heroBanner: { alignItems: 'center', paddingBottom: 40, paddingHorizontal: 24, overflow: 'hidden' },
+  avatarWrap: { position: 'relative', marginBottom: 14 },
+  username:   { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 8 },
+  xpSimple:   { color: '#ffffff', fontSize: 12, fontWeight: '700', marginBottom: 12 },
+
+  heroStats:   { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  heroStat:    { flex: 1, alignItems: 'center' },
+  heroStatVal: { color: '#ffffff', fontSize: 18, fontWeight: '700' },
+  heroStatLbl: { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
+  heroStatDiv: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+
   tabBar:       { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 16, overflow: 'hidden', position: 'relative' },
   tabBtn:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
   tabIndicator: { position: 'absolute', bottom: 0, height: 2, backgroundColor: '#ffffff', borderRadius: 1 },
-  padded:       { paddingHorizontal: 16 },
+
+  padded:           { paddingHorizontal: 16 },
   pageSection:      { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120, marginBottom: 8 },
   pageSectionGlass: { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' },
   pageBgImage:      { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
@@ -511,35 +587,57 @@ const s = StyleSheet.create({
   mentionBlockView: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,229,204,0.07)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', padding: 12 },
   mentionBlockAv:   { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   mentionBlockAt:   { flex: 1, color: colors.c1, fontWeight: '700', fontSize: 14 },
-  editFab:      { position: 'absolute', bottom: 24, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', elevation: 8, zIndex: 20 },
-  toggle:       { width: 40, height: 22, borderRadius: 11, backgroundColor: colors.border, justifyContent: 'center', padding: 2 },
-  toggleOn:     { backgroundColor: 'rgba(0,229,204,0.3)' },
-  toggleThumb:  { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.textDim },
-  toggleThumbOn:{ backgroundColor: colors.c1, alignSelf: 'flex-end' },
-  emptyTab:     { alignItems: 'center', paddingVertical: 48, gap: 12 },
-  emptyTxt:     { color: colors.textDim, fontSize: 14 },
-  emptyHint:    { color: colors.textDim, fontSize: 11, opacity: 0.6 },
-  badgesGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeCard:    { alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.borderC, padding: 14, width: (W - 52) / 3 },
-  badgeIcon:    { fontSize: 28, marginBottom: 6 },
-  badgeName:    { color: colors.c1, fontSize: 9, letterSpacing: 1, textAlign: 'center' },
-  badgeDesc:    { color: colors.textDim, fontSize: 9, textAlign: 'center', marginTop: 2 },
+  editFab:          { position: 'absolute', bottom: 24, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center', elevation: 8, zIndex: 20 },
+
+  toggle:         { width: 40, height: 22, borderRadius: 11, backgroundColor: colors.border, justifyContent: 'center', padding: 2 },
+  toggleOn:       { backgroundColor: 'rgba(0,229,204,0.3)' },
+  toggleThumb:    { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.textDim },
+  toggleThumbOn:  { backgroundColor: colors.c1, alignSelf: 'flex-end' },
+
+  emptyTab:  { alignItems: 'center', paddingVertical: 48, gap: 12 },
+  emptyTxt:  { color: colors.textDim, fontSize: 14 },
+  emptyHint: { color: colors.textDim, fontSize: 11, opacity: 0.6 },
+
+  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgeCard:  { alignItems: 'center', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.borderC, padding: 14, width: (W - 52) / 3 },
+  badgeIcon:  { fontSize: 28, marginBottom: 6 },
+  badgeName:  { color: colors.c1, fontSize: 9, letterSpacing: 1, textAlign: 'center' },
+  badgeDesc:  { color: colors.textDim, fontSize: 9, textAlign: 'center', marginTop: 2 },
+
   settingsGroup:      { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   settingsGroupLabel: { color: colors.textDim, fontSize: 9, letterSpacing: 3, padding: 14, paddingBottom: 8 },
   settingsRow:        { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
   settingsRowTxt:     { flex: 1, color: colors.textMid, fontSize: 14 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
-  modalBox:     { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 28, width: '82%', alignItems: 'center' },
-  modalTitle:   { fontSize: 12, letterSpacing: 4, color: colors.c1, fontWeight: '800', marginBottom: 20 },
-  frameName:    { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 6 },
-  frameDesc:    { color: colors.textDim, fontSize: 12, textAlign: 'center', marginBottom: 24 },
-  equipBtn:     { backgroundColor: colors.c1, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 36, marginBottom: 12, width: '100%', alignItems: 'center' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+
+  // ── Modal fondo: sin bordes, ocupa todo el ancho ──
+  bgModalBox: {
+    backgroundColor: colors.surface,
+    // Sin borderRadius arriba — borde solo en las esquinas superiores
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: colors.borderC,
+    padding: 24,
+    paddingBottom: 40,
+    width: '100%',
+    alignItems: 'center',
+  },
+
+  modalBox:   { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 28, width: '82%', alignItems: 'center' },
+  modalTitle: { fontSize: 12, letterSpacing: 4, color: colors.c1, fontWeight: '800', marginBottom: 20 },
+
+  frameName:      { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  frameDesc:      { color: colors.textDim, fontSize: 12, textAlign: 'center', marginBottom: 24 },
+  equipBtn:       { backgroundColor: colors.c1, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 36, marginBottom: 12, width: '100%', alignItems: 'center' },
   equipBtnLocked: { backgroundColor: 'rgba(255,255,255,0.08)' },
-  equipBtnTxt:  { color: colors.black, fontWeight: '800', fontSize: 14 },
-  closeBtn:     { paddingVertical: 12 },
-  closeBtnTxt:  { color: colors.textDim, fontSize: 13 },
-  bgModalBox:   { backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.borderC, padding: 24, width: '90%', alignItems: 'center' },
-  colorGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginVertical: 16 },
-  colorSwatch:  { width: 48, height: 48, borderRadius: 12, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  equipBtnTxt:    { color: colors.black, fontWeight: '800', fontSize: 14 },
+  closeBtn:       { paddingVertical: 12 },
+  closeBtnTxt:    { color: colors.textDim, fontSize: 13 },
+
+  colorGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginVertical: 16 },
+  colorSwatch:    { width: 48, height: 48, borderRadius: 12, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   colorSwatchImg: { width: 48, height: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,229,204,0.05)' },
 });
