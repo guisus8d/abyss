@@ -320,7 +320,7 @@ export default function ProfileScreen({ navigation }) {
               {isImageBg && profile?.profileBg
                 ? <>
                     <Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16 }]} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
                   </>
                 : null}
               {!isImageBg && hasBg
@@ -562,7 +562,7 @@ export default function ProfileScreen({ navigation }) {
 const s = StyleSheet.create({
   root:       { flex: 1, backgroundColor: colors.black },
   backBtn:    { position: 'absolute', left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  heroBanner: { alignItems: 'center', paddingBottom: 40, paddingHorizontal: 24, overflow: 'hidden' },
+  heroBanner: { alignItems: 'center', paddingBottom: 40, paddingHorizontal: 24, overflow: 'hidden', width: W, alignSelf: 'stretch' },
   avatarWrap: { position: 'relative', marginBottom: 14 },
   username:   { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 8 },
   xpSimple:   { color: '#ffffff', fontSize: 12, fontWeight: '700', marginBottom: 12 },
@@ -580,7 +580,7 @@ const s = StyleSheet.create({
   padded:           { paddingHorizontal: 16 },
   pageSection:      { borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, position: 'relative', minHeight: 120, marginBottom: 8 },
   pageSectionGlass: { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' },
-  pageBgImage:      { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+  pageBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   blocksContainer:  { paddingBottom: 48, gap: 8 },
   emptyPage:        { alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptyPageTxt:     { color: colors.textDim, fontSize: 12, textAlign: 'center' },
