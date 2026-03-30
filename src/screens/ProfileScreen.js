@@ -324,7 +324,7 @@ export default function ProfileScreen({ navigation }) {
                   </>
                 : null}
               {!isImageBg && hasBg
-                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg, borderRadius: 16 }]} />
+                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
                 : null}
               <View style={s.blocksContainer}>
                 {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
@@ -567,7 +567,7 @@ const s = StyleSheet.create({
   username:   { color: colors.textHi, fontSize: 22, fontWeight: '700', marginBottom: 8 },
   xpSimple:   { color: '#ffffff', fontSize: 12, fontWeight: '700', marginBottom: 12 },
 
-  heroStats:   { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  heroStats:   { flexDirection: 'row', width: '100%', marginTop: 8, paddingVertical: 12, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   heroStat:    { flex: 1, alignItems: 'center' },
   heroStatVal: { color: '#ffffff', fontSize: 18, fontWeight: '700' },
   heroStatLbl: { color: 'rgba(255,255,255,0.6)', fontSize: 8, letterSpacing: 2, marginTop: 2 },
