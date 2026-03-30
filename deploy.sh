@@ -2,7 +2,14 @@
 npx expo export --platform web
 
 BUNDLE=$(ls dist/_expo/static/js/web/*.js | head -1 | sed 's|dist/||')
-sed "s|</body>|<script src=\"/$BUNDLE\" defer></script>\n</body>|" web/index.html > dist/index.html
 
-echo "✅ dist/index.html generado con OG tags"
-grep "og:image" dist/index.html
+python3 - << PYEOF
+bundle = open('/dev/stdin').read().strip() if False else "$BUNDLE"
+html = open('web/index.html').read()
+script = f'<script src="/{bundle}" defer></script>'
+html = html.replace('</body>', f'{script}\n</body>')
+open('dist/index.html', 'w').write(html)
+print("✅ OG tags inyectadas")
+PYEOF
+
+grep "og:image" dist/index.html || echo "❌ FALLÓ"
