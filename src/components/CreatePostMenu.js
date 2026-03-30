@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Modal, Animated, useWindowDimensions,
+  Modal, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,8 +14,8 @@ const OPTIONS = [
     label: 'Post rápido',
     hint: 'Texto o imagen',
     color: colors.c1,
-    bg: 'rgba(0,229,204,0.12)',
-    border: 'rgba(0,229,204,0.3)',
+    bg: 'rgba(0,229,204,0.10)',
+    border: 'rgba(0,229,204,0.25)',
     active: true,
   },
   {
@@ -24,8 +24,8 @@ const OPTIONS = [
     label: 'Post imagen',
     hint: 'Foto + descripción',
     color: 'rgba(167,139,250,1)',
-    bg: 'rgba(147,51,234,0.12)',
-    border: 'rgba(147,51,234,0.3)',
+    bg: 'rgba(147,51,234,0.10)',
+    border: 'rgba(147,51,234,0.25)',
     active: true,
   },
   {
@@ -34,8 +34,8 @@ const OPTIONS = [
     label: 'Noticia',
     hint: 'Título + cuerpo',
     color: 'rgba(251,191,36,1)',
-    bg: 'rgba(234,179,8,0.12)',
-    border: 'rgba(234,179,8,0.3)',
+    bg: 'rgba(234,179,8,0.10)',
+    border: 'rgba(234,179,8,0.25)',
     active: true,
   },
   {
@@ -60,80 +60,81 @@ const OPTIONS = [
   },
 ];
 
+// Tamaño fijo cuadrado para cada card
+const CARD_SIZE = 100;
+
 export default function CreatePostMenu({ visible, onClose, onSelect }) {
   const slideAnim = useRef(new Animated.Value(400)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
-
-  const { width: W } = useWindowDimensions();
-  // 3 columnas con gap de 10 y padding horizontal de 20 a cada lado
-  const CARD_W = (W - 40 - 20) / 3;
-
-  const insets = useSafeAreaInsets();
-  // Solo el inset real de la nav bar — sin suma extra
-  const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
+  const insets    = useSafeAreaInsets();
+  const bottomPad = insets.bottom > 0 ? insets.bottom : 12;
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
         Animated.spring(slideAnim, { toValue: 0, friction: 9, tension: 60, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 180, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
         Animated.timing(slideAnim, { toValue: 400, duration: 200, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(fadeAnim,  { toValue: 0,   duration: 180, useNativeDriver: true }),
       ]).start();
     }
   }, [visible]);
 
+  function handleSelect(opt) {
+    if (!opt.active) return;
+    onClose();
+    setTimeout(() => onSelect(opt.key), 250);
+  }
+
+  function renderCard(opt) {
+    return (
+      <TouchableOpacity
+        key={opt.key}
+        style={[
+          s.card,
+          { borderColor: opt.border, backgroundColor: opt.bg },
+          !opt.active && s.cardDisabled,
+        ]}
+        onPress={() => handleSelect(opt)}
+        activeOpacity={opt.active ? 0.7 : 1}
+      >
+        <View style={[s.iconWrap, { borderColor: opt.border }]}>
+          <Ionicons name={opt.icon} size={20} color={opt.active ? opt.color : colors.textDim} />
+        </View>
+        <Text style={[s.cardLabel, { color: opt.active ? opt.color : colors.textDim }]}>
+          {opt.label}
+        </Text>
+        <Text style={s.cardHint}>{opt.hint}</Text>
+        {!opt.active && (
+          <View style={s.soonBadge}>
+            <Text style={s.soonTxt}>PRONTO</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <Animated.View style={[s.overlay, { opacity: fadeAnim }]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View
-          style={[
-            s.sheet,
-            { paddingBottom: bottomPad, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
+
+        <Animated.View style={[s.sheet, { paddingBottom: bottomPad, transform: [{ translateY: slideAnim }] }]}>
           <View style={s.handle} />
           <Text style={s.title}>CREAR</Text>
 
+          {/* Las 5 cards en una sola fila envolvente centrada */}
           <View style={s.grid}>
-            {OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[
-                  s.card,
-                  { width: CARD_W, borderColor: opt.border, backgroundColor: opt.bg },
-                  !opt.active ? s.cardDisabled : null,
-                ]}
-                onPress={() => {
-                  if (!opt.active) return;
-                  onClose();
-                  setTimeout(() => onSelect(opt.key), 250);
-                }}
-                activeOpacity={opt.active ? 0.7 : 1}
-              >
-                {/* ✅ Ícono más pequeño y compacto para reducir altura */}
-                <View style={[s.iconWrap, { borderColor: opt.border }]}>
-                  <Ionicons
-                    name={opt.icon}
-                    size={20}
-                    color={opt.active ? opt.color : colors.textDim}
-                  />
-                </View>
-                <Text style={[s.cardLabel, { color: opt.active ? opt.color : colors.textDim }]}>
-                  {opt.label}
-                </Text>
-                <Text style={s.cardHint}>{opt.hint}</Text>
-                {!opt.active ? (
-                  <View style={s.soonBadge}>
-                    <Text style={s.soonTxt}>PRONTO</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ))}
+            {OPTIONS.map(renderCard)}
           </View>
 
           <TouchableOpacity style={s.cancelBtn} onPress={onClose}>
@@ -146,45 +147,65 @@ export default function CreatePostMenu({ visible, onClose, onSelect }) {
 }
 
 const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  overlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    // ✅ FIX ALTURA: padding reducido (20 en vez de 24), paddingBottom manejado inline
-    paddingTop: 14,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  handle:  { width: 36, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  title:   { fontSize: 10, letterSpacing: 5, color: colors.c1, fontWeight: '900', textAlign: 'center', marginBottom: 16 },
-
-  grid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-
-  // ✅ Cards más compactas — padding reducido de 14 a 10, gap de 8 a 6
+  handle: {
+    width: 32, height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 9, letterSpacing: 5,
+    color: colors.c1, fontWeight: '900',
+    textAlign: 'center', marginBottom: 14,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 4,
+  },
   card: {
-    borderRadius: 16, borderWidth: 1,
-    padding: 10, gap: 6,
-    alignItems: 'center', position: 'relative',
+    width: CARD_SIZE,
+    height: CARD_SIZE,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    position: 'relative',
   },
-  cardDisabled: { opacity: 0.45 },
-
-  // ✅ Ícono más chico — 40x40 en vez de 52x52
+  cardDisabled: { opacity: 0.4 },
   iconWrap: {
-    width: 40, height: 40, borderRadius: 12, borderWidth: 1,
+    width: 34, height: 34,
+    borderRadius: 10, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
-  cardLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  cardHint:  { fontSize: 9, color: colors.textDim, textAlign: 'center' },
-
+  cardLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  cardHint:  { fontSize: 8, color: colors.textDim, textAlign: 'center' },
   soonBadge: {
-    position: 'absolute', top: 6, right: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 5, paddingHorizontal: 4, paddingVertical: 2,
+    position: 'absolute', top: 5, right: 5,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 4, paddingHorizontal: 3, paddingVertical: 2,
   },
-  soonTxt: { fontSize: 6, color: colors.textDim, letterSpacing: 1, fontWeight: '700' },
-
-  cancelBtn: { marginTop: 14, alignItems: 'center' },
-  cancelTxt: { color: colors.textDim, fontSize: 14, paddingVertical: 8 },
+  soonTxt:   { fontSize: 6, color: colors.textDim, letterSpacing: 1, fontWeight: '700' },
+  cancelBtn: { marginTop: 10, alignItems: 'center' },
+  cancelTxt: { color: colors.textDim, fontSize: 13, paddingVertical: 8 },
 });

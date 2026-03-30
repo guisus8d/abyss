@@ -111,6 +111,7 @@ export default function PostDetailScreen({ route, navigation }) {
   const [deleteCommentModal, setDeleteCommentModal] = useState(null);
 
   const inputRef = useRef(null);
+  const sendingRef = useRef(false);
 
   // ✅ FIX: un solo fetch, sin duplicado
   const loadPost = useCallback(async () => {
@@ -130,7 +131,8 @@ export default function PostDetailScreen({ route, navigation }) {
 
   // ── Comentar ─────────────────────────────────────────────────────────────
   const handleComment = useCallback(async () => {
-    if (!comment.trim() || sending) return;
+    if (!comment.trim() || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     try {
       const payload = { text: comment.trim() };
@@ -142,9 +144,10 @@ export default function PostDetailScreen({ route, navigation }) {
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo comentar');
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
-  }, [comment, sending, replyTo, postId, loadPost]);
+  }, [comment, replyTo, postId, loadPost]);
 
   // ── Borrar comentario ─────────────────────────────────────────────────────
   const handleDeleteComment = useCallback(async (commentId) => {
@@ -410,6 +413,7 @@ export default function PostDetailScreen({ route, navigation }) {
               isWeb
                 ? (e) => {
                     if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+                      e.preventDefault?.();
                       handleComment();
                     }
                   }
