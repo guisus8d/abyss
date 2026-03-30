@@ -29,7 +29,6 @@
     },
   "web": {
   "favicon": "./assets/favicon.png",
-      "template": "./web/index.html",
   "template": "./web/index.html"
   },
     "newArchEnabled": true,
