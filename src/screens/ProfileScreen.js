@@ -315,8 +315,8 @@ export default function ProfileScreen({ navigation }) {
 
         {/* ── Tab: Perfil ── */}
         {tab === 'profile' && (
-          <View style={s.padded}>
-            <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }, !hasBg && s.pageSectionGlass]}>
+          <View style={{ paddingHorizontal: 0 }}>
+            <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }, !hasBg && s.pageSectionGlass, { borderRadius: 0, borderLeftWidth: 0, borderRightWidth: 0, paddingHorizontal: 20 }]}>
               {isImageBg && profile?.profileBg
                 ? <>
                     <Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
