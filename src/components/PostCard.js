@@ -158,11 +158,11 @@ function CommentSection({
           value={commentText}
           onChangeText={setCommentText}
           returnKeyType="send"
-          onSubmitEditing={onSubmit}
+          onSubmitEditing={Platform.OS !== 'web' ? onSubmit : undefined}
           blurOnSubmit={false}
           onKeyPress={
             Platform.OS === 'web'
-              ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) onSubmit(); }
+              ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); onSubmit(); } }
               : undefined
           }
         />
@@ -202,7 +202,8 @@ const PostCard = memo(function PostCard({
   const [likeCount, setLikeCount] = useState(() =>
     post.reactions.filter(r => r.type === 'like').length
   );
-  const likeBlocked = useRef(false);
+  const likeBlocked  = useRef(false);
+  const sendingRef   = useRef(false);
   const heartScale  = useRef(new Animated.Value(1)).current;
 
   const { emojiGroups, myEmoji } = useMemo(() => {
@@ -245,15 +246,17 @@ const PostCard = memo(function PostCard({
   }, [post._id, onComment]);
 
   const submitComment = useCallback(async () => {
-    if (!commentText.trim() || sending) return;
+    if (!commentText.trim() || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     const txt   = commentText.trim();
     const reply = replyToComment;
     setCommentText('');
     setReplyToComment(null);
     await onComment(post._id, txt, reply);
+    sendingRef.current = false;
     setSending(false);
-  }, [commentText, sending, replyToComment, onComment, post._id]);
+  }, [commentText, replyToComment, onComment, post._id]);
 
   const isAuthor = post.author._id === currentUserId || post.author.id === currentUserId;
 
