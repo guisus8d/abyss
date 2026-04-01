@@ -1,36 +1,37 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>Abyss — Tu espacio en la red</title>
-    <meta name="description" content="Abyss es una red social donde puedes conectar, compartir posts, chatear y construir tu perfil único." />
-    <meta name="theme-color" content="#020509" />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://abyss.social" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://abyss.social" />
-    <meta property="og:site_name" content="Abyss" />
-    <meta property="og:title" content="Abyss — Tu espacio en la red" />
-    <meta property="og:description" content="Abyss es una red social donde puedes conectar, compartir posts, chatear y construir tu perfil único." />
-    <meta property="og:image" content="https://abyss.social/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:locale" content="es_MX" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Abyss — Tu espacio en la red" />
-    <meta name="twitter:description" content="Abyss es una red social donde puedes conectar, compartir posts, chatear y construir tu perfil único." />
-    <meta name="twitter:image" content="https://abyss.social/og-image.png" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>Abyss</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
-      html, body { height: 100%; }
-      body { overflow: hidden; }
-      #root { display: flex; height: 100%; flex: 1; }
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
     </style>
-  </head>
+  <link rel="icon" href="/favicon.ico" /></head>
+
   <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/_expo/static/js/web/index-f95f0f5f56a5e4c229ee0b0fe1aa0119.js" defer></script>
+  <script src="/_expo/static/js/web/index-05fee88f0308ca6f810fbfa81c303573.js" defer></script>
 </body>
 </html>

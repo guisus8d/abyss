@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Modal, TouchableOpacity, Image,
-  StyleSheet, ActivityIndicator, TextInput, Platform, Alert,
+  StyleSheet, ActivityIndicator, TextInput, Platform, Alert, Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,8 +9,8 @@ import { colors } from '../theme/colors';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import SharePostModal  from '../components/SharePostModal';
 
-// ─── Paleta ──────────────────────────────────────────────────────────────────
 const C = {
   card:         '#0b1521',
   cardBorder:   'rgba(255,255,255,0.07)',
@@ -30,7 +30,6 @@ const C = {
 
 const isWeb = Platform.OS === 'web';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function timeAgo(date) {
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
   if (s < 60)    return `${s}s`;
@@ -45,7 +44,6 @@ function formatDate(date) {
   });
 }
 
-// ─── ConfirmModal ─────────────────────────────────────────────────────────────
 function ConfirmModal({ visible, onConfirm, onCancel }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -79,25 +77,6 @@ const cm = StyleSheet.create({
   btnDangerTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });
 
-// ─── IconBtn — nuevo estilo con fondo visible ─────────────────────────────────
-// variant: 'accent' | 'muted' | 'ghost'
-function IconBtn({ name, size = 20, onPress, variant = 'muted', style }) {
-  const btnStyle = {
-    accent: s.iconBtnAccent,
-    muted:  s.iconBtnMuted,
-    ghost:  s.iconBtnGhost,
-  }[variant] || s.iconBtnMuted;
-
-  const iconColor = variant === 'accent' ? C.accent : C.textHi;
-
-  return (
-    <TouchableOpacity style={[s.iconBtnBase, btnStyle, style]} onPress={onPress} activeOpacity={0.75}>
-      <Ionicons name={name} size={size} color={iconColor} />
-    </TouchableOpacity>
-  );
-}
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
 export default function PostDetailScreen({ route, navigation }) {
   const { postId } = route.params;
   const { user }   = useAuthStore();
@@ -109,11 +88,11 @@ export default function PostDetailScreen({ route, navigation }) {
   const [sending,            setSending]            = useState(false);
   const [replyTo,            setReplyTo]            = useState(null);
   const [deleteCommentModal, setDeleteCommentModal] = useState(null);
+  const [shareOpen,          setShareOpen]          = useState(false);
 
-  const inputRef = useRef(null);
+  const inputRef   = useRef(null);
   const sendingRef = useRef(false);
 
-  // ✅ FIX: un solo fetch, sin duplicado
   const loadPost = useCallback(async () => {
     try {
       const { data } = await api.get(`/posts/${postId}`);
@@ -125,11 +104,8 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   }, [postId]);
 
-  useEffect(() => {
-    loadPost();
-  }, [loadPost]);
+  useEffect(() => { loadPost(); }, [loadPost]);
 
-  // ── Comentar ─────────────────────────────────────────────────────────────
   const handleComment = useCallback(async () => {
     if (!comment.trim() || sendingRef.current) return;
     sendingRef.current = true;
@@ -149,7 +125,6 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   }, [comment, replyTo, postId, loadPost]);
 
-  // ── Borrar comentario ─────────────────────────────────────────────────────
   const handleDeleteComment = useCallback(async (commentId) => {
     try {
       const { data } = await api.delete(`/posts/${postId}/comment/${commentId}`);
@@ -161,17 +136,18 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   }, [postId]);
 
-  // ── Share ─────────────────────────────────────────────────────────────────
-  const handleShare = useCallback(() => {
+  const handleShare = useCallback(async () => {
+    const url = `https://abyss.social/post/${postId}`;
+    const title = post?.title || 'Post en Abyss';
     if (isWeb && navigator?.share) {
-      navigator.share({
-        title: post?.title || 'Post en Abyss',
-        url: `https://abyss.social/post/${postId}`,
-      }).catch(() => {});
+      navigator.share({ title, url }).catch(() => {});
+    } else {
+      try {
+        await Share.share({ message: `${title} — ${url}` });
+      } catch {}
     }
   }, [post, postId]);
 
-  // ── Loading / vacío ───────────────────────────────────────────────────────
   if (loading) return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <ActivityIndicator color={C.accent} style={{ marginTop: 60 }} />
@@ -182,46 +158,31 @@ export default function PostDetailScreen({ route, navigation }) {
   const isNews = post.postType === 'news';
   const inputBottomPad = isWeb ? 12 : Math.max(insets.bottom, 12);
 
-  // ── Render comentario ─────────────────────────────────────────────────────
-  // ✅ FIX: eliminado el <TouchableOpacity> anidado dentro de otro
-  // Era la causa del "Text strings must be rendered within a <Text> component"
   const renderComment = (c, isReply = false) => {
-    const uid        = c.user?._id?.toString() || c.user?.toString();
-    const isOwn      = uid === user?._id?.toString();
-    const parentId   = isReply ? c.replyTo?.commentId : c._id;
-    const replyData  = { commentId: parentId, username: c.user?.username, text: c.text };
+    const uid      = c.user?._id?.toString() || c.user?.toString();
+    const isOwn    = uid === user?._id?.toString();
+    const parentId = isReply ? c.replyTo?.commentId : c._id;
+    const replyData = { commentId: parentId, username: c.user?.username, text: c.text };
 
     return (
       <View key={c._id || String(Math.random())} style={[s.commentWrap, isReply && s.commentWrapReply]}>
         {isReply && <View style={s.replyLine} />}
-
         <View style={s.commentRow}>
-
-          {/* Avatar — presionable, sin anidar en otro Touchable */}
           <TouchableOpacity
             style={{ marginRight: 10 }}
             onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
             activeOpacity={0.8}
           >
-            <AvatarWithFrame
-              size={isReply ? 28 : 34}
-              avatarUrl={c.user?.avatarUrl}
-              username={c.user?.username}
-            />
+            <AvatarWithFrame size={isReply ? 28 : 34} avatarUrl={c.user?.avatarUrl} username={c.user?.username} />
           </TouchableOpacity>
 
-          {/* Burbuja de comentario */}
           <TouchableOpacity
             style={{ flex: 1 }}
             onLongPress={() => { if (isOwn) setDeleteCommentModal(c._id); }}
-            onPress={() => {
-              setReplyTo(replyData);
-              inputRef.current?.focus();
-            }}
+            onPress={() => { setReplyTo(replyData); inputRef.current?.focus(); }}
             activeOpacity={0.85}
             delayLongPress={400}
           >
-            {/* Cita de la respuesta */}
             {isReply && c.replyTo?.text ? (
               <View style={s.replyPreview}>
                 <Text style={s.replyPreviewTxt} numberOfLines={1}>
@@ -229,42 +190,29 @@ export default function PostDetailScreen({ route, navigation }) {
                 </Text>
               </View>
             ) : null}
-
-            {/* ✅ FIX: nombre como Text simple, no como <TouchableOpacity> anidado */}
-            <Text
-              style={s.commentUser}
-              onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}
-            >
+            <Text style={s.commentUser} onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>
               {'@'}{c.user?.username}
             </Text>
-
             <Text style={s.commentTxt}>{c.text}</Text>
           </TouchableOpacity>
 
-          {/* Botón reply */}
           <TouchableOpacity
-            onPress={() => {
-              setReplyTo(replyData);
-              inputRef.current?.focus();
-            }}
+            onPress={() => { setReplyTo(replyData); inputRef.current?.focus(); }}
             style={{ paddingLeft: 10, paddingVertical: 4 }}
           >
             <Ionicons name="return-down-back-outline" size={14} color={C.textDim} />
           </TouchableOpacity>
         </View>
 
-        {/* Respuestas anidadas (solo en nivel raíz) */}
         {!isReply
           ? (post.comments || [])
               .filter(r => r.replyTo?.commentId?.toString() === c._id?.toString())
               .map(r => renderComment(r, true))
-          : null
-        }
+          : null}
       </View>
     );
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={s.root}>
       <ConfirmModal
@@ -273,31 +221,32 @@ export default function PostDetailScreen({ route, navigation }) {
         onCancel={() => setDeleteCommentModal(null)}
       />
 
+      <SharePostModal
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        post={post}
+        currentUserId={user?._id}
+      />
+
       {/* ── Header ── */}
       <View style={[s.header, { paddingTop: insets.top + 10 }]}>
-        {/* ✅ REDISEÑO: IconBtn con fondo visible, variant accent para acción primaria */}
-        <IconBtn
-          name="arrow-back"
-          variant="accent"
-          onPress={() => navigation.goBack()}
-        />
+        {/* ✅ Botón back — estilo blanco igual que ProfileScreen */}
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+          <Ionicons name="arrow-back" size={20} color="#ffffff" />
+        </TouchableOpacity>
 
         <Text style={s.headerDate}>{formatDate(post.createdAt)}</Text>
 
-        <IconBtn
-          name="share-social-outline"
-          variant="muted"
-          onPress={handleShare}
-        />
+        <TouchableOpacity onPress={() => setShareOpen(true)} style={s.actionBtn}>
+          <Ionicons name="share-social-outline" size={20} color="#ffffff" />
+        </TouchableOpacity>
       </View>
 
-      {/* ── Contenido ── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 16 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Autor */}
         <TouchableOpacity
           style={s.authorRow}
           onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })}
@@ -312,19 +261,14 @@ export default function PostDetailScreen({ route, navigation }) {
           />
           <View style={{ marginLeft: 12, flex: 1 }}>
             <Text style={s.authorName}>{'@'}{post.author?.username}</Text>
-            <Text style={s.authorMeta}>
-              {'XP '}{post.author?.xp || 0}{' · '}{timeAgo(post.createdAt)}
-            </Text>
+            <Text style={s.authorMeta}>{'XP '}{post.author?.xp || 0}{' · '}{timeAgo(post.createdAt)}</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={C.textDim} />
         </TouchableOpacity>
 
-        {/* ── Cuerpo del post ── */}
         {isNews ? (
           <View style={s.newsWrap}>
-            {post.imageUrl ? (
-              <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" />
-            ) : null}
+            {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" /> : null}
             <View style={s.newsBody}>
               <View style={s.newsBadge}>
                 <Ionicons name="newspaper-outline" size={11} color={C.gold} />
@@ -337,13 +281,10 @@ export default function PostDetailScreen({ route, navigation }) {
         ) : (
           <View style={s.postWrap}>
             {post.content  ? <Text style={s.postContent}>{post.content}</Text> : null}
-            {post.imageUrl ? (
-              <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="cover" />
-            ) : null}
+            {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="cover" /> : null}
           </View>
         )}
 
-        {/* Tags */}
         {post.tags?.length > 0 ? (
           <View style={s.tagsRow}>
             {post.tags.map((t, i) => (
@@ -356,43 +297,34 @@ export default function PostDetailScreen({ route, navigation }) {
 
         <View style={s.divider} />
 
-        {/* Header comentarios */}
         <View style={s.commentsHeader}>
           <Ionicons name="chatbubble-outline" size={13} color={C.textDim} />
           <Text style={s.commentsTitle}>
-            {post.comments?.length || 0}
-            {post.comments?.length !== 1 ? ' comentarios' : ' comentario'}
+            {post.comments?.length || 0}{post.comments?.length !== 1 ? ' comentarios' : ' comentario'}
           </Text>
         </View>
 
-        {/* Sin comentarios */}
+        {/* ✅ Sin texto "sé el primero" — solo el ícono vacío */}
         {post.comments?.length === 0 ? (
           <View style={s.emptyComments}>
             <Ionicons name="chatbubble-outline" size={32} color={C.textDim} />
             <Text style={s.emptyCommentsTxt}>Sin comentarios aún</Text>
-            <Text style={[s.emptyCommentsTxt, { fontSize: 12, marginTop: 2 }]}>
-              sé el primero 👇
-            </Text>
           </View>
         ) : null}
 
-        {/* Lista de comentarios (solo raíz; las respuestas se renderizan dentro) */}
         {(post.comments || [])
           .filter(c => !c.replyTo?.commentId)
-          .map(c => renderComment(c, false))
-        }
+          .map(c => renderComment(c, false))}
 
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* ── Input fijo al fondo ── */}
+      {/* ── Input ── */}
       <View style={[s.inputWrap, { paddingBottom: inputBottomPad }]}>
         {replyTo ? (
           <View style={s.replyBanner}>
             <View style={s.replyBannerAccent} />
-            <Text style={s.replyBannerTxt} numberOfLines={1}>
-              {'↩ Respondiendo a @'}{replyTo.username}
-            </Text>
+            <Text style={s.replyBannerTxt} numberOfLines={1}>{'↩ Respondiendo a @'}{replyTo.username}</Text>
             <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding: 4 }}>
               <Ionicons name="close" size={14} color={C.textDim} />
             </TouchableOpacity>
@@ -409,16 +341,12 @@ export default function PostDetailScreen({ route, navigation }) {
             placeholderTextColor={C.textDim}
             multiline
             maxLength={500}
-            onKeyPress={
-              isWeb
-                ? (e) => {
-                    if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
-                      e.preventDefault?.();
-                      handleComment();
-                    }
-                  }
-                : undefined
-            }
+            onKeyPress={isWeb ? (e) => {
+              if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+                e.preventDefault?.();
+                handleComment();
+              }
+            } : undefined}
           />
           <TouchableOpacity
             style={[s.sendBtn, (!comment.trim() || sending) && s.sendBtnDisabled]}
@@ -428,8 +356,7 @@ export default function PostDetailScreen({ route, navigation }) {
           >
             {sending
               ? <ActivityIndicator size="small" color="#020509" />
-              : <Ionicons name="send" size={15} color="#020509" />
-            }
+              : <Ionicons name="send" size={15} color="#020509" />}
           </TouchableOpacity>
         </View>
       </View>
@@ -437,60 +364,35 @@ export default function PostDetailScreen({ route, navigation }) {
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#080f18' },
 
-  // ── Icon buttons ── (✅ REDISEÑO: fondos visibles, no solo líneas)
-  iconBtnBase: {
-    width: 40, height: 40,
-    borderRadius: 13,
-    borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  // Acento cyan: para acción principal (back, enviar)
-  iconBtnAccent: {
-    backgroundColor: 'rgba(15,227,184,0.13)',
-    borderColor: 'rgba(15,227,184,0.35)',
-  },
-  // Muted: para acciones secundarias (share, más)
-  iconBtnMuted: {
-    backgroundColor: 'rgba(230,240,255,0.06)',
-    borderColor: 'rgba(230,240,255,0.12)',
-  },
-  // Ghost: mínima presencia visual
-  iconBtnGhost: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-  },
-
-  // Header
+  // ── Header ──
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: C.cardBorder,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: C.cardBorder,
     backgroundColor: '#080f18',
   },
-  headerDate: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+  headerDate: { color: '#ffffff', fontSize: 13, fontWeight: '600', letterSpacing: 0.3 },
+
+  // ✅ Botón back — igual que ProfileScreen: rgba(255,255,255,0.08), borderRadius 10
+  backBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  // Botón acción secundaria (share) — mismo estilo
+  actionBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center', justifyContent: 'center',
   },
 
-  // Autor
-  authorRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 16,
-  },
+  authorRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16 },
   authorName: { color: C.textHi, fontWeight: '700', fontSize: 15 },
   authorMeta: { color: C.textDim, fontSize: 11, marginTop: 3 },
 
-  // Noticia
   newsWrap:     { marginHorizontal: 14, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(234,179,8,0.22)', marginBottom: 16, backgroundColor: C.surface },
   newsCover:    { width: '100%', height: 230 },
   newsBody:     { padding: 16, gap: 10 },
@@ -499,19 +401,16 @@ const s = StyleSheet.create({
   newsTitle:    { color: C.textHi, fontSize: 22, fontWeight: '800', lineHeight: 30 },
   newsContent:  { color: C.textMid, fontSize: 15, lineHeight: 24 },
 
-  // Post normal
   postWrap:    { paddingHorizontal: 16, marginBottom: 14 },
   postContent: { color: C.textHi, fontSize: 16, lineHeight: 26, marginBottom: 14, letterSpacing: 0.1 },
   postImage:   { width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: C.surface },
 
-  // Tags
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, marginBottom: 14 },
   tagPill: { backgroundColor: C.accentDim, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: C.accentBorder },
   tagTxt:  { color: C.accent, fontSize: 11, fontWeight: '600' },
 
   divider: { height: 1, backgroundColor: C.divider, marginHorizontal: 16, marginVertical: 10 },
 
-  // Comentarios
   commentsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 10 },
   commentsTitle:  { color: C.textDim, fontSize: 12, fontWeight: '600', letterSpacing: 0.5 },
 
@@ -528,29 +427,16 @@ const s = StyleSheet.create({
   replyPreview:    { backgroundColor: C.accentDim, borderLeftWidth: 2, borderLeftColor: C.accent, paddingLeft: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 0 },
   replyPreviewTxt: { color: C.textDim, fontSize: 11 },
 
-  // Input
-  inputWrap: {
-    backgroundColor: C.card,
-    borderTopWidth: 1, borderTopColor: C.cardBorder,
-    paddingTop: 10, paddingHorizontal: 12,
-  },
-  replyBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: C.accentDim,
-    borderRadius: 10, borderWidth: 1, borderColor: C.accentBorder,
-    marginBottom: 8, overflow: 'hidden',
-  },
+  inputWrap: { backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.cardBorder, paddingTop: 10, paddingHorizontal: 12 },
+  replyBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.accentDim, borderRadius: 10, borderWidth: 1, borderColor: C.accentBorder, marginBottom: 8, overflow: 'hidden' },
   replyBannerAccent: { width: 3, backgroundColor: C.accent, alignSelf: 'stretch' },
   replyBannerTxt:    { color: C.textDim, fontSize: 12, flex: 1, paddingVertical: 8, paddingHorizontal: 8 },
 
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   input: {
-    flex: 1,
-    backgroundColor: C.surface,
-    borderRadius: 16,
+    flex: 1, backgroundColor: C.surface, borderRadius: 16,
     paddingHorizontal: 14, paddingVertical: 10,
-    color: C.textHi, fontSize: 14,
-    maxHeight: 100,
+    color: C.textHi, fontSize: 14, maxHeight: 100,
     borderWidth: 1, borderColor: C.cardBorder,
     ...(isWeb ? { outlineStyle: 'none' } : {}),
   },

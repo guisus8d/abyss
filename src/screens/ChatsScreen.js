@@ -421,11 +421,11 @@ export default function ChatsScreen({ navigation }) {
       <SafeAreaView edges={['top']}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={20} color={colors.c1} />
+            <Ionicons name="arrow-back" size={20} color="#ffffff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>MENSAJES</Text>
           <TouchableOpacity style={s.addBtn} onPress={() => navigation.navigate('CreateGroup')}>
-            <Ionicons name="add" size={22} color={colors.c1} />
+            <Ionicons name="add" size={22} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -478,16 +478,16 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: 'rgba(0,229,204,0.14)',
-    borderWidth: 1, borderColor: 'rgba(0,229,204,0.40)',
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, 
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
   addBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: 'rgba(230,240,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(230,240,255,0.22)',
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, 
     alignItems: 'center', justifyContent: 'center',
   },
 

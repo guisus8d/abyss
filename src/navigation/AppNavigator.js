@@ -25,6 +25,7 @@ import FrameDetailScreen     from '../screens/FrameDetailScreen';
 import FrameSelectorScreen   from '../screens/FrameSelectorScreen';
 import CreateGroupScreen     from '../screens/CreateGroupScreen';
 import GroupRoomScreen       from '../screens/GroupRoomScreen';
+import GroupSettingsScreen   from '../screens/GroupSettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -49,7 +50,6 @@ export default function AppNavigator() {
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: '#020509' },
-            // Animación nativa fluida
             animation: 'slide_from_right',
           }}
         >
@@ -75,6 +75,7 @@ export default function AppNavigator() {
               <Stack.Screen name="FrameSelector"   component={FrameSelectorScreen} />
               <Stack.Screen name="CreateGroup"     component={CreateGroupScreen} />
               <Stack.Screen name="GroupRoom"       component={GroupRoomScreen} />
+              <Stack.Screen name="GroupSettings"   component={GroupSettingsScreen} />
             </>
           ) : (
             <Stack.Screen name="Login" component={LoginScreen} />
