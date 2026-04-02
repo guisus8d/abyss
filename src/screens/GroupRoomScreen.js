@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from '
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, FlatList, StatusBar, ActivityIndicator,
-  Modal, Pressable, Linking,
+  Modal, Pressable, Linking, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,7 +48,7 @@ function renderRichText(text, navigation) {
     }
     if (/^https?:\/\//.test(part)) {
       const postId = part.match(/abyss\.social\/post\/([a-f0-9]{24})/i)?.[1];
-      if (postId) return <Text key={i} style={{ color:'#00e5cc', fontWeight:'600' }} onPress={() => navigation.navigate('PostDetail', { postId })}>🔗 Ver post en Abyss</Text>;
+      if (postId) return <Text key={i} style={{ color:'#00e5cc', fontWeight:'600' }} onPress={() => navigation.navigate('PostDetail', { postId })}>Ver post en Abyss</Text>;
       return <Text key={i} style={{ color:'#00e5cc', textDecorationLine:'underline' }} onPress={() => Linking.openURL(part).catch(() => {})}>{part}</Text>;
     }
     return <Text key={i}>{part}</Text>;
@@ -57,11 +57,10 @@ function renderRichText(text, navigation) {
 
 // ─── Mensaje de sistema ───────────────────────────────────────────────────────
 function SystemMessage({ msg }) {
-  const icons = { join: '👋', leave: '🚪', kick: '🦵', ban: '🚫' };
-  const icon  = icons[msg.systemAction] || 'ℹ️';
+  const labels = { join: 'se unio al grupo', leave: 'salio del grupo', kick: 'fue expulsado', ban: 'fue baneado' };
   return (
     <View style={s.sysRow}>
-      <Text style={s.sysTxt}>{icon} {msg.text}</Text>
+      <Text style={s.sysTxt}>{msg.text}</Text>
     </View>
   );
 }
@@ -110,7 +109,6 @@ const MessageBubble = memo(function MessageBubble({
   const showAvatar   = !sameAsPrev && msg.type !== 'system';
   const showDate     = !prevMsg || dateLabel(msg.createdAt) !== dateLabel(prevMsg.createdAt);
 
-  // Mensaje de sistema
   if (msg.type === 'system') {
     return (
       <>
@@ -124,11 +122,11 @@ const MessageBubble = memo(function MessageBubble({
     );
   }
 
-  const displayName  = isMe ? (user?.username || 'Tú') : (sender?.username || '');
-  const senderRole   = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
+  const displayName   = isMe ? (user?.username || 'Tu') : (sender?.username || '');
+  const senderRole    = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
   const senderIsAdmin = senderRole === 'admin';
-  const isPostType   = msg.type === 'shared_post';
-  const isDeleted    = msg.deletedFor?.map(d => d.toString()).includes(user?._id?.toString());
+  const isPostType    = msg.type === 'shared_post';
+  const isDeleted     = msg.deletedFor?.map(d => d.toString()).includes(user?._id?.toString());
 
   return (
     <>
@@ -215,23 +213,27 @@ export default function GroupRoomScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
 
-  const [group,        setGroup]        = useState(initialGroup);
-  const [messages,     setMessages]     = useState([]);
-  const [text,         setText]         = useState('');
-  const [loading,      setLoading]      = useState(true);
-  const [sending,      setSending]      = useState(false);
-  const [uploading,    setUploading]    = useState(false);
-  const [isRecording,  setIsRecording]  = useState(false);
-  const [recSeconds,   setRecSeconds]   = useState(0);
-  const [audioPreview, setAudioPreview] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [fullImg,      setFullImg]      = useState(null);
-  const [replyTo,      setReplyTo]      = useState(null);
+  const [group,         setGroup]         = useState(initialGroup);
+  const [messages,      setMessages]      = useState([]);
+  const [text,          setText]          = useState('');
+  const [loading,       setLoading]       = useState(true);
+  const [sending,       setSending]       = useState(false);
+  const [uploading,     setUploading]     = useState(false);
+  const [isRecording,   setIsRecording]   = useState(false);
+  const [recSeconds,    setRecSeconds]    = useState(0);
+  const [audioPreview,  setAudioPreview]  = useState(null);
+  const [imagePreview,  setImagePreview]  = useState(null);
+  const [fullImg,       setFullImg]       = useState(null);
+  const [replyTo,       setReplyTo]       = useState(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  // Modal de opciones personalizado
-  const [menuMsg,      setMenuMsg]      = useState(null);
-  const [menuVisible,  setMenuVisible]  = useState(false);
-  const [banConfirm,   setBanConfirm]   = useState(false);
+  const [menuMsg,       setMenuMsg]       = useState(null);
+  const [menuVisible,   setMenuVisible]   = useState(false);
+  const [banConfirm,    setBanConfirm]    = useState(false);
+  const [kickConfirm,   setKickConfirm]   = useState(false);
+
+  // Estados de expulsión / baneo
+  const [isKicked, setIsKicked] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
 
   const flatRef      = useRef(null);
   const socketRef    = useRef(null);
@@ -242,6 +244,10 @@ export default function GroupRoomScreen({ route, navigation }) {
 
   const isAdmin = group?.members?.some(
     m => ((m.user?._id || m.user)?.toString()) === user?._id?.toString() && m.role === 'admin'
+  );
+
+  const isMember = group?.members?.some(
+    m => ((m.user?._id || m.user)?.toString()) === user?._id?.toString()
   );
 
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
@@ -260,6 +266,8 @@ export default function GroupRoomScreen({ route, navigation }) {
         socketRef.current.emit('group:leave', { groupId: group._id });
         socketRef.current.off('group:message');
         socketRef.current.off('group:message_deleted');
+        socketRef.current.off('group:kicked');
+        socketRef.current.off('group:banned');
       }
       clearInterval(recTimerRef.current);
     };
@@ -271,7 +279,10 @@ export default function GroupRoomScreen({ route, navigation }) {
       setGroup(data.group);
       setMessages(data.group.messages || []);
       api.post(`/groups/${group._id}/read`).catch(() => {});
-    } catch (e) { console.log('loadGroup error:', e.message); }
+    } catch (e) {
+      // Si el servidor devuelve 403 puede ser baneado
+      if (e.response?.status === 403) setIsBanned(true);
+    }
     finally { setLoading(false); }
   }
 
@@ -279,9 +290,10 @@ export default function GroupRoomScreen({ route, navigation }) {
     const socket = await connectSocket();
     socketRef.current = socket;
 
-    // Limpiar listeners viejos
     socket.off('group:message');
     socket.off('group:message_deleted');
+    socket.off('group:kicked');
+    socket.off('group:banned');
 
     socket.emit('group:join', { groupId: group._id });
 
@@ -294,10 +306,36 @@ export default function GroupRoomScreen({ route, navigation }) {
       api.post(`/groups/${group._id}/read`).catch(() => {});
     });
 
-    // Borrado en tiempo real — actualiza a todos los miembros al instante
     socket.on('group:message_deleted', ({ groupId, msgId }) => {
       if (groupId.toString() !== group._id.toString()) return;
       setMessages(prev => prev.filter(m => m._id?.toString() !== msgId?.toString()));
+    });
+
+    // Escuchar expulsion
+    socket.on('group:kicked', ({ groupId, userId }) => {
+      if (groupId.toString() !== group._id.toString()) return;
+      if (userId?.toString() === user?._id?.toString()) {
+        setIsKicked(true);
+      } else {
+        // Actualizar lista de miembros localmente
+        setGroup(prev => ({
+          ...prev,
+          members: prev.members.filter(m => (m.user?._id || m.user)?.toString() !== userId?.toString()),
+        }));
+      }
+    });
+
+    // Escuchar baneo
+    socket.on('group:banned', ({ groupId, userId }) => {
+      if (groupId.toString() !== group._id.toString()) return;
+      if (userId?.toString() === user?._id?.toString()) {
+        setIsBanned(true);
+      } else {
+        setGroup(prev => ({
+          ...prev,
+          members: prev.members.filter(m => (m.user?._id || m.user)?.toString() !== userId?.toString()),
+        }));
+      }
     });
   }
 
@@ -305,12 +343,14 @@ export default function GroupRoomScreen({ route, navigation }) {
     setMenuMsg(msg);
     setMenuVisible(true);
     setBanConfirm(false);
+    setKickConfirm(false);
   }
 
   function closeMenu() {
     setMenuVisible(false);
     setMenuMsg(null);
     setBanConfirm(false);
+    setKickConfirm(false);
   }
 
   async function handleDeleteMessage(msgId, forAll) {
@@ -318,7 +358,6 @@ export default function GroupRoomScreen({ route, navigation }) {
     try {
       await api.delete(`/groups/${group._id}/message/${msgId}?forAll=${forAll}`);
       if (forAll) {
-        // El socket ya lo borrará para todos; pero también lo borramos localmente
         setMessages(prev => prev.filter(m => m._id?.toString() !== msgId?.toString()));
       } else {
         setMessages(prev => prev.map(m =>
@@ -330,15 +369,46 @@ export default function GroupRoomScreen({ route, navigation }) {
     } catch {}
   }
 
-  async function handleBanUser(userId, username) {
+  async function handleKickUser(userId, username) {
     closeMenu();
     try {
-      await api.post(`/groups/${group._id}/ban/${userId}`);
+      await api.post(`/groups/${group._id}/kick/${userId}`);
       setGroup(prev => ({
         ...prev,
         members: prev.members.filter(m => (m.user?._id || m.user)?.toString() !== userId?.toString()),
       }));
-    } catch {}
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo expulsar');
+    }
+  }
+
+  async function handleBanUser(userId, username, deleteMessages = false) {
+    closeMenu();
+    try {
+      await api.post(`/groups/${group._id}/ban/${userId}?deleteMessages=${deleteMessages}`);
+      setGroup(prev => ({
+        ...prev,
+        members: prev.members.filter(m => (m.user?._id || m.user)?.toString() !== userId?.toString()),
+      }));
+      if (deleteMessages) {
+        setMessages(prev => prev.filter(m =>
+          (m.sender?._id || m.sender)?.toString() !== userId?.toString()
+        ));
+      }
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo banear');
+    }
+  }
+
+  async function handleJoinGroup() {
+    try {
+      const { data } = await api.post(`/groups/${group._id}/join`);
+      setGroup(data.group);
+      setIsKicked(false);
+      loadGroup();
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo unir al grupo');
+    }
   }
 
   function sendMessage() {
@@ -455,9 +525,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     );
   }, [reversedMessages, user, group, isAdmin]);
 
-  // Datos del mensaje en el menú
-  const menuIsMe    = menuMsg && (menuMsg.sender?._id || menuMsg.sender)?.toString() === user?._id?.toString();
-  const menuSender  = menuMsg?.sender;
+  const menuIsMe   = menuMsg && (menuMsg.sender?._id || menuMsg.sender)?.toString() === user?._id?.toString();
+  const menuSender = menuMsg?.sender;
+
+  // ─── Determinar si el input debe estar deshabilitado ─────────────────────
+  const inputDisabled = isKicked || isBanned || !isMember;
 
   return (
     <View style={s.root}>
@@ -494,15 +566,16 @@ export default function GroupRoomScreen({ route, navigation }) {
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeMenu}>
         <Pressable style={s.menuOverlay} onPress={closeMenu}>
           <Pressable style={s.menuBox} onPress={e => e.stopPropagation()}>
+
             {/* Preview del mensaje */}
             <View style={s.menuPreview}>
-              <Text style={s.menuPreviewName}>{menuIsMe ? 'Tú' : (menuSender?.username || '')}</Text>
+              <Text style={s.menuPreviewName}>{menuIsMe ? 'Tu' : (menuSender?.username || '')}</Text>
               <Text style={s.menuPreviewTxt} numberOfLines={2}>
-                {menuMsg?.type === 'image' ? '📷 Imagen' : menuMsg?.type === 'audio' ? '🎵 Audio' : menuMsg?.type === 'shared_post' ? '🔗 Post compartido' : (menuMsg?.text || '')}
+                {menuMsg?.type === 'image' ? 'Imagen' : menuMsg?.type === 'audio' ? 'Audio' : menuMsg?.type === 'shared_post' ? 'Post compartido' : (menuMsg?.text || '')}
               </Text>
             </View>
 
-            {!banConfirm ? (
+            {!banConfirm && !kickConfirm ? (
               <>
                 {/* Responder */}
                 <TouchableOpacity style={s.menuItem} onPress={() => { setReplyTo(menuMsg); closeMenu(); }}>
@@ -510,7 +583,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                   <Text style={s.menuItemTxt}>Responder</Text>
                 </TouchableOpacity>
 
-                {/* Borrar para todos — propio o admin */}
+                {/* Borrar para todos */}
                 {(menuIsMe || isAdmin) && (
                   <TouchableOpacity style={s.menuItem} onPress={() => handleDeleteMessage(menuMsg._id, true)}>
                     <Ionicons name="trash-outline" size={18} color="#ff4444" />
@@ -518,15 +591,26 @@ export default function GroupRoomScreen({ route, navigation }) {
                   </TouchableOpacity>
                 )}
 
-                {/* Borrar solo para mí */}
+                {/* Borrar para mi */}
                 <TouchableOpacity style={s.menuItem} onPress={() => handleDeleteMessage(menuMsg._id, false)}>
                   <Ionicons name="eye-off-outline" size={18} color={colors.textDim} />
-                  <Text style={[s.menuItemTxt, { color: colors.textDim }]}>Borrar para mí</Text>
+                  <Text style={[s.menuItemTxt, { color: colors.textDim }]}>Borrar para mi</Text>
                 </TouchableOpacity>
 
-                {/* Banear — solo admin y no es su propio mensaje */}
+                {/* Expulsar — solo admin, no es su propio mensaje */}
                 {isAdmin && !menuIsMe && menuSender?.username && (
-                  <TouchableOpacity style={[s.menuItem, { borderTopWidth:1, borderTopColor:'rgba(255,68,68,0.2)', marginTop:4 }]}
+                  <TouchableOpacity
+                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'rgba(255,165,0,0.2)', marginTop:4 }]}
+                    onPress={() => setKickConfirm(true)}>
+                    <Ionicons name="exit-outline" size={18} color="rgba(255,165,0,0.9)" />
+                    <Text style={[s.menuItemTxt, { color:'rgba(255,165,0,0.9)' }]}>Expulsar a {menuSender.username}</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Banear — solo admin, no es su propio mensaje */}
+                {isAdmin && !menuIsMe && menuSender?.username && (
+                  <TouchableOpacity
+                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'rgba(255,68,68,0.2)', marginTop:4 }]}
                     onPress={() => setBanConfirm(true)}>
                     <Ionicons name="ban-outline" size={18} color="#ff4444" />
                     <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>Banear a {menuSender.username}</Text>
@@ -537,22 +621,50 @@ export default function GroupRoomScreen({ route, navigation }) {
                   <Text style={[s.menuItemTxt, { color: colors.textDim, textAlign:'center', width:'100%' }]}>Cancelar</Text>
                 </TouchableOpacity>
               </>
-            ) : (
-              /* Confirmación de baneo */
+
+            ) : kickConfirm ? (
+              /* Confirmacion de expulsion */
               <>
                 <View style={{ padding:16, alignItems:'center', gap:8 }}>
-                  <Text style={{ color:'#ff4444', fontSize:16, fontWeight:'700' }}>🚫 Banear a {menuSender?.username}</Text>
+                  <Text style={{ color:'rgba(255,165,0,0.9)', fontSize:16, fontWeight:'700' }}>Expulsar a {menuSender?.username}</Text>
                   <Text style={{ color: colors.textDim, fontSize:13, textAlign:'center' }}>
-                    El usuario será expulsado y no podrá volver a unirse al grupo.
+                    El usuario sera expulsado pero podra volver a unirse al grupo.
                   </Text>
                 </View>
-                <TouchableOpacity style={[s.menuItem, { backgroundColor:'rgba(255,68,68,0.1)' }]}
-                  onPress={() => handleBanUser(menuSender?._id || menuSender, menuSender?.username)}>
+                <TouchableOpacity
+                  style={[s.menuItem, { backgroundColor:'rgba(255,165,0,0.1)' }]}
+                  onPress={() => handleKickUser(menuSender?._id || menuSender, menuSender?.username)}>
+                  <Ionicons name="exit-outline" size={18} color="rgba(255,165,0,0.9)" />
+                  <Text style={[s.menuItemTxt, { color:'rgba(255,165,0,0.9)' }]}>Confirmar expulsion</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.menuItem, s.menuCancel]} onPress={() => setKickConfirm(false)}>
+                  <Text style={[s.menuItemTxt, { color: colors.textDim, textAlign:'center', width:'100%' }]}>Atras</Text>
+                </TouchableOpacity>
+              </>
+
+            ) : (
+              /* Confirmacion de baneo */
+              <>
+                <View style={{ padding:16, alignItems:'center', gap:8 }}>
+                  <Text style={{ color:'#ff4444', fontSize:16, fontWeight:'700' }}>Banear a {menuSender?.username}</Text>
+                  <Text style={{ color: colors.textDim, fontSize:13, textAlign:'center' }}>
+                    El usuario sera baneado y no podra volver a unirse al grupo.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.menuItem, { backgroundColor:'rgba(255,68,68,0.1)' }]}
+                  onPress={() => handleBanUser(menuSender?._id || menuSender, menuSender?.username, false)}>
                   <Ionicons name="ban-outline" size={18} color="#ff4444" />
-                  <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>Confirmar baneo</Text>
+                  <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>Banear</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.menuItem, { backgroundColor:'rgba(255,68,68,0.15)' }]}
+                  onPress={() => handleBanUser(menuSender?._id || menuSender, menuSender?.username, true)}>
+                  <Ionicons name="trash-outline" size={18} color="#ff4444" />
+                  <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>Banear y borrar todos sus mensajes</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.menuItem, s.menuCancel]} onPress={() => setBanConfirm(false)}>
-                  <Text style={[s.menuItemTxt, { color: colors.textDim, textAlign:'center', width:'100%' }]}>Atrás</Text>
+                  <Text style={[s.menuItemTxt, { color: colors.textDim, textAlign:'center', width:'100%' }]}>Atras</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -586,7 +698,6 @@ export default function GroupRoomScreen({ route, navigation }) {
 
       {/* ── Cuerpo ───────────────────────────────────────────────────────────── */}
       <View style={{ flex: 1 }}>
-        {/* FIX: el spinner ocupa flex:1 para no desplazar el inputRow */}
         {loading ? (
           <View style={{ flex:1, alignItems:'center', justifyContent:'center' }}>
             <ActivityIndicator color={colors.c1} size="large" />
@@ -611,6 +722,7 @@ export default function GroupRoomScreen({ route, navigation }) {
           />
         )}
 
+        {/* ── Reply bar ── */}
         {replyTo && (
           <View style={s.replyBar}>
             <View style={{ flex:1 }}>
@@ -623,54 +735,86 @@ export default function GroupRoomScreen({ route, navigation }) {
           </View>
         )}
 
-        {audioPreview ? (
-          <View style={s.audioPreviewRow}>
-            <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
-              <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.8)" />
-            </TouchableOpacity>
-            <AudioMessage uri={audioPreview.uri} isMe={true} duration={audioPreview.duration} />
-            <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.audioPreviewSend}>
-              {uploading ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+        {/* ── Banner expulsado ── */}
+        {isKicked && (
+          <View style={s.kickedBanner}>
+            <Ionicons name="exit-outline" size={18} color="rgba(255,165,0,0.9)" />
+            <Text style={s.kickedBannerTxt}>Fuiste expulsado de este chat</Text>
+            <View style={s.kickedBannerBtns}>
+              <TouchableOpacity style={s.kickedBtnLeave} onPress={() => navigation.goBack()}>
+                <Text style={s.kickedBtnLeaveTxt}>Salir</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.kickedBtnJoin} onPress={handleJoinGroup}>
+                <Text style={s.kickedBtnJoinTxt}>Unirse</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* ── Banner baneado ── */}
+        {isBanned && (
+          <View style={s.bannedBanner}>
+            <Ionicons name="ban-outline" size={18} color="#ff4444" />
+            <Text style={s.bannedBannerTxt}>Fuiste baneado de este grupo</Text>
+            <TouchableOpacity style={s.kickedBtnLeave} onPress={() => navigation.goBack()}>
+              <Text style={s.kickedBtnLeaveTxt}>Salir</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <View style={[s.inputRow, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
-            <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
-              {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
-            </TouchableOpacity>
-            {isRecording ? (
-              <View style={s.recRow}>
-                <View style={s.recDot} />
-                <Text style={s.recTimer}>
-                  {String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}
-                </Text>
-                <TouchableOpacity onPress={stopRecording} style={s.recStop}>
-                  <Ionicons name="stop" size={14} color={colors.c1} />
+        )}
+
+        {/* ── Input area ── */}
+        {!isKicked && !isBanned && (
+          <>
+            {audioPreview ? (
+              <View style={s.audioPreviewRow}>
+                <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
+                  <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.8)" />
+                </TouchableOpacity>
+                <AudioMessage uri={audioPreview.uri} isMe={true} duration={audioPreview.duration} />
+                <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.audioPreviewSend}>
+                  {uploading ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
-                <Ionicons name="mic-outline" size={20} color={colors.textDim} />
-              </TouchableOpacity>
+              <View style={[s.inputRow, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
+                <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
+                  {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
+                </TouchableOpacity>
+                {isRecording ? (
+                  <View style={s.recRow}>
+                    <View style={s.recDot} />
+                    <Text style={s.recTimer}>
+                      {String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}
+                    </Text>
+                    <TouchableOpacity onPress={stopRecording} style={s.recStop}>
+                      <Ionicons name="stop" size={14} color={colors.c1} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
+                    <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+                  </TouchableOpacity>
+                )}
+                <TextInput
+                  style={s.input}
+                  value={text}
+                  onChangeText={setText}
+                  placeholder="Mensaje..."
+                  placeholderTextColor={colors.textDim}
+                  multiline
+                  maxLength={2000}
+                  blurOnSubmit={false}
+                  onSubmitEditing={sendMessage}
+                />
+                <TouchableOpacity
+                  style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
+                  onPress={sendMessage}
+                  disabled={!text.trim() || sending}>
+                  <Ionicons name="send" size={16} color={colors.black} />
+                </TouchableOpacity>
+              </View>
             )}
-            <TextInput
-              style={s.input}
-              value={text}
-              onChangeText={setText}
-              placeholder="Mensaje..."
-              placeholderTextColor={colors.textDim}
-              multiline
-              maxLength={2000}
-              blurOnSubmit={false}
-              onSubmitEditing={sendMessage}
-            />
-            <TouchableOpacity
-              style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
-              onPress={sendMessage}
-              disabled={!text.trim() || sending}>
-              <Ionicons name="send" size={16} color={colors.black} />
-            </TouchableOpacity>
-          </View>
+          </>
         )}
       </View>
 
@@ -686,7 +830,6 @@ export default function GroupRoomScreen({ route, navigation }) {
 const s = StyleSheet.create({
   root:       { flex:1, backgroundColor: colors.black },
 
-  // Header
   header:      { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:12, borderBottomWidth:1, borderBottomColor: colors.border, gap:12 },
   backBtn:     { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.08)', alignItems:'center', justifyContent:'center' },
   settingsBtn: { padding:6 },
@@ -696,7 +839,6 @@ const s = StyleSheet.create({
   groupName:    { color: colors.textHi, fontSize:14, fontWeight:'700' },
   groupMembers: { color: colors.textDim, fontSize:11 },
 
-  // Mensajes
   messageList:    { paddingHorizontal:16, paddingVertical:12, gap:4 },
   msgRow:         { flexDirection:'row', alignItems:'flex-end', gap:8, marginBottom:2 },
   msgRowMe:       { flexDirection:'row-reverse' },
@@ -713,16 +855,13 @@ const s = StyleSheet.create({
   bubbleText:  { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:  { color:'rgba(255,255,255,0.4)', fontSize:9, alignSelf:'flex-end' },
 
-  // Mensaje de sistema
   sysRow: { alignItems:'center', marginVertical:8 },
   sysTxt: { color:'rgba(255,255,255,0.45)', fontSize:11, backgroundColor:'rgba(255,255,255,0.06)', paddingHorizontal:12, paddingVertical:4, borderRadius:20, overflow:'hidden', textAlign:'center' },
 
-  // Separador de fecha
   dateSep:   { flexDirection:'row', alignItems:'center', marginVertical:10, paddingHorizontal:8 },
   dateLine:  { flex:1, height:1, backgroundColor: colors.border },
   dateLabel: { color: colors.textDim, fontSize:11, marginHorizontal:10 },
 
-  // Input
   inputRow:        { flexDirection:'row', alignItems:'center', paddingHorizontal:12, paddingVertical:10, borderTopWidth:1, borderTopColor: colors.border, gap:8 },
   mediaBtn:        { padding:8, justifyContent:'center', alignItems:'center' },
   input:           { flex:1, backgroundColor: colors.surface, borderRadius:16, borderWidth:1, borderColor: colors.border, paddingHorizontal:14, paddingVertical:10, color: colors.textHi, fontSize:14, maxHeight:100 },
@@ -746,7 +885,6 @@ const s = StyleSheet.create({
   audioPreviewSend:   { width:36, height:36, borderRadius:18, backgroundColor:'rgba(0,229,204,0.8)', alignItems:'center', justifyContent:'center' },
   scrollDownBtn:      { position:'absolute', bottom:130, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
 
-  // Modal opciones
   menuOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.65)', justifyContent:'flex-end' },
   menuBox:     { backgroundColor: colors.surface, borderTopLeftRadius:20, borderTopRightRadius:20, paddingBottom:24, borderWidth:1, borderColor: colors.borderC, overflow:'hidden' },
   menuPreview: { padding:16, borderBottomWidth:1, borderBottomColor: colors.border, backgroundColor:'rgba(255,255,255,0.03)' },
@@ -755,4 +893,17 @@ const s = StyleSheet.create({
   menuItem:    { flexDirection:'row', alignItems:'center', gap:12, paddingHorizontal:20, paddingVertical:15 },
   menuItemTxt: { color: colors.textHi, fontSize:15, fontWeight:'500', flex:1 },
   menuCancel:  { marginTop:4, borderTopWidth:1, borderTopColor: colors.border, justifyContent:'center' },
+
+  // Banner expulsado
+  kickedBanner: { flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, paddingVertical:14, paddingHorizontal:16, backgroundColor:'rgba(255,165,0,0.08)', borderTopWidth:1, borderTopColor:'rgba(255,165,0,0.3)' },
+  kickedBannerTxt: { color:'rgba(255,165,0,0.9)', fontSize:14, fontWeight:'700', textAlign:'center' },
+  kickedBannerBtns: { flexDirection:'row', gap:12, marginTop:4 },
+  kickedBtnLeave: { paddingHorizontal:24, paddingVertical:8, borderRadius:20, borderWidth:1, borderColor:'rgba(255,255,255,0.2)', backgroundColor:'rgba(255,255,255,0.06)' },
+  kickedBtnLeaveTxt: { color: colors.textDim, fontSize:13, fontWeight:'600' },
+  kickedBtnJoin: { paddingHorizontal:24, paddingVertical:8, borderRadius:20, backgroundColor:'rgba(0,229,204,0.15)', borderWidth:1, borderColor:'rgba(0,229,204,0.4)' },
+  kickedBtnJoinTxt: { color: colors.c1, fontSize:13, fontWeight:'700' },
+
+  // Banner baneado
+  bannedBanner: { flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, paddingVertical:14, paddingHorizontal:16, backgroundColor:'rgba(255,68,68,0.08)', borderTopWidth:1, borderTopColor:'rgba(255,68,68,0.3)' },
+  bannedBannerTxt: { color:'#ff4444', fontSize:14, fontWeight:'700', textAlign:'center' },
 });
