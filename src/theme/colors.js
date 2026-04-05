@@ -2,7 +2,7 @@ export const colors = {
   black:   '#020509',
   deep:    '#050c14',
   surface: '#091525',
-  card:    'rgba(7,16,28,0.95)',
+  card:    'rgba(14, 28, 7, 0.95)',
   c1:      '#00e5cc',
   c2:      '#2979ff',
   c3:      '#d946ef',

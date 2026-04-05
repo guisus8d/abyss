@@ -600,17 +600,17 @@ export default function GroupRoomScreen({ route, navigation }) {
                 {/* Expulsar — solo admin, no es su propio mensaje */}
                 {isAdmin && !menuIsMe && menuSender?.username && (
                   <TouchableOpacity
-                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'rgba(255,165,0,0.2)', marginTop:4 }]}
+                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'#091525', marginTop:4 }]}
                     onPress={() => setKickConfirm(true)}>
-                    <Ionicons name="exit-outline" size={18} color="rgba(255,165,0,0.9)" />
-                    <Text style={[s.menuItemTxt, { color:'rgba(255,165,0,0.9)' }]}>Expulsar a {menuSender.username}</Text>
+                    <Ionicons name="exit-outline" size={18} color="#3a5570" />
+                    <Text style={[s.menuItemTxt, { color: colors.textDim }]}>Expulsar a {menuSender.username}</Text>
                   </TouchableOpacity>
                 )}
 
                 {/* Banear — solo admin, no es su propio mensaje */}
                 {isAdmin && !menuIsMe && menuSender?.username && (
                   <TouchableOpacity
-                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'rgba(255,68,68,0.2)', marginTop:4 }]}
+                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'#091525', marginTop:4 }]}
                     onPress={() => setBanConfirm(true)}>
                     <Ionicons name="ban-outline" size={18} color="#ff4444" />
                     <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>Banear a {menuSender.username}</Text>
