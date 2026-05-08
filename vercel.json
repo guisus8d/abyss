@@ -10,6 +10,12 @@
       ]
     }
   ],
+  "rewrites": [
+    { "source": "/mod",        "destination": "/mod.html" },
+    { "source": "/privacidad", "destination": "/privacidad.html" },
+    { "source": "/terminos",   "destination": "/terminos.html" },
+    { "source": "/datos",      "destination": "/datos.html" }
+  ],
   "buildCommand": "bash deploy.sh",
   "outputDirectory": "dist",
   "installCommand": "npm install"

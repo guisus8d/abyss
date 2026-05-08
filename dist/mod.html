@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Abyss — Panel de Moderación</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #020509; --surface: #0b1521; --card: #0d1d2e;
+      --border: rgba(255,255,255,0.07); --borderC: rgba(0,229,204,0.2);
+      --accent: #00e5cc; --red: #ef4444; --gold: #fbbf24;
+      --textHi: #e6f0ff; --textMid: rgba(230,240,255,0.65); --textDim: rgba(230,240,255,0.35);
+    }
+    body { background: var(--bg); color: var(--textMid); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+    /* Login */
+    #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 40px; width: 100%; max-width: 400px; }
+    .login-box h1 { color: var(--red); font-size: 13px; letter-spacing: 5px; font-weight: 900; margin-bottom: 4px; }
+    .login-box p  { color: var(--textDim); font-size: 12px; margin-bottom: 28px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; color: var(--textDim); font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; }
+    .field input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; color: var(--textHi); font-size: 14px; outline: none; transition: border-color .2s; }
+    .field input:focus { border-color: rgba(0,229,204,0.4); }
+    .btn-primary { width: 100%; padding: 13px; border-radius: 12px; background: rgba(0,229,204,0.8); color: #001a18; font-weight: 800; font-size: 14px; border: none; cursor: pointer; transition: opacity .2s; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    #login-error { color: var(--red); font-size: 12px; margin-top: 10px; text-align: center; }
+
+    /* App */
+    #app-screen { display: none; }
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(2,5,9,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(239,68,68,0.2); display: flex; align-items: center; gap: 16px; padding: 14px 24px; }
+    nav .logo { font-size: 16px; font-weight: 900; letter-spacing: 4px; color: var(--red); }
+    nav .badge { background: rgba(239,68,68,0.8); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; }
+    nav .user-info { margin-left: auto; color: var(--textDim); font-size: 12px; }
+    nav .logout-btn { background: none; border: 1px solid var(--border); color: var(--textDim); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; transition: all .2s; }
+    nav .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 6px; width: fit-content; }
+    .tab-btn { padding: 8px 20px; border-radius: 10px; border: none; background: none; color: var(--textDim); font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all .2s; }
+    .tab-btn.active { background: rgba(255,255,255,0.07); color: #fff; }
+    .tab-count { background: rgba(239,68,68,0.8); color: #fff; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 8px; }
+
+    /* Stats */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; cursor: pointer; transition: border-color .2s; }
+    .stat-card:hover { border-color: rgba(0,229,204,0.3); }
+    .stat-card.active { border-color: var(--accent); }
+    .stat-val { font-size: 28px; font-weight: 800; color: var(--textHi); }
+    .stat-lbl { font-size: 9px; letter-spacing: 2px; color: var(--textDim); margin-top: 4px; }
+
+    /* Filter bar */
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border); background: none; color: var(--textDim); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .2s; }
+    .filter-btn.active { border-color: rgba(0,229,204,0.4); background: rgba(0,229,204,0.08); color: var(--accent); }
+
+    /* Search */
+    .search-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
+    .search-row input { background: none; border: none; outline: none; color: var(--textHi); font-size: 14px; flex: 1; }
+
+    /* Table/List */
+    .list { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .list-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border); transition: background .15s; }
+    .list-row:last-child { border-bottom: none; }
+    .list-row:hover { background: rgba(255,255,255,0.02); }
+    .list-row.banned { background: rgba(239,68,68,0.03); }
+
+    .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--card); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--accent); font-size: 14px; overflow: hidden; flex-shrink: 0; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .row-info { flex: 1; min-width: 0; }
+    .row-name { color: var(--textHi); font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row-sub  { color: var(--textDim); font-size: 11px; margin-top: 2px; }
+
+    .badge { display: inline-block; font-size: 8px; font-weight: 800; letter-spacing: 1px; padding: 2px 7px; border-radius: 6px; border: 1px solid; }
+    .badge-admin  { background: rgba(239,68,68,0.15);    border-color: rgba(239,68,68,0.4);    color: #ef4444; }
+    .badge-mod    { background: rgba(251,191,36,0.15);   border-color: rgba(251,191,36,0.4);   color: #fbbf24; }
+    .badge-user   { background: rgba(255,255,255,0.04);  border-color: rgba(255,255,255,0.15); color: rgba(230,240,255,0.4); }
+    .badge-banned { background: rgba(239,68,68,0.15);    border-color: rgba(239,68,68,0.4);    color: #ef4444; }
+    .badge-post   { background: rgba(0,229,204,0.1);     border-color: rgba(0,229,204,0.3);    color: #00e5cc; }
+    .badge-user-t { background: rgba(251,191,36,0.1);    border-color: rgba(251,191,36,0.3);   color: #fbbf24; }
+    .badge-group  { background: rgba(139,92,246,0.1);    border-color: rgba(139,92,246,0.3);   color: #a78bfa; }
+    .badge-pending    { background: rgba(239,68,68,0.1);    border-color: rgba(239,68,68,0.3);    color: #ef4444; }
+    .badge-reviewed   { background: rgba(0,229,204,0.1);    border-color: rgba(0,229,204,0.3);    color: #00e5cc; }
+    .badge-dismissed  { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1);  color: rgba(230,240,255,0.35); }
+
+    .action-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all .2s; flex-shrink: 0; }
+    .action-btn:hover { border-color: rgba(0,229,204,0.4); }
+    .action-btn.danger:hover { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--textDim); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 24px; width: 100%; max-width: 460px; }
+    .modal-box h3 { color: var(--textHi); font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .modal-box textarea, .modal-box input[type=text] { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--textHi); font-size: 13px; outline: none; resize: vertical; font-family: inherit; }
+    .modal-box textarea:focus, .modal-box input[type=text]:focus { border-color: rgba(0,229,204,0.4); }
+    .modal-detail-row { display: flex; gap: 12px; margin-bottom: 10px; font-size: 13px; }
+    .modal-detail-lbl { color: var(--textDim); width: 100px; flex-shrink: 0; }
+    .modal-detail-val { color: var(--textHi); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .btn-dismiss  { flex: 1; padding: 11px; border-radius: 10px; border: 1px solid var(--border); background: none; color: var(--textDim); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s; }
+    .btn-dismiss:hover { border-color: rgba(239,68,68,0.4); color: var(--red); }
+    .btn-resolve  { flex: 1; padding: 11px; border-radius: 10px; border: none; background: rgba(0,229,204,0.8); color: #001a18; cursor: pointer; font-size: 13px; font-weight: 800; transition: opacity .2s; }
+    .btn-resolve:hover { opacity: 0.85; }
+    .btn-cancel   { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: none; color: var(--textDim); cursor: pointer; font-size: 13px; }
+    .btn-ban-confirm { flex: 1; padding: 11px; border-radius: 10px; border: none; background: rgba(239,68,68,0.8); color: #fff; cursor: pointer; font-size: 13px; font-weight: 800; }
+
+    #loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+    #loading-overlay.show { display: flex; }
+    .spinner { width: 36px; height: 36px; border: 3px solid rgba(0,229,204,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .stats-row { grid-template-columns: repeat(3, 1fr); }
+      .stat-val { font-size: 20px; }
+      nav .user-info { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay"><div class="spinner"></div></div>
+
+<!-- ── Login ── -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>PANEL MOD</h1>
+    <p>Acceso restringido a moderadores y administradores</p>
+    <div class="field">
+      <label>CORREO</label>
+      <input type="email" id="login-email" placeholder="tu@email.com" />
+    </div>
+    <div class="field">
+      <label>CONTRASEÑA</label>
+      <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()" />
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div id="app-screen">
+  <nav>
+    <span class="logo">⚡ MOD</span>
+    <span id="nav-badge" class="badge" style="display:none">0</span>
+    <span class="user-info" id="nav-user"></span>
+    <button class="logout-btn" onclick="doLogout()">Cerrar sesión</button>
+  </nav>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-reports-btn" onclick="showTab('reports')">
+        🚩 Reportes <span class="tab-count" id="tab-count" style="display:none"></span>
+      </button>
+      <button class="tab-btn" id="tab-users-btn" onclick="showTab('users')">
+        👥 Usuarios
+      </button>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="tab-reports">
+      <div class="stats-row">
+        <div class="stat-card active" id="stat-pending" onclick="setReportFilter('pending')">
+          <div class="stat-val" id="count-pending" style="color:var(--red)">0</div>
+          <div class="stat-lbl">PENDIENTES</div>
+        </div>
+        <div class="stat-card" id="stat-reviewed" onclick="setReportFilter('reviewed')">
+          <div class="stat-val" id="count-reviewed" style="color:var(--accent)">0</div>
+          <div class="stat-lbl">REVISADOS</div>
+        </div>
+        <div class="stat-card" id="stat-dismissed" onclick="setReportFilter('dismissed')">
+          <div class="stat-val" id="count-dismissed">0</div>
+          <div class="stat-lbl">DESESTIMADOS</div>
+        </div>
+      </div>
+
+      <div id="reports-list"></div>
+    </div>
+
+    <!-- USUARIOS -->
+    <div id="tab-users" style="display:none">
+      <div class="stats-row" id="user-stats-row">
+        <div class="stat-card"><div class="stat-val" id="u-total">—</div><div class="stat-lbl">USUARIOS</div></div>
+        <div class="stat-card"><div class="stat-val" id="u-banned" style="color:var(--red)">—</div><div class="stat-lbl">BANEADOS</div></div>
+        <div class="stat-card"><div class="stat-val" id="u-mods" style="color:var(--gold)">—</div><div class="stat-lbl">MODS</div></div>
+      </div>
+      <div class="search-row">
+        <span>🔍</span>
+        <input id="user-search" placeholder="Buscar usuario..." oninput="debounceUserSearch(this.value)" />
+      </div>
+      <div id="users-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalle reporte -->
+<div id="report-modal" class="modal-overlay" style="display:none" onclick="closeReportModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3>Detalle del reporte</h3>
+    <div id="report-modal-content"></div>
+    <textarea id="mod-notes" rows="3" placeholder="Notas de moderación (opcional)..." style="margin-top:12px"></textarea>
+    <div class="modal-actions">
+      <button class="btn-dismiss"  onclick="resolveReport('dismissed')">✕ Desestimar</button>
+      <button class="btn-resolve"  onclick="resolveReport('reviewed')">✓ Acción tomada</button>
+    </div>
+    <div style="margin-top:10px"><button class="btn-cancel" onclick="closeReportModal()">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- Modal banear -->
+<div id="ban-modal" class="modal-overlay" style="display:none" onclick="closeBanModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3>Banear usuario</h3>
+    <p id="ban-modal-user" style="color:var(--textDim); margin-bottom:14px"></p>
+    <input type="text" id="ban-reason-input" placeholder="Motivo del ban..." />
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn-cancel" onclick="closeBanModal()">Cancelar</button>
+      <button class="btn-ban-confirm" onclick="confirmBan()">Banear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://abyss-production-7171.up.railway.app/api';
+let token = localStorage.getItem('mod_token') || '';
+let currentUser = null;
+let currentReportFilter = 'pending';
+let selectedReportId = null;
+let banUserId = null;
+let searchTimeout = null;
+
+const REASON_LABELS = {
+  spam:'🚫 Spam', hate:'🔥 Odio', harassment:'😰 Acoso',
+  violence:'⚠️ Violencia', nsfw:'🔞 NSFW', misinformation:'📰 Desinformación', other:'💬 Otro',
+};
+
+const TYPE_BADGES = {
+  post:  '<span class="badge badge-post">POST</span>',
+  user:  '<span class="badge badge-user-t">USUARIO</span>',
+  group: '<span class="badge badge-group">GRUPO</span>',
+};
+
+const STATUS_BADGES = {
+  pending:   '<span class="badge badge-pending">PENDIENTE</span>',
+  reviewed:  '<span class="badge badge-reviewed">REVISADO</span>',
+  dismissed: '<span class="badge badge-dismissed">DESESTIMADO</span>',
+};
+
+function loading(show) {
+  document.getElementById('loading-overlay').classList.toggle('show', show);
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error');
+  return data;
+}
+
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Completa todos los campos'; return; }
+  loading(true);
+  try {
+    const data = await apiFetch('/auth/login', { method: 'POST', body: { email, password } });
+    if (data.user?.role !== 'mod' && data.user?.role !== 'admin') {
+      errEl.textContent = 'No tienes permisos de moderación';
+      return;
+    }
+    token = data.token;
+    currentUser = data.user;
+    localStorage.setItem('mod_token', token);
+    showApp();
+  } catch (err) {
+    errEl.textContent = err.message || 'Error de autenticación';
+  } finally { loading(false); }
+}
+
+async function verifyToken() {
+  if (!token) return false;
+  try {
+    const data = await apiFetch('/users/me');
+    currentUser = data.user;
+    if (currentUser?.role !== 'mod' && currentUser?.role !== 'admin') {
+      doLogout(); return false;
+    }
+    return true;
+  } catch { doLogout(); return false; }
+}
+
+function doLogout() {
+  token = ''; currentUser = null;
+  localStorage.removeItem('mod_token');
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('nav-user').textContent = `@${currentUser?.username} (${currentUser?.role})`;
+  loadReports();
+}
+
+function showTab(tab) {
+  document.getElementById('tab-reports').style.display = tab === 'reports' ? 'block' : 'none';
+  document.getElementById('tab-users').style.display   = tab === 'users'   ? 'block' : 'none';
+  document.getElementById('tab-reports-btn').classList.toggle('active', tab === 'reports');
+  document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
+  if (tab === 'users') loadUsers();
+}
+
+// ── REPORTS ──────────────────────────────────────────────────────────────────
+function setReportFilter(f) {
+  currentReportFilter = f;
+  ['pending','reviewed','dismissed'].forEach(s => {
+    document.getElementById(`stat-${s}`).classList.toggle('active', s === f);
+  });
+  loadReports();
+}
+
+async function loadReports() {
+  const el = document.getElementById('reports-list');
+  el.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:auto"></div></div>';
+  try {
+    const data = await apiFetch(`/reports?status=${currentReportFilter}`);
+    document.getElementById('count-pending').textContent   = data.pending;
+    document.getElementById('count-reviewed').textContent  = data.reviewed;
+    document.getElementById('count-dismissed').textContent = data.dismissed;
+    // Nav badge
+    if (data.pending > 0) {
+      document.getElementById('nav-badge').textContent = data.pending;
+      document.getElementById('nav-badge').style.display = 'inline';
+      document.getElementById('tab-count').textContent = data.pending;
+      document.getElementById('tab-count').style.display = 'inline';
+    } else {
+      document.getElementById('nav-badge').style.display = 'none';
+      document.getElementById('tab-count').style.display = 'none';
+    }
+
+    if (!data.reports.length) {
+      el.innerHTML = `<div class="empty-state"><div class="icon">🚩</div><p>Sin reportes ${currentReportFilter === 'pending' ? 'pendientes' : currentReportFilter === 'reviewed' ? 'revisados' : 'desestimados'}</p></div>`;
+      return;
+    }
+
+    el.innerHTML = '<div class="list">' + data.reports.map(r => `
+      <div class="list-row" style="cursor:pointer" onclick="openReportModal('${r._id}')">
+        <div>${TYPE_BADGES[r.type] || ''}</div>
+        <div class="row-info">
+          <div class="row-name">${escHtml(r.targetName || r.targetId)}</div>
+          <div class="row-sub">${REASON_LABELS[r.reason] || r.reason} · @${r.reporter?.username || '?'} · ${fmtDate(r.createdAt)}</div>
+        </div>
+        <div>${STATUS_BADGES[r.status] || ''}</div>
+        <div>›</div>
+      </div>
+    `).join('') + '</div>';
+
+    // Store reports for modal
+    window._reports = data.reports;
+  } catch (err) {
+    el.innerHTML = `<div class="empty-state"><p style="color:var(--red)">${err.message}</p></div>`;
+  }
+}
+
+function openReportModal(id) {
+  const r = (window._reports || []).find(x => x._id === id);
+  if (!r) return;
+  selectedReportId = id;
+  const tc = TYPE_BADGES[r.type] || '';
+  document.getElementById('report-modal-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      ${tc}
+      <strong style="color:var(--textHi)">${escHtml(r.targetName || r.targetId)}</strong>
+      ${STATUS_BADGES[r.status] || ''}
+    </div>
+    <div class="modal-detail-row"><span class="modal-detail-lbl">Reportado por</span><span class="modal-detail-val">@${r.reporter?.username || '?'}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-lbl">Motivo</span><span class="modal-detail-val">${REASON_LABELS[r.reason] || r.reason}</span></div>
+    ${r.details ? `<div class="modal-detail-row"><span class="modal-detail-lbl">Detalles</span><span class="modal-detail-val">${escHtml(r.details)}</span></div>` : ''}
+    <div class="modal-detail-row"><span class="modal-detail-lbl">Fecha</span><span class="modal-detail-val">${fmtDate(r.createdAt)}</span></div>
+    ${r.modNotes ? `<div class="modal-detail-row"><span class="modal-detail-lbl">Notas</span><span class="modal-detail-val">${escHtml(r.modNotes)}</span></div>` : ''}
+  `;
+  document.getElementById('mod-notes').value = r.modNotes || '';
+  document.getElementById('report-modal').style.display = 'flex';
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').style.display = 'none';
+  selectedReportId = null;
+}
+
+async function resolveReport(status) {
+  if (!selectedReportId) return;
+  loading(true);
+  try {
+    await apiFetch(`/reports/${selectedReportId}`, {
+      method: 'PATCH',
+      body: { status, modNotes: document.getElementById('mod-notes').value },
+    });
+    closeReportModal();
+    loadReports();
+  } catch (err) { alert(err.message); }
+  finally { loading(false); }
+}
+
+// ── USERS ────────────────────────────────────────────────────────────────────
+async function loadUsers(q = '') {
+  const el = document.getElementById('users-list');
+  el.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:auto"></div></div>';
+  try {
+    const data = await apiFetch(`/users/mod/users${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+    const users = data.users || [];
+    document.getElementById('u-total').textContent  = users.length;
+    document.getElementById('u-banned').textContent = users.filter(u => u.banned).length;
+    document.getElementById('u-mods').textContent   = users.filter(u => u.role === 'mod' || u.role === 'admin').length;
+
+    if (!users.length) { el.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>Sin usuarios</p></div>'; return; }
+
+    el.innerHTML = '<div class="list">' + users.map(u => `
+      <div class="list-row ${u.banned ? 'banned' : ''}">
+        <div class="avatar">${u.avatarUrl ? `<img src="${escHtml(u.avatarUrl)}" />` : (u.username?.[0]?.toUpperCase() || '?')}</div>
+        <div class="row-info">
+          <div class="row-name" style="${u.banned ? 'text-decoration:line-through;opacity:.5' : ''}">
+            @${escHtml(u.username)}
+            <span class="badge badge-${u.role}" style="margin-left:6px">${u.role.toUpperCase()}</span>
+            ${u.banned ? '<span class="badge badge-banned" style="margin-left:4px">BANEADO</span>' : ''}
+          </div>
+          <div class="row-sub">${escHtml(u.email)}${u.banned && u.bannedReason ? ` · ${escHtml(u.bannedReason)}` : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${u.role !== 'admin' ? (u.banned
+            ? `<button class="action-btn" title="Desbanear" onclick="unbanUser('${u._id}')">✓</button>`
+            : `<button class="action-btn danger" title="Banear" onclick="openBanModal('${u._id}','${escHtml(u.username)}')">🚫</button>`
+          ) : ''}
+          ${currentUser?.role === 'admin' && u.role !== 'admin'
+            ? `<button class="action-btn" title="${u.role==='mod'?'Quitar mod':'Hacer mod'}" onclick="setRole('${u._id}','${u.role==='mod'?'user':'mod'}')">${u.role==='mod'?'🛡':'⭐'}</button>`
+            : ''}
+        </div>
+      </div>
+    `).join('') + '</div>';
+  } catch (err) {
+    el.innerHTML = `<div class="empty-state"><p style="color:var(--red)">${err.message}</p></div>`;
+  }
+}
+
+function debounceUserSearch(v) {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => loadUsers(v), 300);
+}
+
+function openBanModal(userId, username) {
+  banUserId = userId;
+  document.getElementById('ban-modal-user').textContent = `@${username}`;
+  document.getElementById('ban-reason-input').value = '';
+  document.getElementById('ban-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('ban-reason-input').focus(), 100);
+}
+
+function closeBanModal() {
+  document.getElementById('ban-modal').style.display = 'none';
+  banUserId = null;
+}
+
+async function confirmBan() {
+  const reason = document.getElementById('ban-reason-input').value.trim();
+  if (!reason) { alert('Escribe un motivo'); return; }
+  loading(true);
+  try {
+    await apiFetch(`/users/mod/ban/${banUserId}`, { method: 'POST', body: { reason } });
+    closeBanModal();
+    loadUsers(document.getElementById('user-search').value);
+  } catch (err) { alert(err.message); }
+  finally { loading(false); }
+}
+
+async function unbanUser(userId) {
+  loading(true);
+  try {
+    await apiFetch(`/users/mod/unban/${userId}`, { method: 'POST' });
+    loadUsers(document.getElementById('user-search').value);
+  } catch (err) { alert(err.message); }
+  finally { loading(false); }
+}
+
+async function setRole(userId, role) {
+  loading(true);
+  try {
+    await apiFetch(`/users/mod/setrole/${userId}`, { method: 'POST', body: { role } });
+    loadUsers(document.getElementById('user-search').value);
+  } catch (err) { alert(err.message); }
+  finally { loading(false); }
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('es', { day:'numeric', month:'short', year:'numeric' });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  if (token) {
+    loading(true);
+    const ok = await verifyToken();
+    loading(false);
+    if (ok) { showApp(); return; }
+  }
+})();
+</script>
+</body>
+</html>
