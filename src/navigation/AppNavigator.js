@@ -16,7 +16,6 @@ import PostNoticiaScreen     from '../screens/PostNoticiaScreen';
 import SettingsScreen        from '../screens/SettingsScreen';
 import CollectionScreen      from '../screens/CollectionScreen';
 import CreateFrameScreen     from '../screens/CreateFrameScreen';
-import ModPanelScreen        from '../screens/ModPanelScreen';
 import NotificationsScreen   from '../screens/NotificationsScreen';
 import FollowListScreen      from '../screens/FollowListScreen';
 import PostDetailScreen      from '../screens/PostDetailScreen';
@@ -27,6 +26,10 @@ import CreateGroupScreen     from '../screens/CreateGroupScreen';
 import GroupRoomScreen       from '../screens/GroupRoomScreen';
 import GroupSettingsScreen   from '../screens/GroupSettingsScreen';
 
+// ModPanelScreen eliminado intencionalmente por seguridad.
+// El panel de moderación solo es accesible desde abyss.social/mod
+// usando autenticación web con JWT de corta duración.
+
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
@@ -36,7 +39,7 @@ export default function AppNavigator() {
   if (isRestoring) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: '#020509', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flex:1, backgroundColor:'#020509', alignItems:'center', justifyContent:'center' }}>
           <ActivityIndicator color="#00e5cc" size="large" />
         </View>
       </SafeAreaProvider>
@@ -66,7 +69,6 @@ export default function AppNavigator() {
               <Stack.Screen name="Settings"        component={SettingsScreen} />
               <Stack.Screen name="Collection"      component={CollectionScreen} />
               <Stack.Screen name="CreateFrame"     component={CreateFrameScreen} />
-              <Stack.Screen name="ModPanel"        component={ModPanelScreen} />
               <Stack.Screen name="Notifications"   component={NotificationsScreen} />
               <Stack.Screen name="FollowList"      component={FollowListScreen} />
               <Stack.Screen name="PostDetail"      component={PostDetailScreen} />
