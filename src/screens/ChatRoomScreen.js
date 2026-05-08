@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { AudioQuality, setAudioModeAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import AudioMessage    from '../components/AudioMessage';
+import SharedProfileBubble from '../components/SharedProfileBubble';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import { Ionicons }    from '@expo/vector-icons';
 import { colors }      from '../theme/colors';
@@ -172,36 +173,44 @@ const MessageBubble = memo(function MessageBubble({
               profileFrame={senderFrame} frameUrl={senderFrameUrl} />
           )}
         </View>
-        <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.8}
-          style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost]}>
-          {item.replyTo?.text && (
-            <TouchableOpacity style={s.replyPreview} onPress={() => onScrollToMsg(item.replyTo.messageId)}>
-              <Text style={s.replyUser}>↩ {item.replyTo.senderUsername}</Text>
-              <Text style={s.replyText} numberOfLines={1}>{item.replyTo.text}</Text>
-            </TouchableOpacity>
-          )}
-          {item.type === 'shared_post'
-            ? <SharedPostBubble sharedPost={item.sharedPost} navigation={navigation}
-                isMe={isMe} onLongPress={onLongPress} />
-            : item.type === 'audio' && item.mediaUrl
-            ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
-            : item.type === 'image' && item.mediaUrl
-            ? (
-              <TouchableOpacity onPress={() => onFullImg(item.mediaUrl)} activeOpacity={0.9}>
-                <Image source={{ uri: item.mediaUrl }}
-                  style={{ width:200, height:200, borderRadius:10, marginBottom:4 }} resizeMode="cover" />
-              </TouchableOpacity>
-            )
-            : <RichMessage text={item.text} navigation={navigation}
-                textStyle={s.bubbleTxt} onLongPress={onLongPress} />
-          }
-          {!isPostType && <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>}
-          {item.reactions?.length > 0 && (
-            <View style={s.msgReactions}>
-              {item.reactions.map((r, i) => <Text key={i} style={s.msgReactionEmoji}>{r.emoji}</Text>)}
-            </View>
-          )}
-        </TouchableOpacity>
+  <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.8}
+  style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost]}>
+
+  {item.replyTo?.text && (
+    <TouchableOpacity style={s.replyPreview} onPress={() => onScrollToMsg(item.replyTo.messageId)}>
+      <Text style={s.replyUser}>↩ {item.replyTo.senderUsername}</Text>
+      <Text style={s.replyText} numberOfLines={1}>{item.replyTo.text}</Text>
+    </TouchableOpacity>
+  )}
+
+  {item.type === 'shared_profile'
+    ? <SharedProfileBubble sharedProfile={item.sharedProfile} navigation={navigation}
+        isMe={isMe} onLongPress={onLongPress} />
+    : item.type === 'shared_post'
+    ? <SharedPostBubble sharedPost={item.sharedPost} navigation={navigation}
+        isMe={isMe} onLongPress={onLongPress} />
+    : item.type === 'audio' && item.mediaUrl
+    ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
+    : item.type === 'image' && item.mediaUrl
+    ? (
+      <TouchableOpacity onPress={() => onFullImg(item.mediaUrl)} activeOpacity={0.9}>
+        <Image source={{ uri: item.mediaUrl }}
+          style={{ width:200, height:200, borderRadius:10, marginBottom:4 }} resizeMode="cover" />
+      </TouchableOpacity>
+    )
+    : <RichMessage text={item.text} navigation={navigation}
+        textStyle={s.bubbleTxt} onLongPress={onLongPress} />
+  }
+
+  {!isPostType && <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>}
+
+  {item.reactions?.length > 0 && (
+    <View style={s.msgReactions}>
+      {item.reactions.map((r, i) => <Text key={i} style={s.msgReactionEmoji}>{r.emoji}</Text>)}
+    </View>
+  )}
+
+</TouchableOpacity>
       </View>
       {showAvatar && (
         <Text style={[s.msgSenderName, isMe && { textAlign:'right', marginLeft:0, marginRight: AVATAR_SLOT + 8 }]}>
