@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image,
   StyleSheet, Alert, StatusBar, ScrollView, Platform,
-  Animated, Dimensions,
+  Animated, Dimensions, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -84,15 +84,56 @@ function GoogleIcon({ size = 20 }) {
 }
 
 export default function LoginScreen() {
-  const [email,         setEmail]         = useState('');
-  const [password,      setPassword]      = useState('');
-  const [showPass,      setShowPass]      = useState(false);
-  const [isRegister,    setIsRegister]    = useState(false);
-  const [username,      setUsername]      = useState('');
-  const [gender,        setGender]        = useState('prefiero-no-decir');
-  const [avatar,        setAvatar]        = useState(null);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [email,           setEmail]           = useState('');
+  const [password,        setPassword]        = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPass,        setShowPass]        = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [isRegister,      setIsRegister]      = useState(false);
+  const [username,        setUsername]        = useState('');
+  const [gender,          setGender]          = useState('prefiero-no-decir');
+  const [avatar,          setAvatar]          = useState(null);
+  const [termsAccepted,   setTermsAccepted]   = useState(false);
+  const [googleLoading,   setGoogleLoading]   = useState(false);
   const { login, register, setAuth, isLoading } = useAuthStore();
+
+  // ── Validadores ───────────────────────────────────────────────────────────
+  const vUsername = (v) => /^[a-zA-Z0-9_]{3,20}$/.test(v);
+  const vEmail    = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+  const vPassword = (v) => v.length >= 8 && /[A-Z]/.test(v) && /[0-9]/.test(v);
+  const vConfirm  = (v) => v === password && v.length > 0;
+
+  const errUsername = (v) => {
+    if (!v) return '';
+    if (v.length < 3)            return 'Mínimo 3 caracteres';
+    if (v.length > 20)           return 'Máximo 20 caracteres';
+    if (!/^[a-zA-Z0-9_]+$/.test(v)) return 'Solo letras, números y _';
+    return '';
+  };
+  const errEmail = (v) => {
+    if (!v) return '';
+    return vEmail(v) ? '' : 'Formato de email inválido';
+  };
+  const errPassword = (v) => {
+    if (!v) return '';
+    if (v.length < 8)       return 'Mínimo 8 caracteres';
+    if (!/[A-Z]/.test(v))   return 'Debe incluir al menos una mayúscula';
+    if (!/[0-9]/.test(v))   return 'Debe incluir al menos un número';
+    return '';
+  };
+  const errConfirm = (v) => {
+    if (!v) return '';
+    return v === password ? '' : 'Las contraseñas no coinciden';
+  };
+
+  const isFormValid = isRegister
+    ? vUsername(username) && vEmail(email) && vPassword(password) && vConfirm(confirmPassword) && termsAccepted
+    : true;
+
+  function borderColor(isValid, value) {
+    if (!value) return 'rgba(255,255,255,0.08)';
+    return isValid ? 'rgba(0,229,204,0.5)' : 'rgba(239,68,68,0.45)';
+  }
 
   // Animación de entrada
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -259,17 +300,22 @@ export default function LoginScreen() {
                 {/* Username */}
                 <View style={s.field}>
                   <Text style={s.label}>USERNAME</Text>
-                  <View style={s.inputWrap}>
+                  <View style={[s.inputWrap, { borderColor: borderColor(vUsername(username), username) }]}>
                     <Ionicons name="at-outline" size={16} color="rgba(0,229,204,0.4)" style={s.inputIcon} />
                     <TextInput
                       style={s.input}
                       placeholder="tu_nombre_en_las_profundidades"
                       placeholderTextColor="rgba(255,255,255,0.18)"
                       value={username}
-                      onChangeText={setUsername}
+                      onChangeText={v => setUsername(v.replace(/\s/g, ''))}
                       autoCapitalize="none"
+                      maxLength={20}
                     />
+                    {username.length > 0 && (
+                      <Ionicons name={vUsername(username) ? 'checkmark-circle' : 'close-circle'} size={16} color={vUsername(username) ? 'rgba(0,229,204,0.7)' : 'rgba(239,68,68,0.7)'} style={{ marginRight: 12 }} />
+                    )}
                   </View>
+                  {!!errUsername(username) && <Text style={s.fieldErr}>{errUsername(username)}</Text>}
                 </View>
 
                 {/* Género */}
@@ -302,7 +348,7 @@ export default function LoginScreen() {
             {/* Email */}
             <View style={s.field}>
               <Text style={s.label}>EMAIL</Text>
-              <View style={s.inputWrap}>
+              <View style={[s.inputWrap, isRegister && { borderColor: borderColor(vEmail(email), email) }]}>
                 <Ionicons name="mail-outline" size={16} color="rgba(0,229,204,0.4)" style={s.inputIcon} />
                 <TextInput
                   style={s.input}
@@ -313,13 +359,17 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   keyboardType="email-address"
                 />
+                {isRegister && email.length > 0 && (
+                  <Ionicons name={vEmail(email) ? 'checkmark-circle' : 'close-circle'} size={16} color={vEmail(email) ? 'rgba(0,229,204,0.7)' : 'rgba(239,68,68,0.7)'} style={{ marginRight: 12 }} />
+                )}
               </View>
+              {isRegister && !!errEmail(email) && <Text style={s.fieldErr}>{errEmail(email)}</Text>}
             </View>
 
             {/* Contraseña */}
             <View style={s.field}>
               <Text style={s.label}>CONTRASEÑA</Text>
-              <View style={s.inputWrap}>
+              <View style={[s.inputWrap, isRegister && { borderColor: borderColor(vPassword(password), password) }]}>
                 <Ionicons name="lock-closed-outline" size={16} color="rgba(0,229,204,0.4)" style={s.inputIcon} />
                 <TextInput
                   style={[s.input, { paddingRight: 44 }]}
@@ -329,19 +379,52 @@ export default function LoginScreen() {
                   onChangeText={setPassword}
                   secureTextEntry={!showPass}
                 />
-                <TouchableOpacity
-                  style={s.eyeBtn}
-                  onPress={() => setShowPass(v => !v)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={showPass ? 'eye-outline' : 'eye-off-outline'}
-                    size={18}
-                    color="rgba(255,255,255,0.35)"
-                  />
+                <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)} activeOpacity={0.7}>
+                  <Ionicons name={showPass ? 'eye-outline' : 'eye-off-outline'} size={18} color="rgba(255,255,255,0.35)" />
                 </TouchableOpacity>
               </View>
+              {isRegister && !!errPassword(password) && <Text style={s.fieldErr}>{errPassword(password)}</Text>}
             </View>
+
+            {/* Confirmar contraseña — solo en registro */}
+            {isRegister && (
+              <View style={s.field}>
+                <Text style={s.label}>CONFIRMAR CONTRASEÑA</Text>
+                <View style={[s.inputWrap, { borderColor: borderColor(vConfirm(confirmPassword), confirmPassword) }]}>
+                  <Ionicons name="lock-closed-outline" size={16} color="rgba(0,229,204,0.4)" style={s.inputIcon} />
+                  <TextInput
+                    style={[s.input, { paddingRight: 44 }]}
+                    placeholder="••••••••••••"
+                    placeholderTextColor="rgba(255,255,255,0.18)"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPass}
+                  />
+                  <TouchableOpacity style={s.eyeBtn} onPress={() => setShowConfirmPass(v => !v)} activeOpacity={0.7}>
+                    <Ionicons name={showConfirmPass ? 'eye-outline' : 'eye-off-outline'} size={18} color="rgba(255,255,255,0.35)" />
+                  </TouchableOpacity>
+                </View>
+                {!!errConfirm(confirmPassword) && <Text style={s.fieldErr}>{errConfirm(confirmPassword)}</Text>}
+              </View>
+            )}
+
+            {/* Términos — solo en registro */}
+            {isRegister && (
+              <TouchableOpacity style={s.termsRow} onPress={() => setTermsAccepted(v => !v)} activeOpacity={0.7}>
+                <View style={[s.termsCbox, termsAccepted && s.termsCboxOn]}>
+                  {termsAccepted && <Ionicons name="checkmark" size={12} color="#001a18" />}
+                </View>
+                <Text style={s.termsTxt}>
+                  Acepto los{' '}
+                  <Text
+                    style={s.termsLink}
+                    onPress={e => { e.stopPropagation?.(); Linking.openURL('https://abyss.social/terminos'); }}
+                  >
+                    términos y condiciones
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {!isRegister && (
               <TouchableOpacity style={s.forgotWrap} activeOpacity={0.7}>
@@ -350,7 +433,7 @@ export default function LoginScreen() {
             )}
 
             {/* Botón principal */}
-            <TouchableOpacity onPress={handleSubmit} disabled={isLoading} activeOpacity={0.85} style={{ marginTop: 4 }}>
+            <TouchableOpacity onPress={handleSubmit} disabled={isLoading || !isFormValid} activeOpacity={0.85} style={{ marginTop: 4, opacity: isFormValid ? 1 : 0.4 }}>
               <LinearGradient
                 colors={['#005c55', '#00b4a0', '#00e5cc']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -397,7 +480,7 @@ export default function LoginScreen() {
           </View>
 
           {/* Toggle registro/login */}
-          <TouchableOpacity onPress={() => setIsRegister(!isRegister)} style={s.toggle} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => { setIsRegister(v => !v); setConfirmPassword(''); setTermsAccepted(false); }} style={s.toggle} activeOpacity={0.7}>
             <Text style={s.toggleTxt}>
               {isRegister ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? '}
               <Text style={s.toggleLink}>
@@ -491,6 +574,16 @@ const s = StyleSheet.create({
   genderBtnActive: { borderColor: 'rgba(0,229,204,0.4)' },
   genderTxt:       { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
   genderTxtActive: { color: '#00e5cc', fontWeight: '600' },
+
+  // Field error
+  fieldErr: { color: 'rgba(239,68,68,0.8)', fontSize: 10, marginTop: 5, marginLeft: 4, letterSpacing: 0.3 },
+
+  // Terms
+  termsRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, marginTop: 4 },
+  termsCbox:   { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  termsCboxOn: { backgroundColor: '#00e5cc', borderColor: '#00e5cc' },
+  termsTxt:    { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 18 },
+  termsLink:   { color: '#00e5cc', fontWeight: '700' },
 
   // Forgot
   forgotWrap: { alignItems: 'flex-end', marginBottom: 20, marginTop: -4 },
