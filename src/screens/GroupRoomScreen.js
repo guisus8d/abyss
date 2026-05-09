@@ -679,7 +679,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
           <TouchableOpacity style={s.headerInfo}
-            onPress={() => isAdmin && navigation.navigate('GroupSettings', { group })}>
+            onPress={() => navigation.navigate('GroupSettings', { group })}>
             {group.imageUrl
               ? <Image source={{ uri: group.imageUrl }} style={s.groupAvatar} />
               : <View style={s.groupAvatarPlaceholder}><Ionicons name="people" size={18} color={colors.c1} /></View>}
@@ -688,11 +688,9 @@ export default function GroupRoomScreen({ route, navigation }) {
               <Text style={s.groupMembers}>{group.members?.length || 0} miembros</Text>
             </View>
           </TouchableOpacity>
-          {isAdmin && (
-            <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
-              <Ionicons name="settings-outline" size={20} color={colors.textDim} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
+            <Ionicons name="settings-outline" size={20} color={colors.textDim} />
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
