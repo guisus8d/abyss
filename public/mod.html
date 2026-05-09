@@ -35,6 +35,22 @@
     .btn-p:disabled{opacity:.35;cursor:not-allowed}
     #login-err{color:var(--red);font-size:12px;margin-top:12px;text-align:center;min-height:18px}
 
+    /* PIN */
+    #pin{display:none;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+    .pin-row{display:flex;gap:10px;justify-content:center;margin:28px 0 8px}
+    .pin-digit{
+      width:46px;height:56px;text-align:center;font-size:24px;font-weight:700;
+      background:var(--s2);border:1px solid var(--border);border-radius:12px;
+      color:var(--hi);outline:none;transition:border-color .2s;
+      -moz-appearance:textfield;appearance:textfield;caret-color:var(--accent);
+    }
+    .pin-digit::-webkit-outer-spin-button,.pin-digit::-webkit-inner-spin-button{-webkit-appearance:none}
+    .pin-digit:focus{border-color:rgba(0,229,204,.5);box-shadow:0 0 0 3px rgba(0,229,204,.08)}
+    .pin-digit.filled{border-color:rgba(0,229,204,.3)}
+    #pin-err{color:var(--red);font-size:12px;text-align:center;min-height:18px;margin-top:4px}
+    #pin-back{background:none;border:none;color:var(--dim);font-size:12px;cursor:pointer;margin-top:16px;padding:4px 8px;display:block;width:100%;text-align:center;transition:color .2s}
+    #pin-back:hover{color:var(--hi)}
+
     /* App */
     #app{display:none}
     header{position:sticky;top:0;z-index:200;background:rgba(2,5,9,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(239,68,68,.15);display:flex;align-items:center;gap:14px;padding:0 24px;height:56px}
@@ -186,6 +202,28 @@
   </div>
 </div>
 
+<!-- PIN -->
+<div id="pin">
+  <div class="login-card" style="text-align:center">
+    <div class="login-logo" style="justify-content:center">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>MOD PANEL</span>
+    </div>
+    <p class="login-title">Verificación de acceso</p>
+    <p class="login-sub">Ingresa el PIN de moderación</p>
+    <div class="pin-row">
+      <input class="pin-digit" type="number" min="0" max="9" id="p0" oninput="onPinInput(this,0)" onkeydown="onPinKey(event,0)" autocomplete="off"/>
+      <input class="pin-digit" type="number" min="0" max="9" id="p1" oninput="onPinInput(this,1)" onkeydown="onPinKey(event,1)" autocomplete="off"/>
+      <input class="pin-digit" type="number" min="0" max="9" id="p2" oninput="onPinInput(this,2)" onkeydown="onPinKey(event,2)" autocomplete="off"/>
+      <input class="pin-digit" type="number" min="0" max="9" id="p3" oninput="onPinInput(this,3)" onkeydown="onPinKey(event,3)" autocomplete="off"/>
+      <input class="pin-digit" type="number" min="0" max="9" id="p4" oninput="onPinInput(this,4)" onkeydown="onPinKey(event,4)" autocomplete="off"/>
+      <input class="pin-digit" type="number" min="0" max="9" id="p5" oninput="onPinInput(this,5)" onkeydown="onPinKey(event,5)" autocomplete="off"/>
+    </div>
+    <p id="pin-err"></p>
+    <button id="pin-back" onclick="backToLogin()">← Volver al inicio de sesión</button>
+  </div>
+</div>
+
 <!-- APP -->
 <div id="app">
   <header>
@@ -304,6 +342,7 @@
 
 <script>
 const API='https://abyss-production-7171.up.railway.app/api';
+const MOD_PIN='482937';
 let tok=localStorage.getItem('mod_tok')||'',me=null;
 let reportFilter='pending',activeReportId=null,banTarget=null,srchTimer=null;
 
@@ -349,6 +388,65 @@ async function apiFetch(path,opts={}){
   return d;
 }
 
+// ── PIN ───────────────────────────────────────────────────────────────────────
+function showPin(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('pin').style.display='flex';
+  for(let i=0;i<6;i++){const el=document.getElementById('p'+i);el.value='';el.classList.remove('filled')}
+  document.getElementById('pin-err').textContent='';
+  setTimeout(()=>document.getElementById('p0').focus(),80);
+}
+
+function backToLogin(){
+  document.getElementById('pin').style.display='none';
+  document.getElementById('login').style.display='flex';
+  tok='';me=null;localStorage.removeItem('mod_tok');
+}
+
+function onPinInput(el,idx){
+  // Solo un dígito
+  if(el.value.length>1)el.value=el.value.slice(-1);
+  el.classList.toggle('filled',!!el.value);
+  if(el.value&&idx<5)document.getElementById('p'+(idx+1)).focus();
+  // Auto-submit cuando los 6 están llenos
+  const pin=Array.from({length:6},(_,i)=>document.getElementById('p'+i).value).join('');
+  if(pin.length===6)checkPin(pin);
+}
+
+function onPinKey(e,idx){
+  if(e.key==='Backspace'&&!e.target.value&&idx>0){
+    const prev=document.getElementById('p'+(idx-1));
+    prev.value='';prev.classList.remove('filled');prev.focus();
+  }
+}
+
+function checkPin(pin){
+  const errEl=document.getElementById('pin-err');
+  // Verificar bloqueo
+  const lock=JSON.parse(localStorage.getItem('pin_lock')||'{}');
+  if(lock.until&&Date.now()<lock.until){
+    const mins=Math.ceil((lock.until-Date.now())/60000);
+    errEl.textContent=`Bloqueado. Intenta en ${mins} min.`;
+    return;
+  }
+  if(pin!==MOD_PIN){
+    const attempts=(lock.attempts||0)+1;
+    if(attempts>=3){
+      localStorage.setItem('pin_lock',JSON.stringify({until:Date.now()+5*60*1000,attempts:0}));
+      errEl.textContent='Demasiados intentos. Bloqueado por 5 minutos.';
+    }else{
+      localStorage.setItem('pin_lock',JSON.stringify({attempts}));
+      errEl.textContent=`PIN incorrecto. ${3-attempts} intento${3-attempts!==1?'s':''} restante${3-attempts!==1?'s':''}.`;
+    }
+    for(let i=0;i<6;i++){const el=document.getElementById('p'+i);el.value='';el.classList.remove('filled')}
+    document.getElementById('p0').focus();
+    return;
+  }
+  localStorage.removeItem('pin_lock');
+  sessionStorage.setItem('pin_ok','1');
+  showApp();
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function doLogin(){
   const e=document.getElementById('f-email').value.trim();
@@ -363,7 +461,8 @@ async function doLogin(){
     if(d.user?.role!=='mod'&&d.user?.role!=='admin'){err.textContent='Sin permisos de moderación';return}
     tok=d.token;me=d.user;
     localStorage.setItem('mod_tok',tok);
-    showApp();
+    sessionStorage.removeItem('pin_ok');
+    showPin();
   }catch(ex){err.textContent=ex.message}
   finally{btn.disabled=false;load(false)}
 }
@@ -635,8 +734,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal('m-repor
   load(true);
   const ok=await verifyTok();
   load(false);
-  if(ok)showApp();
-  else localStorage.removeItem('mod_tok');
+  if(!ok){localStorage.removeItem('mod_tok');return}
+  if(sessionStorage.getItem('pin_ok')==='1')showApp();
+  else showPin();
 })();
 </script>
 </body>
