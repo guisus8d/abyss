@@ -16,7 +16,7 @@ const SECTIONS = [
     items: [
       { key: 'username',  label: 'Cambiar nombre de usuario', icon: 'person-outline',       soon: false },
       { key: 'email',     label: 'Verificar correo',          icon: 'mail-outline',          soon: true  },
-      { key: 'password',  label: 'Cambiar contraseña',        icon: 'lock-closed-outline',   soon: true  },
+      { key: 'password',  label: 'Cambiar contraseña',        icon: 'lock-closed-outline',   soon: false },
       { key: 'google',    label: 'Vincular cuenta Google',    icon: 'logo-google',           soon: true  },
     ],
   },
@@ -52,10 +52,14 @@ export default function SettingsScreen({ navigation }) {
   const { user, logout } = useAuthStore();
   const [usernameModal, setUsernameModal] = useState(false);
   const [deleteModal, setDeleteModal]     = useState(false);
+  const [passwordModal, setPasswordModal] = useState(false);
   const [newUsername, setNewUsername]     = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [resetEmail, setResetEmail]       = useState('');
   const [saving, setSaving]               = useState(false);
   const [deleting, setDeleting]           = useState(false);
+  const [sendingReset, setSendingReset]   = useState(false);
+  const [resetSent, setResetSent]         = useState(false);
 
   async function handleChangeUsername() {
     if (!newUsername.trim() || newUsername.trim().length < 3) {
@@ -88,12 +92,27 @@ export default function SettingsScreen({ navigation }) {
     }
   }
 
+  async function handleForgotPassword() {
+    const email = resetEmail.trim() || user?.email;
+    if (!email) return Alert.alert('Error', 'Ingresa tu correo');
+    setSendingReset(true);
+    try {
+      await api.post('/auth/forgot-password', { email });
+      setResetSent(true);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar el correo');
+    } finally {
+      setSendingReset(false);
+    }
+  }
+
   function handleItem(key, soon) {
     if (soon) {
       Alert.alert('Próximamente', 'Esta función estará disponible pronto.');
       return;
     }
     if (key === 'username') setUsernameModal(true);
+    if (key === 'password') { setPasswordModal(true); setResetSent(false); setResetEmail(user?.email || ''); }
     if (key === 'delete')   setDeleteModal(true);
   }
 
@@ -181,6 +200,66 @@ export default function SettingsScreen({ navigation }) {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal: Cambiar contraseña ── */}
+      <Modal visible={passwordModal} transparent animationType="fade" onRequestClose={() => setPasswordModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <Ionicons name="lock-closed-outline" size={32} color={colors.c1} />
+            </View>
+            <Text style={s.modalTitle}>CAMBIAR CONTRASEÑA</Text>
+            {resetSent ? (
+              <>
+                <View style={{ alignItems: 'center', paddingVertical: 16, gap: 10 }}>
+                  <Ionicons name="mail-outline" size={40} color={colors.c1} />
+                  <Text style={{ color: colors.textHi, fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
+                    ¡Revisa tu correo!
+                  </Text>
+                  <Text style={{ color: colors.textDim, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+                    Enviamos un enlace a{'\n'}
+                    <Text style={{ color: colors.textMid }}>{resetEmail}</Text>
+                  </Text>
+                  <Text style={{ color: colors.textDim, fontSize: 12, textAlign: 'center' }}>
+                    El enlace expira en 1 hora.
+                  </Text>
+                </View>
+                <TouchableOpacity style={[s.confirmBtn, { marginTop: 4 }]} onPress={() => setPasswordModal(false)}>
+                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                    <Text style={s.confirmBtnTxt}>Cerrar</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={s.modalHint}>Te enviaremos un enlace a tu correo para crear una nueva contraseña.</Text>
+                <TextInput
+                  style={s.modalInput}
+                  value={resetEmail}
+                  onChangeText={setResetEmail}
+                  placeholder="Tu correo electrónico"
+                  placeholderTextColor={colors.textDim}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <View style={s.modalActions}>
+                  <TouchableOpacity style={s.cancelBtn} onPress={() => setPasswordModal(false)}>
+                    <Text style={s.cancelBtnTxt}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.confirmBtn} onPress={handleForgotPassword} disabled={sendingReset}>
+                    <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                      {sendingReset
+                        ? <ActivityIndicator size="small" color="#001a18" />
+                        : <Text style={s.confirmBtnTxt}>Enviar enlace</Text>}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>

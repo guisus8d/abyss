@@ -160,6 +160,7 @@ const MessageBubble = memo(function MessageBubble({
                 username={isMe ? user?.username : sender?.username}
                 profileFrame={isMe ? user?.profileFrame : sender?.profileFrame}
                 frameUrl={isMe ? user?.profileFrameUrl : sender?.profileFrameUrl}
+                banned={!isMe && !!sender?.banned}
               />
             )}
           </TouchableOpacity>

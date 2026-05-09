@@ -14,7 +14,9 @@
     { "source": "/mod",        "destination": "/mod.html" },
     { "source": "/privacidad", "destination": "/privacidad.html" },
     { "source": "/terminos",   "destination": "/terminos.html" },
-    { "source": "/datos",      "destination": "/datos.html" }
+    { "source": "/datos",      "destination": "/datos.html" },
+    { "source": "/reset-password", "destination": "/reset-password.html" }
+
   ],
   "buildCommand": "bash deploy.sh",
   "outputDirectory": "dist",
