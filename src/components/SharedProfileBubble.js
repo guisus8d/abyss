@@ -16,8 +16,8 @@ import { colors } from '../theme/colors';
 export default function SharedProfileBubble({ sharedProfile, navigation, isMe, onLongPress }) {
   if (!sharedProfile?.username) return null;
 
-  const bgColor   = isMe ? 'rgba(0,140,126,0.18)' : 'rgba(13,29,46,0.9)';
-  const borderCol = isMe ? 'rgba(0,229,204,0.28)' : 'rgba(255,255,255,0.08)';
+  const bgColor   = 'rgba(13,29,46,0.9)';
+  const borderCol = 'rgba(255,255,255,0.08)';
 
   return (
     <TouchableOpacity

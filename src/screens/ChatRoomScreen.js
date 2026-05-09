@@ -157,7 +157,7 @@ const MessageBubble = memo(function MessageBubble({
   const sameAsOlder = olderMsg && (isMe ? olderIsMe : !olderIsMe);
   const showAvatar  = !sameAsOlder;
   const showDate    = !olderMsg || dateLabel(item.createdAt) !== dateLabel(olderMsg.createdAt);
-  const isPostType  = item.type === 'shared_post';
+  const isPostType  = item.type === 'shared_post' || item.type === 'shared_profile';
 
   const senderAvatar   = item.sender?.avatarUrl       ?? (isMe ? user.avatarUrl       : other.avatarUrl);
   const senderName     = item.sender?.username        ?? (isMe ? user.username        : other.username);
@@ -167,7 +167,7 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <>
       <View style={[s.msgRow, isMe && s.msgRowMe]}>
-        <View style={{ width: AVATAR_SLOT, alignSelf:'flex-end', alignItems:'center' }}>
+        <View style={{ width: AVATAR_SLOT, alignSelf:'flex-start', alignItems:'center' }}>
           {showAvatar && (
             <AvatarWithFrame size={28} avatarUrl={senderAvatar} username={senderName}
               profileFrame={senderFrame} frameUrl={senderFrameUrl} />
@@ -373,10 +373,18 @@ export default function ChatRoomScreen({ route, navigation }) {
     setImagePreview(null);
     try {
       setUploading(true);
+      const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+      const token = await AsyncStorage.getItem('token');
       const formData = new FormData();
-      const blob = await fetch(uri).then(r => r.blob());
-      formData.append('file', blob, 'chat.jpg');
-      const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      formData.append('file', { uri, type: 'image/jpeg', name: 'chat.jpg' });
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+      const res  = await fetch(`${BASE_URL}/chats/upload`, {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body:    formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
       socketRef.current?.emit('chat:send', { chatId: chat._id.toString(), text: '', type: 'image', mediaUrl: data.url });
     } catch (e) { console.log('confirmSendImage error:', e.message); }
     finally { setUploading(false); }
@@ -515,8 +523,8 @@ export default function ChatRoomScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
-        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
+      <Modal visible={!!fullImg} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setFullImg(null)}>
+        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', paddingTop: insets.top, paddingBottom: insets.bottom, alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
           {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
           <Text style={{ color:'rgba(255,255,255,0.4)', marginTop:16, fontSize:12 }}>Toca para cerrar</Text>
         </Pressable>

@@ -15,6 +15,7 @@ import { connectSocket } from '../services/socket';
 import { useFocusEffect } from '@react-navigation/native';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import AudioMessage from '../components/AudioMessage';
+import SharedProfileBubble from '../components/SharedProfileBubble';
 
 const AVATAR_SLOT = 38;
 
@@ -125,7 +126,7 @@ const MessageBubble = memo(function MessageBubble({
   const displayName   = isMe ? (user?.username || 'Tu') : (sender?.username || '');
   const senderRole    = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
   const senderIsAdmin = senderRole === 'admin';
-  const isPostType    = msg.type === 'shared_post';
+  const isPostType    = msg.type === 'shared_post' || msg.type === 'shared_profile';
   const isDeleted     = msg.deletedFor?.map(d => d.toString()).includes(user?._id?.toString());
 
   return (
@@ -179,7 +180,9 @@ const MessageBubble = memo(function MessageBubble({
                     <Text style={s.replyText} numberOfLines={1}>{msg.replyTo.text}</Text>
                   </View>
                 )}
-                {msg.type === 'shared_post' && msg.sharedPost
+                {msg.type === 'shared_profile' && msg.sharedProfile
+                  ? <SharedProfileBubble sharedProfile={msg.sharedProfile} navigation={navigation} isMe={isMe} onLongPress={() => onOpenMenu(msg)} />
+                  : msg.type === 'shared_post' && msg.sharedPost
                   ? <SharedPostBubble sharedPost={msg.sharedPost} navigation={navigation} isMe={isMe} onPress={() => onOpenMenu(msg)} />
                   : msg.type === 'audio' && msg.mediaUrl
                   ? <AudioMessage uri={msg.mediaUrl} isMe={isMe} duration={msg.audioDuration || 0} />
@@ -250,6 +253,10 @@ export default function GroupRoomScreen({ route, navigation }) {
     m => ((m.user?._id || m.user)?.toString()) === user?._id?.toString()
   );
 
+  const isPending = !isMember && group?.pendingInvites?.some(
+    u => u?.toString() === user?._id?.toString()
+  );
+
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   useFocusEffect(useCallback(() => {
@@ -277,10 +284,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     try {
       const { data } = await api.get(`/groups/${group._id}`);
       setGroup(data.group);
-      setMessages(data.group.messages || []);
-      api.post(`/groups/${group._id}/read`).catch(() => {});
+      if (!data.isPending) {
+        setMessages(data.group.messages || []);
+        api.post(`/groups/${group._id}/read`).catch(() => {});
+      }
     } catch (e) {
-      // Si el servidor devuelve 403 puede ser baneado
       if (e.response?.status === 403) setIsBanned(true);
     }
     finally { setLoading(false); }
@@ -411,6 +419,26 @@ export default function GroupRoomScreen({ route, navigation }) {
     }
   }
 
+  async function handleAcceptInvite() {
+    try {
+      const { data } = await api.post(`/groups/${group._id}/invite/accept`);
+      setGroup(data.group);
+      setMessages(data.group.messages || []);
+      api.post(`/groups/${group._id}/read`).catch(() => {});
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo aceptar la invitación');
+    }
+  }
+
+  async function handleDeclineInvite() {
+    try {
+      await api.post(`/groups/${group._id}/invite/decline`);
+      navigation.goBack();
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo rechazar la invitación');
+    }
+  }
+
   function sendMessage() {
     if (!text.trim() || sendingRef.current) return;
     sendingRef.current = true;
@@ -443,10 +471,18 @@ export default function GroupRoomScreen({ route, navigation }) {
     setImagePreview(null);
     try {
       setUploading(true);
+      const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+      const token = await AsyncStorage.getItem('token');
       const formData = new FormData();
-      const blob = await fetch(uri).then(r => r.blob());
-      formData.append('file', blob, 'group.jpg');
-      const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      formData.append('file', { uri, type: 'image/jpeg', name: 'group.jpg' });
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+      const res  = await fetch(`${BASE_URL}/chats/upload`, {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body:    formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
       socketRef.current?.emit('group:message', { groupId: group._id, text: '', type: 'image', mediaUrl: data.url });
     } catch (e) { console.log('confirmSendImage error:', e.message); }
     finally { setUploading(false); }
@@ -555,8 +591,8 @@ export default function GroupRoomScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Visor fullscreen ─────────────────────────────────────────────────── */}
-      <Modal visible={!!fullImg} transparent animationType="fade" onRequestClose={() => setFullImg(null)}>
-        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
+      <Modal visible={!!fullImg} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setFullImg(null)}>
+        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', paddingTop: insets.top, paddingBottom: insets.bottom, alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
           {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
           <Text style={{ color:'rgba(255,255,255,0.4)', marginTop:16, fontSize:12 }}>Toca para cerrar</Text>
         </Pressable>
@@ -571,7 +607,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             <View style={s.menuPreview}>
               <Text style={s.menuPreviewName}>{menuIsMe ? 'Tu' : (menuSender?.username || '')}</Text>
               <Text style={s.menuPreviewTxt} numberOfLines={2}>
-                {menuMsg?.type === 'image' ? 'Imagen' : menuMsg?.type === 'audio' ? 'Audio' : menuMsg?.type === 'shared_post' ? 'Post compartido' : (menuMsg?.text || '')}
+                {menuMsg?.type === 'image' ? 'Imagen' : menuMsg?.type === 'audio' ? 'Audio' : menuMsg?.type === 'shared_post' ? 'Post compartido' : menuMsg?.type === 'shared_profile' ? 'Perfil compartido' : (menuMsg?.text || '')}
               </Text>
             </View>
 
@@ -760,8 +796,24 @@ export default function GroupRoomScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* ── Banner invitación pendiente ── */}
+        {isPending && (
+          <View style={s.inviteBanner}>
+            <Ionicons name="mail-outline" size={18} color={colors.c1} />
+            <Text style={s.inviteBannerTxt}>Te invitaron a unirte a este grupo</Text>
+            <View style={s.inviteBannerBtns}>
+              <TouchableOpacity style={s.inviteBtnDecline} onPress={handleDeclineInvite}>
+                <Text style={s.inviteBtnDeclineTxt}>Salir</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.inviteBtnAccept} onPress={handleAcceptInvite}>
+                <Text style={s.inviteBtnAcceptTxt}>Unirme</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* ── Input area ── */}
-        {!isKicked && !isBanned && (
+        {!isKicked && !isBanned && !isPending && (
           <>
             {audioPreview ? (
               <View style={s.audioPreviewRow}>
@@ -904,4 +956,13 @@ const s = StyleSheet.create({
   // Banner baneado
   bannedBanner: { flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, paddingVertical:14, paddingHorizontal:16, backgroundColor:'rgba(255,68,68,0.08)', borderTopWidth:1, borderTopColor:'rgba(255,68,68,0.3)' },
   bannedBannerTxt: { color:'#ff4444', fontSize:14, fontWeight:'700', textAlign:'center' },
+
+  // Banner invitación pendiente
+  inviteBanner:     { alignItems:'center', gap:8, paddingVertical:16, paddingHorizontal:16, backgroundColor:'rgba(0,229,204,0.06)', borderTopWidth:1, borderTopColor:'rgba(0,229,204,0.2)' },
+  inviteBannerTxt:  { color: colors.textMid, fontSize:13, textAlign:'center' },
+  inviteBannerBtns: { flexDirection:'row', gap:12, marginTop:4 },
+  inviteBtnDecline: { paddingHorizontal:28, paddingVertical:9, borderRadius:20, borderWidth:1, borderColor:'rgba(255,255,255,0.2)', backgroundColor:'rgba(255,255,255,0.06)' },
+  inviteBtnDeclineTxt: { color: colors.textDim, fontSize:13, fontWeight:'600' },
+  inviteBtnAccept:  { paddingHorizontal:28, paddingVertical:9, borderRadius:20, backgroundColor:'rgba(0,229,204,0.15)', borderWidth:1, borderColor:'rgba(0,229,204,0.5)' },
+  inviteBtnAcceptTxt:  { color: colors.c1, fontSize:13, fontWeight:'700' },
 });
