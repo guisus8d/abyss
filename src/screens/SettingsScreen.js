@@ -175,7 +175,7 @@ export default function SettingsScreen({ navigation }) {
       </ScrollView>
 
       {/* ── Modal: Cambiar username ── */}
-      <Modal visible={usernameModal} transparent animationType="fade" onRequestClose={() => setUsernameModal(false)}>
+      <Modal visible={usernameModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setUsernameModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Text style={s.modalTitle}>CAMBIAR USERNAME</Text>
@@ -205,7 +205,7 @@ export default function SettingsScreen({ navigation }) {
       </Modal>
 
       {/* ── Modal: Cambiar contraseña ── */}
-      <Modal visible={passwordModal} transparent animationType="fade" onRequestClose={() => setPasswordModal(false)}>
+      <Modal visible={passwordModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setPasswordModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
@@ -237,14 +237,10 @@ export default function SettingsScreen({ navigation }) {
               <>
                 <Text style={s.modalHint}>Te enviaremos un enlace a tu correo para crear una nueva contraseña.</Text>
                 <TextInput
-                  style={s.modalInput}
+                  style={[s.modalInput, { opacity: 0.5 }]}
                   value={resetEmail}
-                  onChangeText={setResetEmail}
-                  placeholder="Tu correo electrónico"
-                  placeholderTextColor={colors.textDim}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
+                  editable={false}
+                  selectTextOnFocus={false}
                 />
                 <View style={s.modalActions}>
                   <TouchableOpacity style={s.cancelBtn} onPress={() => setPasswordModal(false)}>
@@ -265,7 +261,7 @@ export default function SettingsScreen({ navigation }) {
       </Modal>
 
       {/* ── Modal: Eliminar cuenta ── */}
-      <Modal visible={deleteModal} transparent animationType="fade" onRequestClose={() => setDeleteModal(false)}>
+      <Modal visible={deleteModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setDeleteModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <View style={s.deleteIcon}>
