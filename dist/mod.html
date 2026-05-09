@@ -36,7 +36,7 @@
     #login-err{color:var(--red);font-size:12px;margin-top:12px;text-align:center;min-height:18px}
 
     /* PIN */
-    #pin{display:none;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+    #pin{display:none;position:fixed;inset:0;z-index:9999;background:#020509;align-items:center;justify-content:center;padding:24px}
     .pin-row{display:flex;gap:10px;justify-content:center;margin:28px 0 8px}
     .pin-digit{
       width:46px;height:56px;text-align:center;font-size:24px;font-weight:700;
@@ -391,6 +391,7 @@ async function apiFetch(path,opts={}){
 // ── PIN ───────────────────────────────────────────────────────────────────────
 function showPin(){
   document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='none';
   document.getElementById('pin').style.display='flex';
   for(let i=0;i<6;i++){const el=document.getElementById('p'+i);el.value='';el.classList.remove('filled')}
   document.getElementById('pin-err').textContent='';
@@ -399,6 +400,7 @@ function showPin(){
 
 function backToLogin(){
   document.getElementById('pin').style.display='none';
+  document.getElementById('app').style.display='none';
   document.getElementById('login').style.display='flex';
   tok='';me=null;localStorage.removeItem('mod_tok');
 }
@@ -444,6 +446,7 @@ function checkPin(pin){
   }
   localStorage.removeItem('pin_lock');
   sessionStorage.setItem('pin_ok','1');
+  document.getElementById('pin').style.display='none';
   showApp();
 }
 
