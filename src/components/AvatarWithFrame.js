@@ -12,7 +12,16 @@ export default function AvatarWithFrame({
   frameUrl,
   bgColor = 'rgba(0,229,204,0.1)',
   style,
+  banned = false,
 }) {
+  if (banned) {
+    return (
+      <Image
+        source={require('../../assets/ban-icon.png')}
+        style={[{ width: size, height: size, borderRadius: size / 2 }, style]}
+      />
+    );
+  }
   const isSystem    = profileFrame === 'frame_001';
   const hasFrame    = isSystem || !!frameUrl;
   const resolvedUrl = isSystem ? FRAME_001_URL : frameUrl;

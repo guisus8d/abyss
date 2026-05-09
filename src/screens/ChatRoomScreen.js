@@ -170,7 +170,7 @@ const MessageBubble = memo(function MessageBubble({
         <View style={{ width: AVATAR_SLOT, alignSelf:'flex-start', alignItems:'center' }}>
           {showAvatar && (
             <AvatarWithFrame size={28} avatarUrl={senderAvatar} username={senderName}
-              profileFrame={senderFrame} frameUrl={senderFrameUrl} />
+              profileFrame={senderFrame} frameUrl={senderFrameUrl} banned={!isMe && !!other?.banned} />
           )}
         </View>
   <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.8}
@@ -524,7 +524,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       </Modal>
 
       <Modal visible={!!fullImg} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setFullImg(null)}>
-        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', paddingTop: insets.top, paddingBottom: insets.bottom, alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
+        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center', marginBottom: -insets.bottom }} onPress={() => setFullImg(null)}>
           {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
           <Text style={{ color:'rgba(255,255,255,0.4)', marginTop:16, fontSize:12 }}>Toca para cerrar</Text>
         </Pressable>
@@ -539,7 +539,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
             <AvatarWithFrame size={38} avatarUrl={other.avatarUrl} username={other.username}
-              profileFrame={other.profileFrame} frameUrl={other.profileFrameUrl} />
+              profileFrame={other.profileFrame} frameUrl={other.profileFrameUrl} banned={!!other.banned} />
           </TouchableOpacity>
           <TouchableOpacity style={{ flex:1 }} onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
             <Text style={s.headerName}>{other.username}</Text>

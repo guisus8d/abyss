@@ -7,6 +7,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import AvatarWithFrame from './AvatarWithFrame';
@@ -15,6 +16,7 @@ const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.62, 320);
 
 export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavigate, onAvatarUpdate }) {
+  const insets     = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered]   = useState(false);
@@ -84,7 +86,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       <Animated.View style={[s.drawer, { transform: [{ translateX }] }]}>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-          <View style={s.drawerHeader}>
+          <View style={[s.drawerHeader, { paddingTop: insets.top + 44 }]}>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <Text style={s.closeTxt}>✕</Text>
             </TouchableOpacity>
@@ -127,7 +129,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             </View>
           </View>
 
-          <View style={s.section}>
+          <View style={[s.section, { marginTop: 24 }]}>
             <Text style={s.sectionTitle}>MENÚ</Text>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Collection'); }}>
               <Ionicons name='albums-outline' size={18} color={colors.textMid} style={s.menuIconV} />
@@ -176,8 +178,8 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, bottom: 0,
     width: DRAWER_WIDTH, backgroundColor: colors.deep,
   },
-  drawerHeader: { paddingHorizontal: 18, paddingTop: 40, paddingBottom: 18, alignItems: 'center', backgroundColor: colors.deep },
-  closeBtn:     { position: 'absolute', top: 40, right: 12, padding: 6 },
+  drawerHeader: { paddingHorizontal: 18, paddingBottom: 18, alignItems: 'center', backgroundColor: colors.deep },
+  closeBtn:     { position: 'absolute', top: 52, right: 12, padding: 6 },
   closeTxt:     { color: colors.textDim, fontSize: 14 },
   avatarArea:   { position: 'relative', marginBottom: 10 },
   photoBtn: {

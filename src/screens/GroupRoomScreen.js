@@ -592,7 +592,7 @@ export default function GroupRoomScreen({ route, navigation }) {
 
       {/* ── Visor fullscreen ─────────────────────────────────────────────────── */}
       <Modal visible={!!fullImg} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setFullImg(null)}>
-        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', paddingTop: insets.top, paddingBottom: insets.bottom, alignItems:'center', justifyContent:'center' }} onPress={() => setFullImg(null)}>
+        <Pressable style={{ flex:1, backgroundColor:'rgba(0,0,0,0.95)', alignItems:'center', justifyContent:'center', marginBottom: -insets.bottom }} onPress={() => setFullImg(null)}>
           {fullImg && <Image source={{ uri: fullImg }} style={{ width:'95%', height:'70%', borderRadius:12 }} resizeMode="contain" />}
           <Text style={{ color:'rgba(255,255,255,0.4)', marginTop:16, fontSize:12 }}>Toca para cerrar</Text>
         </Pressable>

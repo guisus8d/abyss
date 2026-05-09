@@ -198,7 +198,7 @@ export default function ChatsScreen({ navigation }) {
           })}
         >
           <View style={s.avatarSlot}>
-            <AvatarWithFrame size={AVATAR_SIZE} avatarUrl={sr.to?.avatarUrl} username={sr.to?.username} profileFrame={sr.to?.profileFrame} frameUrl={sr.to?.profileFrameUrl} />
+            <AvatarWithFrame size={AVATAR_SIZE} avatarUrl={sr.to?.avatarUrl} username={sr.to?.username} profileFrame={sr.to?.profileFrame} frameUrl={sr.to?.profileFrameUrl} banned={!!sr.to?.banned} />
           </View>
           <View style={{ flex:1, minWidth:0 }}>
             <Text style={s.chatUser} numberOfLines={1}>{sr.to?.username}</Text>
@@ -223,7 +223,7 @@ export default function ChatsScreen({ navigation }) {
         onPress={() => navigation.navigate('ChatRoom', { chat, other })}
       >
         <View style={s.avatarSlot}>
-          <AvatarWithFrame size={AVATAR_SIZE} avatarUrl={other?.avatarUrl} username={other?.username} profileFrame={other?.profileFrame} frameUrl={other?.profileFrameUrl} />
+          <AvatarWithFrame size={AVATAR_SIZE} avatarUrl={other?.avatarUrl} username={other?.username} profileFrame={other?.profileFrame} frameUrl={other?.profileFrameUrl} banned={!!other?.banned} />
         </View>
         <View style={{ flex:1, minWidth:0 }}>
           <Text style={s.chatUser} numberOfLines={1}>{other?.username}</Text>
@@ -275,7 +275,7 @@ export default function ChatsScreen({ navigation }) {
       <View style={s.reqItem}>
         <TouchableOpacity onPress={() => r.from?.username && navigation.navigate('PublicProfile', { username: r.from.username })}>
           <View style={s.avatarSlot}>
-            <AvatarWithFrame size={AVATAR_SIZE} avatarUrl={r.from?.avatarUrl} username={r.from?.username || '?'} profileFrame={r.from?.profileFrame} frameUrl={r.from?.profileFrameUrl} />
+            <AvatarWithFrame size={AVATAR_SIZE} avatarUrl={r.from?.avatarUrl} username={r.from?.username || '?'} profileFrame={r.from?.profileFrame} frameUrl={r.from?.profileFrameUrl} banned={!!r.from?.banned} />
           </View>
         </TouchableOpacity>
         <View style={{ flex:1, minWidth:0 }}>
