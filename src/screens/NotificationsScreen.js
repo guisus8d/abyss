@@ -136,21 +136,42 @@ export default function NotificationsScreen({ navigation }) {
           {!isRead && item.type !== 'group_invite' && <View style={s.dot} />}
         </TouchableOpacity>
 
-        {/* Botones de invitación a grupo */}
+        {/* Card expandida de invitación a grupo */}
         {item.type === 'group_invite' && item.groupId && (
-          <View style={s.inviteActions}>
-            <TouchableOpacity
-              style={s.btnAccept}
-              onPress={() => handleInvite(item.groupId, 'accept')}
-            >
-              <Text style={s.btnAcceptTxt}>Aceptar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.btnDecline}
-              onPress={() => handleInvite(item.groupId, 'decline')}
-            >
-              <Text style={s.btnDeclineTxt}>Rechazar</Text>
-            </TouchableOpacity>
+          <View style={s.inviteCard}>
+            <View style={s.inviteCardHeader}>
+              {item.groupImageUrl
+                ? <Image source={{ uri: item.groupImageUrl }} style={s.inviteGroupImg} />
+                : <View style={s.inviteGroupImgPlaceholder}>
+                    <Text style={s.inviteGroupImgLetter}>
+                      {item.groupName?.[0]?.toUpperCase() || 'G'}
+                    </Text>
+                  </View>
+              }
+              <View style={{ flex: 1 }}>
+                <Text style={s.inviteGroupName}>{item.groupName}</Text>
+                {item.groupDescription ? (
+                  <Text style={s.inviteGroupDesc} numberOfLines={2}>
+                    {item.groupDescription}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+
+            <View style={s.inviteActions}>
+              <TouchableOpacity
+                style={s.btnAccept}
+                onPress={() => handleInvite(item.groupId, 'accept')}
+              >
+                <Text style={s.btnAcceptTxt}>Unirme</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.btnDecline}
+                onPress={() => handleInvite(item.groupId, 'decline')}
+              >
+                <Text style={s.btnDeclineTxt}>Rechazar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -255,21 +276,41 @@ const s = StyleSheet.create({
   empty:          { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyTxt:       { color: colors.textDim, fontSize: 14 },
 
+  inviteCard: {
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: 'rgba(0,229,204,0.04)',
+    borderWidth: 1, borderColor: 'rgba(0,229,204,0.15)',
+    borderRadius: 14, overflow: 'hidden',
+  },
+  inviteCardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14,
+  },
+  inviteGroupImg: { width: 46, height: 46, borderRadius: 12 },
+  inviteGroupImgPlaceholder: {
+    width: 46, height: 46, borderRadius: 12,
+    backgroundColor: 'rgba(0,229,204,0.12)',
+    borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  inviteGroupImgLetter: { color: colors.c1, fontWeight: '800', fontSize: 20 },
+  inviteGroupName:      { color: colors.textHi, fontWeight: '700', fontSize: 14 },
+  inviteGroupDesc:      { color: colors.textDim, fontSize: 12, marginTop: 3, lineHeight: 17 },
+
   inviteActions:  {
     flexDirection: 'row', gap: 10,
-    paddingHorizontal: 72, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingHorizontal: 14, paddingBottom: 14,
   },
   btnAccept:      {
-    flex: 1, paddingVertical: 7, borderRadius: 8,
+    flex: 1, paddingVertical: 9, borderRadius: 10,
     backgroundColor: 'rgba(0,229,204,0.15)', borderWidth: 1, borderColor: colors.borderC,
     alignItems: 'center',
   },
-  btnAcceptTxt:   { color: colors.c1, fontWeight: '700', fontSize: 12 },
+  btnAcceptTxt:   { color: colors.c1, fontWeight: '700', fontSize: 13 },
   btnDecline:     {
-    flex: 1, paddingVertical: 7, borderRadius: 8,
+    flex: 1, paddingVertical: 9, borderRadius: 10,
     borderWidth: 1, borderColor: colors.border,
     alignItems: 'center',
   },
-  btnDeclineTxt:  { color: colors.textDim, fontSize: 12 },
+  btnDeclineTxt:  { color: colors.textDim, fontSize: 13 },
 });
