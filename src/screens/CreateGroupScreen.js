@@ -14,13 +14,15 @@ import AvatarWithFrame from '../components/AvatarWithFrame';
 
 export default function CreateGroupScreen({ navigation }) {
   const { user } = useAuthStore();
-  const [name, setName]           = useState('');
-  const [description, setDesc]    = useState('');
-  const [image, setImage]         = useState(null);
-  const [contacts, setContacts]   = useState([]);
-  const [selected, setSelected]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [creating, setCreating]   = useState(false);
+  const [name, setName]             = useState('');
+  const [description, setDesc]      = useState('');
+  const [image, setImage]           = useState(null);
+  const [contacts, setContacts]     = useState([]);
+  const [selected, setSelected]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [creating, setCreating]     = useState(false);
+  const [query, setQuery]           = useState('');
+  const [visibleCount, setVisibleCount] = useState(20);
 
   useEffect(() => { loadContacts(); }, []);
 
@@ -64,6 +66,17 @@ export default function CreateGroupScreen({ navigation }) {
     );
   }
 
+  function handleQueryChange(text) {
+    setQuery(text);
+    setVisibleCount(20);
+  }
+
+  const filtered = contacts.filter(c =>
+    !query.trim() || c.username?.toLowerCase().includes(query.trim().toLowerCase())
+  );
+  const visible      = filtered.slice(0, visibleCount);
+  const hasMoreVisible = filtered.length > visibleCount;
+
   async function handleCreate() {
     if (!name.trim()) return Alert.alert('Falta nombre', 'Ponle un nombre al grupo');
     setCreating(true);
@@ -105,7 +118,17 @@ export default function CreateGroupScreen({ navigation }) {
         </View>
       </SafeAreaView>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={400}
+        onScroll={({ nativeEvent }) => {
+          if (!hasMoreVisible) return;
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 200) {
+            setVisibleCount(prev => prev + 20);
+          }
+        }}
+      >
         {/* Imagen del grupo */}
         <View style={s.imageSection}>
           <TouchableOpacity style={s.imagePicker} onPress={pickImage}>
@@ -145,37 +168,73 @@ export default function CreateGroupScreen({ navigation }) {
           <Text style={s.sectionHint}>
             ✓ Amigos mutuos se agregan directo · Solo seguidores reciben invitación
           </Text>
+
+          {!loading && contacts.length > 0 && (
+            <View style={s.searchBox}>
+              <Ionicons name="search" size={15} color={colors.textDim} />
+              <TextInput
+                style={s.searchInput}
+                value={query}
+                onChangeText={handleQueryChange}
+                placeholder="Buscar contacto..."
+                placeholderTextColor={colors.textDim}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => handleQueryChange('')}>
+                  <Ionicons name="close-circle" size={16} color={colors.textDim} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {!loading && contacts.length > 0 && (
+            <Text style={s.countTxt}>
+              {query.trim()
+                ? `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''}`
+                : `${contacts.length} contacto${contacts.length !== 1 ? 's' : ''}`}
+              {selected.length > 0 ? ` · ${selected.length} seleccionado${selected.length !== 1 ? 's' : ''}` : ''}
+            </Text>
+          )}
+
           {loading
             ? <ActivityIndicator color={colors.c1} style={{ marginTop: 20 }} />
             : contacts.length === 0
               ? <Text style={s.emptyTxt}>Aún no tienes contactos</Text>
-              : contacts.map(contact => {
-                  const isSelected = selected.includes(contact._id);
-                  return (
-                    <TouchableOpacity
-                      key={contact._id}
-                      style={[s.contactItem, isSelected && s.contactItemSelected]}
-                      onPress={() => toggleSelect(contact._id)}
-                    >
-                      <AvatarWithFrame
-                        size={40}
-                        avatarUrl={contact.avatarUrl}
-                        username={contact.username}
-                        profileFrame={contact.profileFrame}
-                        frameUrl={contact.profileFrameUrl}
-                      />
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={s.contactName}>{contact.username}</Text>
-                        <Text style={s.contactType}>
-                          {contact.isMutual ? '✓ Amigo — acceso directo' : 'Seguidor — recibirá invitación'}
-                        </Text>
-                      </View>
-                      <View style={[s.checkbox, isSelected && s.checkboxSelected]}>
-                        {isSelected && <Ionicons name="checkmark" size={14} color="#000" />}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+              : visible.length === 0
+                ? <Text style={s.emptyTxt}>Sin resultados para "{query}"</Text>
+                : visible.map(contact => {
+                    const isSelected = selected.includes(contact._id);
+                    return (
+                      <TouchableOpacity
+                        key={contact._id}
+                        style={[s.contactItem, isSelected && s.contactItemSelected]}
+                        onPress={() => toggleSelect(contact._id)}
+                      >
+                        <AvatarWithFrame
+                          size={40}
+                          avatarUrl={contact.avatarUrl}
+                          username={contact.username}
+                          profileFrame={contact.profileFrame}
+                          frameUrl={contact.profileFrameUrl}
+                        />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={s.contactName}>{contact.username}</Text>
+                          <Text style={s.contactType}>
+                            {contact.isMutual ? '✓ Amigo — acceso directo' : 'Seguidor — recibirá invitación'}
+                          </Text>
+                        </View>
+                        <View style={[s.checkbox, isSelected && s.checkboxSelected]}>
+                          {isSelected && <Ionicons name="checkmark" size={14} color="#000" />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+          {hasMoreVisible && (
+            <ActivityIndicator color={colors.c1} style={{ paddingVertical: 12 }} />
+          )}
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -208,4 +267,12 @@ const s = StyleSheet.create({
   checkbox:            { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.textDim, alignItems: 'center', justifyContent: 'center' },
   checkboxSelected:    { backgroundColor: colors.c1, borderColor: colors.c1 },
   emptyTxt:            { color: colors.textDim, fontSize: 13, textAlign: 'center', marginTop: 20 },
+
+  searchBox:   {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8,
+  },
+  searchInput: { flex: 1, color: colors.textHi, fontSize: 14, padding: 0 },
+  countTxt:    { color: colors.textDim, fontSize: 11, marginBottom: 10 },
 });
