@@ -10,10 +10,11 @@ import api from '../services/api';
 import { connectSocket } from '../services/socket';
 
 const TABS = [
-  { key: 'all',     label: 'Todo' },
-  { key: 'like',    label: 'Reacciones' },
-  { key: 'comment', label: 'Comentarios' },
-  { key: 'follow',  label: 'Seguidores' },
+  { key: 'all',          label: 'Todo' },
+  { key: 'like',         label: 'Reacciones' },
+  { key: 'comment',      label: 'Comentarios' },
+  { key: 'follow',       label: 'Seguidores' },
+  { key: 'group_invite', label: 'Invitaciones' },
 ];
 
 function timeAgo(date) {
@@ -38,10 +39,11 @@ function notifText(n) {
         : n.text?.startsWith('↩')
           ? 'respondió a tu comentario'
           : 'comentó en tu post';
-    case 'follow':       return 'empezó a seguirte';
-    case 'chat_accepted':return 'aceptó tu solicitud de chat';
-    case 'mention':      return 'te mencionó en un mensaje';
-    default:             return '';
+    case 'follow':        return 'empezó a seguirte';
+    case 'chat_accepted': return 'aceptó tu solicitud de chat';
+    case 'mention':       return 'te mencionó en un mensaje';
+    case 'group_invite':  return `te invitó al grupo "${n.groupName || 'un grupo'}"`;
+    default:              return '';
   }
 }
 
@@ -84,47 +86,74 @@ export default function NotificationsScreen({ navigation }) {
     load(page + 1, tab);
   }
 
+  async function handleInvite(groupId, action) {
+    try {
+      await api.post(`/groups/${groupId}/invite/${action}`);
+      load(1, tab, true);
+    } catch (e) { console.log(e); }
+  }
+
   function renderNotif({ item }) {
     const isRead = item.read;
     return (
-      <TouchableOpacity
-        style={[s.item, !isRead && s.itemUnread]}
-        onPress={() => {
-          if (item.post && (item.type === 'comment' || item.type === 'like' || item.type === 'mention')) {
-            const postId = item.post?._id || item.post;
-            navigation.navigate('PostDetail', { postId });
-          } else if (item.type === 'follow') {
-            navigation.navigate('PublicProfile', { username: item.from?.username });
-          }
-        }}
-      >
-        {/* Avatar */}
-        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: item.from?.username })}>
-          <View style={s.avatar}>
-            {item.from?.avatarUrl
-              ? <Image source={{ uri: item.from.avatarUrl }} style={s.avatarImg} />
-              : <Text style={s.avatarTxt}>{item.from?.username?.[0]?.toUpperCase()}</Text>
+      <View>
+        <TouchableOpacity
+          style={[s.item, !isRead && s.itemUnread]}
+          onPress={() => {
+            if (item.post && (item.type === 'comment' || item.type === 'like' || item.type === 'mention')) {
+              const postId = item.post?._id || item.post;
+              navigation.navigate('PostDetail', { postId });
+            } else if (item.type === 'follow') {
+              navigation.navigate('PublicProfile', { username: item.from?.username });
             }
+          }}
+        >
+          {/* Avatar */}
+          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: item.from?.username })}>
+            <View style={s.avatar}>
+              {item.from?.avatarUrl
+                ? <Image source={{ uri: item.from.avatarUrl }} style={s.avatarImg} />
+                : <Text style={s.avatarTxt}>{item.from?.username?.[0]?.toUpperCase()}</Text>
+              }
+            </View>
+          </TouchableOpacity>
+
+          {/* Texto */}
+          <View style={{ flex: 1 }}>
+            <Text style={s.notifTxt}>
+              <Text style={s.username}>{item.from?.username} </Text>
+              <Text>{notifText(item)}</Text>
+            </Text>
+            <Text style={s.time}>{timeAgo(item.createdAt)}</Text>
           </View>
+
+          {/* Thumbnail del post si aplica */}
+          {item.post?.imageUrl && (
+            <Image source={{ uri: item.post.imageUrl }} style={s.thumb} />
+          )}
+
+          {/* Punto no leído */}
+          {!isRead && item.type !== 'group_invite' && <View style={s.dot} />}
         </TouchableOpacity>
 
-        {/* Texto */}
-        <View style={{ flex: 1 }}>
-          <Text style={s.notifTxt}>
-            <Text style={s.username}>{item.from?.username} </Text>
-            <Text>{notifText(item)}</Text>
-          </Text>
-          <Text style={s.time}>{timeAgo(item.createdAt)}</Text>
-        </View>
-
-        {/* Thumbnail del post si aplica */}
-        {item.post?.imageUrl && (
-          <Image source={{ uri: item.post.imageUrl }} style={s.thumb} />
+        {/* Botones de invitación a grupo */}
+        {item.type === 'group_invite' && item.groupId && (
+          <View style={s.inviteActions}>
+            <TouchableOpacity
+              style={s.btnAccept}
+              onPress={() => handleInvite(item.groupId, 'accept')}
+            >
+              <Text style={s.btnAcceptTxt}>Aceptar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.btnDecline}
+              onPress={() => handleInvite(item.groupId, 'decline')}
+            >
+              <Text style={s.btnDeclineTxt}>Rechazar</Text>
+            </TouchableOpacity>
+          </View>
         )}
-
-        {/* Punto no leído */}
-        {!isRead && <View style={s.dot} />}
-      </TouchableOpacity>
+      </View>
     );
   }
 
@@ -223,6 +252,24 @@ const s = StyleSheet.create({
     width: 8, height: 8, borderRadius: 4,
     backgroundColor: colors.c1, marginLeft: 4,
   },
-  empty:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyTxt:    { color: colors.textDim, fontSize: 14 },
+  empty:          { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyTxt:       { color: colors.textDim, fontSize: 14 },
+
+  inviteActions:  {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: 72, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  btnAccept:      {
+    flex: 1, paddingVertical: 7, borderRadius: 8,
+    backgroundColor: 'rgba(0,229,204,0.15)', borderWidth: 1, borderColor: colors.borderC,
+    alignItems: 'center',
+  },
+  btnAcceptTxt:   { color: colors.c1, fontWeight: '700', fontSize: 12 },
+  btnDecline:     {
+    flex: 1, paddingVertical: 7, borderRadius: 8,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center',
+  },
+  btnDeclineTxt:  { color: colors.textDim, fontSize: 12 },
 });

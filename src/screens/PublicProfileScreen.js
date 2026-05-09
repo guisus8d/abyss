@@ -30,6 +30,10 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   const [profile,          setProfile]          = useState(null);
   const [posts,            setPosts]            = useState([]);
+  const [totalPosts,       setTotalPosts]       = useState(0);
+  const [postsPage,        setPostsPage]        = useState(1);
+  const [postsHasMore,     setPostsHasMore]     = useState(true);
+  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
   const [loading,          setLoading]          = useState(true);
   const [following,        setFollowing]        = useState(false);
   const [blocked,          setBlocked]          = useState(false);
@@ -51,10 +55,13 @@ export default function PublicProfileScreen({ route, navigation }) {
     try {
       const [profileRes, postsRes] = await Promise.all([
         api.get(`/users/${username}`),
-        api.get(`/posts/user/${username}`).catch(() => ({ data: { posts: [] } })),
+        api.get(`/posts/user/${username}?page=1&limit=10`).catch(() => ({ data: { posts: [], total: 0, hasMore: false } })),
       ]);
       setProfile(profileRes.data.user);
       setPosts(postsRes.data.posts || []);
+      setTotalPosts(postsRes.data.total || 0);
+      setPostsHasMore(postsRes.data.hasMore ?? false);
+      setPostsPage(1);
       setFollowing(profileRes.data.user.followers?.some(f => f._id === me._id || f === me._id));
       try {
         const chatRes = await api.get(`/chats/check/${profileRes.data.user._id}`);
@@ -65,6 +72,19 @@ export default function PublicProfileScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadMorePosts() {
+    if (postsLoadingMore || !postsHasMore) return;
+    setPostsLoadingMore(true);
+    try {
+      const nextPage = postsPage + 1;
+      const { data } = await api.get(`/posts/user/${username}?page=${nextPage}&limit=10`);
+      setPosts(prev => [...prev, ...(data.posts || [])]);
+      setPostsHasMore(data.hasMore ?? false);
+      setPostsPage(nextPage);
+    } catch {}
+    finally { setPostsLoadingMore(false); }
   }
 
   async function handleReact(postId, type) {
@@ -267,7 +287,17 @@ export default function PublicProfileScreen({ route, navigation }) {
         currentUserId={me?._id}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={400}
+        onScroll={({ nativeEvent }) => {
+          if (tab !== 'posts' || !postsHasMore || postsLoadingMore) return;
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 300) {
+            loadMorePosts();
+          }
+        }}
+      >
         {/* ── Hero ── */}
         <View style={[s.hero, { paddingTop: insets.top + 100 }]}>
           {profile?.profileBannerType === 'image' && profile?.profileBanner
@@ -307,7 +337,7 @@ export default function PublicProfileScreen({ route, navigation }) {
             )}
             {prefs.showPosts && (
               <View style={s.heroStat}>
-                <Text style={s.heroStatVal}>{posts.length}</Text>
+                <Text style={s.heroStatVal}>{totalPosts}</Text>
                 <Text style={s.heroStatLbl}>POSTS</Text>
               </View>
             )}
@@ -416,6 +446,9 @@ export default function PublicProfileScreen({ route, navigation }) {
             ) : posts.map(p => (
               <PostCard key={p._id} post={p} currentUserId={me?._id} onReact={handleReact} onComment={handleComment} onDelete={() => {}} navigation={navigation} openPickerId={openPickerId} setOpenPickerId={setOpenPickerId} />
             ))}
+            {postsLoadingMore && (
+              <ActivityIndicator color={colors.c1} style={{ paddingVertical: 16 }} />
+            )}
           </View>
         )}
 
