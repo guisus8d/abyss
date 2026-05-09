@@ -15,8 +15,9 @@ const SECTIONS = [
     title: 'CUENTA',
     items: [
       { key: 'username',  label: 'Cambiar nombre de usuario', icon: 'person-outline',       soon: false },
-      { key: 'email',     label: 'Verificar correo',          icon: 'mail-outline',          soon: false },
-      { key: 'password',  label: 'Cambiar contraseña',        icon: 'lock-closed-outline',   soon: false },
+      { key: 'email',       label: 'Verificar correo',              icon: 'mail-outline',          soon: false },
+      { key: 'changeEmail', label: 'Cambiar correo electrónico',   icon: 'at-outline',            soon: false },
+      { key: 'password',    label: 'Cambiar contraseña',           icon: 'lock-closed-outline',   soon: false },
       { key: 'google',    label: 'Vincular cuenta Google',    icon: 'logo-google',           soon: true  },
     ],
   },
@@ -49,7 +50,7 @@ const SECTIONS = [
 ];
 
 export default function SettingsScreen({ navigation }) {
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
   const [usernameModal, setUsernameModal] = useState(false);
   const [deleteModal, setDeleteModal]     = useState(false);
   const [passwordModal, setPasswordModal] = useState(false);
@@ -60,9 +61,13 @@ export default function SettingsScreen({ navigation }) {
   const [deleting, setDeleting]           = useState(false);
   const [sendingReset, setSendingReset]   = useState(false);
   const [resetSent, setResetSent]         = useState(false);
-  const [verifyModal, setVerifyModal]     = useState(false);
-  const [verifySent, setVerifySent]       = useState(false);
-  const [sendingVerify, setSendingVerify] = useState(false);
+  const [verifyModal, setVerifyModal]       = useState(false);
+  const [verifySent, setVerifySent]         = useState(false);
+  const [sendingVerify, setSendingVerify]   = useState(false);
+  const [emailModal, setEmailModal]         = useState(false);
+  const [currentPwd, setCurrentPwd]         = useState('');
+  const [newEmail, setNewEmail]             = useState('');
+  const [savingEmail, setSavingEmail]       = useState(false);
 
   async function handleChangeUsername() {
     if (!newUsername.trim() || newUsername.trim().length < 3) {
@@ -121,6 +126,27 @@ export default function SettingsScreen({ navigation }) {
     }
   }
 
+  async function handleChangeEmail() {
+    if (!currentPwd.trim()) return Alert.alert('Error', 'Ingresa tu contraseña actual');
+    if (!newEmail.trim())   return Alert.alert('Error', 'Ingresa el nuevo email');
+    setSavingEmail(true);
+    try {
+      const { data } = await api.post('/auth/change-email', {
+        currentPassword: currentPwd.trim(),
+        newEmail:        newEmail.trim(),
+      });
+      updateUser({ ...user, email: data.user.email, emailVerified: false });
+      Alert.alert('✅', 'Email actualizado. Verifica tu nuevo correo.');
+      setEmailModal(false);
+      setCurrentPwd('');
+      setNewEmail('');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo cambiar el email');
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
   function handleItem(key, soon) {
     if (soon) {
       Alert.alert('Próximamente', 'Esta función estará disponible pronto.');
@@ -128,7 +154,8 @@ export default function SettingsScreen({ navigation }) {
     }
     if (key === 'username') setUsernameModal(true);
     if (key === 'password') { setPasswordModal(true); setResetSent(false); setResetEmail(user?.email || ''); }
-    if (key === 'email')    { setVerifyModal(true); setVerifySent(false); }
+    if (key === 'email')       { setVerifyModal(true); setVerifySent(false); }
+    if (key === 'changeEmail') { setEmailModal(true); setCurrentPwd(''); setNewEmail(''); }
     if (key === 'delete')   setDeleteModal(true);
   }
 
@@ -151,9 +178,17 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.userAv}>
             <Text style={s.userAvTxt}>{user?.username?.[0]?.toUpperCase()}</Text>
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={s.userCardName}>{user?.username}</Text>
-            <Text style={s.userCardEmail}>{user?.email}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <Text style={s.userCardEmail}>{user?.email}</Text>
+              {user?.emailVerified && (
+                <View style={s.verifiedBadge}>
+                  <Ionicons name="checkmark" size={9} color={colors.c1} />
+                  <Text style={s.verifiedBadgeTxt}>Verificado</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
@@ -161,28 +196,30 @@ export default function SettingsScreen({ navigation }) {
           <View key={section.title} style={s.section}>
             <Text style={s.sectionTitle}>{section.title}</Text>
             <View style={s.sectionGroup}>
-              {section.items.map((item, i) => (
-                <TouchableOpacity
-                  key={item.key}
-                  style={[s.row, i > 0 && s.rowBorder]}
-                  onPress={() => handleItem(item.key, item.soon)}
-                >
-                  <View style={[s.rowIcon, item.danger && s.rowIconDanger]}>
-                    <Ionicons
-                      name={item.icon}
-                      size={18}
-                      color={item.danger ? 'rgba(239,68,68,0.8)' : colors.textMid}
-                    />
-                  </View>
-                  <Text style={[s.rowTxt, item.danger && s.rowTxtDanger]}>
-                    {item.label}
-                  </Text>
-                  {item.soon
-                    ? <View style={s.soonBadge}><Text style={s.soonTxt}>PRONTO</Text></View>
-                    : <Ionicons name="chevron-forward" size={16} color={item.danger ? 'rgba(239,68,68,0.4)' : colors.textDim} />
-                  }
-                </TouchableOpacity>
-              ))}
+              {section.items
+                .filter(item => !(item.key === 'email' && user?.emailVerified))
+                .map((item, i) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[s.row, i > 0 && s.rowBorder]}
+                    onPress={() => handleItem(item.key, item.soon)}
+                  >
+                    <View style={[s.rowIcon, item.danger && s.rowIconDanger]}>
+                      <Ionicons
+                        name={item.icon}
+                        size={18}
+                        color={item.danger ? 'rgba(239,68,68,0.8)' : colors.textMid}
+                      />
+                    </View>
+                    <Text style={[s.rowTxt, item.danger && s.rowTxtDanger]}>
+                      {item.label}
+                    </Text>
+                    {item.soon
+                      ? <View style={s.soonBadge}><Text style={s.soonTxt}>PRONTO</Text></View>
+                      : <Ionicons name="chevron-forward" size={16} color={item.danger ? 'rgba(239,68,68,0.4)' : colors.textDim} />
+                    }
+                  </TouchableOpacity>
+                ))}
             </View>
           </View>
         ))}
@@ -276,6 +313,50 @@ export default function SettingsScreen({ navigation }) {
                 </View>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal: Cambiar email ── */}
+      <Modal visible={emailModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setEmailModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <Ionicons name="at-outline" size={32} color={colors.c1} />
+            </View>
+            <Text style={s.modalTitle}>CAMBIAR EMAIL</Text>
+            <Text style={s.modalHint}>Verifica tu identidad para cambiar el correo.</Text>
+            <TextInput
+              style={s.modalInput}
+              value={currentPwd}
+              onChangeText={setCurrentPwd}
+              placeholder="Contraseña actual"
+              placeholderTextColor={colors.textDim}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={s.modalInput}
+              value={newEmail}
+              onChangeText={setNewEmail}
+              placeholder="Nuevo email"
+              placeholderTextColor={colors.textDim}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <View style={s.modalActions}>
+              <TouchableOpacity style={s.cancelBtn} onPress={() => setEmailModal(false)}>
+                <Text style={s.cancelBtnTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.confirmBtn} onPress={handleChangeEmail} disabled={savingEmail}>
+                <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                  {savingEmail
+                    ? <ActivityIndicator size="small" color="#001a18" />
+                    : <Text style={s.confirmBtnTxt}>Cambiar</Text>}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -379,7 +460,9 @@ const s = StyleSheet.create({
   userAv:       { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.deep, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderC },
   userAvTxt:    { color: colors.c1, fontWeight: '900', fontSize: 20 },
   userCardName: { color: colors.textHi, fontWeight: '700', fontSize: 15 },
-  userCardEmail:{ color: colors.textDim, fontSize: 12, marginTop: 2 },
+  userCardEmail:{ color: colors.textDim, fontSize: 12 },
+  verifiedBadge:{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)' },
+  verifiedBadgeTxt: { color: colors.c1, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
 
   section:      { marginHorizontal: 16, marginBottom: 20 },
   sectionTitle: { color: colors.textDim, fontSize: 9, letterSpacing: 3, marginBottom: 8 },

@@ -268,7 +268,15 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <Text style={s.username}>{profile?.username}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={s.username}>{profile?.username}</Text>
+            {profile?.emailVerified && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)' }}>
+                <Ionicons name="checkmark-circle" size={12} color="#00e5cc" />
+                <Text style={{ color: '#00e5cc', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>Verificado</Text>
+              </View>
+            )}
+          </View>
           {prefs.showXp && <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>}
 
           <View style={s.heroStats}>
