@@ -135,11 +135,15 @@ export default function SettingsScreen({ navigation }) {
         currentPassword: currentPwd.trim(),
         newEmail:        newEmail.trim(),
       });
-      updateUser({ ...user, email: data.user.email, emailVerified: false });
-      Alert.alert('✅', 'Email actualizado. Verifica tu nuevo correo.');
       setEmailModal(false);
       setCurrentPwd('');
       setNewEmail('');
+      if (data.pendingConfirmation) {
+        Alert.alert('📧 Revisa tu correo actual', 'Te enviamos un enlace de confirmación a tu correo actual. Confírmalo para hacer el cambio.');
+      } else {
+        updateUser({ ...user, email: data.user.email, emailVerified: false });
+        Alert.alert('✅', 'Email actualizado. Verifica tu nuevo correo.');
+      }
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo cambiar el email');
     } finally {
