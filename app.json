@@ -16,14 +16,18 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#020509"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#0d1d2e"
       },
       "package": "com.abyss.app",
       "softwareKeyboardLayoutMode": "pan",
       "edgeToEdgeEnabled": true,
-      "navigationBarColor": "#00000000",
+      "navigationBarColor": "#020509",
       "navigationBarStyle": "dark",
+      "androidStatusBar": {
+        "barStyle": "light-content",
+        "backgroundColor": "#020509"
+      },
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
