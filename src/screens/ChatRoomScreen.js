@@ -551,6 +551,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       <View style={{ flex:1 }}>
         <FlatList
           ref={flatRef}
+          style={{ flex: 1, backgroundColor: '#020509' }}
           data={reversedMessages}
           keyExtractor={(m) => String(m._id)}
           renderItem={renderMessage}
