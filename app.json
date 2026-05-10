@@ -21,7 +21,7 @@
       },
       "package": "com.abyss.app",
       "softwareKeyboardLayoutMode": "pan",
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "navigationBarColor": "#020509",
       "navigationBarStyle": "dark",
       "androidStatusBar": {
