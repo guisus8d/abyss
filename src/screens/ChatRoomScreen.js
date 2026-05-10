@@ -6,7 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { AudioQuality, setAudioModeAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { Audio } from 'expo-av';
 import AudioMessage    from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
 import AvatarWithFrame from '../components/AvatarWithFrame';
@@ -392,13 +392,13 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   async function startRecording() {
     try {
-      const { granted } = await requestRecordingPermissionsAsync();
+      const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) return;
-      await setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const recorder = new (require('expo-audio').AudioRecorder)({ quality: AudioQuality.HIGH });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      recordingRef.current = recorder;
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current = recording;
       setIsRecording(true);
       setRecSeconds(0);
       recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
@@ -411,8 +411,8 @@ export default function ChatRoomScreen({ route, navigation }) {
       clearInterval(recTimerRef.current);
       const secs = recSeconds;
       setRecSeconds(0);
-      await recordingRef.current?.stop();
-      const uri = recordingRef.current?.uri;
+      await recordingRef.current?.stopAndUnloadAsync();
+      const uri = recordingRef.current?.getURI();
       if (!uri) return;
       setAudioPreview({ uri, duration: secs });
     } catch (e) { console.log('stopRecording error:', e.message); }

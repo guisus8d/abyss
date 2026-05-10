@@ -7,7 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { AudioRecorder, AudioQuality, setAudioModeAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -541,13 +541,13 @@ export default function GroupRoomScreen({ route, navigation }) {
 
   async function startRecording() {
     try {
-      const { granted } = await requestRecordingPermissionsAsync();
+      const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) return;
-      await setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const recorder = new AudioRecorder({ quality: AudioQuality.HIGH });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      recordingRef.current = recorder;
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current = recording;
       recSecsRef.current   = 0;
       setIsRecording(true);
       setRecSeconds(0);
@@ -565,8 +565,8 @@ export default function GroupRoomScreen({ route, navigation }) {
     setIsRecording(false);
     setRecSeconds(0);
     try {
-      await recordingRef.current?.stop();
-      const uri = recordingRef.current?.uri;
+      await recordingRef.current?.stopAndUnloadAsync();
+      const uri = recordingRef.current?.getURI();
       recordingRef.current = null;
       if (!uri) return;
       setAudioPreview({ uri, duration: secs });
