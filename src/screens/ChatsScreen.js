@@ -4,7 +4,7 @@ import {
   StyleSheet, StatusBar, ActivityIndicator,
   Animated, Platform, useWindowDimensions, ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -35,6 +35,7 @@ const AVATAR_SIZE = 48;
 
 export default function ChatsScreen({ navigation }) {
   const { user }     = useAuthStore();
+  const insets       = useSafeAreaInsets();
   const { width: W } = useWindowDimensions();
   const TAB_W        = (W - 32) / TABS.length;
 
@@ -308,10 +309,11 @@ export default function ChatsScreen({ navigation }) {
 
     if (allRequests.length === 0) return renderEmpty('mail', 'Sin invitaciones', 'Cuando alguien te envíe una solicitud aparecerá aquí');
 
+    const bottomStyle = { paddingBottom: 20 + insets.bottom };
     if (Platform.OS === 'web') {
-      return <ScrollView contentContainerStyle={s.listContent}>{requests.map(r => <View key={r._id}>{renderInvItem(r)}</View>)}</ScrollView>;
+      return <ScrollView contentContainerStyle={[s.listContent, bottomStyle]}>{requests.map(r => <View key={r._id}>{renderInvItem(r)}</View>)}</ScrollView>;
     }
-    return <FlatList data={requests} keyExtractor={r => r._id} contentContainerStyle={s.listContent} renderItem={({ item: r }) => renderInvItem(r)} />;
+    return <FlatList data={requests} keyExtractor={r => r._id} contentContainerStyle={[s.listContent, bottomStyle]} renderItem={({ item: r }) => renderInvItem(r)} />;
   }
 
   function renderEmpty(icon, title, subtitle) {
@@ -352,7 +354,7 @@ export default function ChatsScreen({ navigation }) {
         data={privateItems}
         keyExtractor={(item, i) => item.data._id || String(i)}
         renderItem={renderChatItem}
-        contentContainerStyle={s.listContent}
+        contentContainerStyle={[s.listContent, { paddingBottom: 20 + insets.bottom }]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.c1} style={{ marginVertical:12 }} /> : null}
@@ -363,7 +365,7 @@ export default function ChatsScreen({ navigation }) {
   function renderCirculos() {
     if (loading) return <ActivityIndicator color={colors.c1} style={{ marginTop:40 }} />;
     if (groupItems.length === 0) return renderEmpty('people', 'Sin círculos', 'Crea un grupo o únete a uno para empezar');
-    return <FlatList data={groupItems} keyExtractor={g => g._id} renderItem={renderGroupItem} contentContainerStyle={s.listContent} />;
+    return <FlatList data={groupItems} keyExtractor={g => g._id} renderItem={renderGroupItem} contentContainerStyle={[s.listContent, { paddingBottom: 20 + insets.bottom }]} />;
   }
 
   return (
