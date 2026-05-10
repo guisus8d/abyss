@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
@@ -184,7 +185,7 @@ export default function NotificationsScreen({ navigation }) {
       <SafeAreaView edges={['top']}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Text style={s.backTxt}>←</Text>
+            <Ionicons name="arrow-back" size={20} color="#ffffff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>NOTIFICACIONES</Text>
           <View style={{ width: 40 }} />
@@ -239,9 +240,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  headerTitle: { fontSize: 16, fontWeight: '900', letterSpacing: 6, color: colors.c1 },
-  backBtn:     { padding: 8, width: 40 },
-  backTxt:     { color: colors.c1, fontSize: 22 },
+  headerTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1, color: '#ffffff' },
+  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
 
   tabs:        { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   tab:         {

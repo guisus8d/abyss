@@ -113,12 +113,12 @@ const MessageBubble = memo(function MessageBubble({
   if (msg.type === 'system') {
     return (
       <>
-        <SystemMessage msg={msg} />
         {showDate && (
           <View style={s.dateSep}>
             <View style={s.dateLine} /><Text style={s.dateLabel}>{dateLabel(msg.createdAt)}</Text><View style={s.dateLine} />
           </View>
         )}
+        <SystemMessage msg={msg} />
       </>
     );
   }
@@ -136,7 +136,6 @@ const MessageBubble = memo(function MessageBubble({
           <View style={s.dateLine} /><Text style={s.dateLabel}>{dateLabel(msg.createdAt)}</Text><View style={s.dateLine} />
         </View>
       )}
-
       <View style={{ marginBottom: 4 }}>
         {showAvatar && (
           <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
@@ -236,8 +235,10 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [kickConfirm,   setKickConfirm]   = useState(false);
 
   // Estados de expulsión / baneo
-  const [isKicked, setIsKicked] = useState(false);
-  const [isBanned, setIsBanned] = useState(false);
+  const [isKicked,         setIsKicked]         = useState(false);
+  const [isBanned,         setIsBanned]          = useState(false);
+  const [showWelcomeBanner,setShowWelcomeBanner] = useState(false);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
 
   const flatRef      = useRef(null);
   const socketRef    = useRef(null);
@@ -288,6 +289,18 @@ export default function GroupRoomScreen({ route, navigation }) {
       if (!data.isPending) {
         setMessages(data.group.messages || []);
         api.post(`/groups/${group._id}/read`).catch(() => {});
+        // Mostrar banner si fue añadido recientemente (< 24h), no es admin, y no lo aceptó antes
+        const myMember = data.group.members?.find(
+          m => (m.user?._id || m.user)?.toString() === user?._id?.toString()
+        );
+        if (myMember?.role === 'member' && myMember.joinedAt) {
+          const hoursSince = (Date.now() - new Date(myMember.joinedAt).getTime()) / 3600000;
+          if (hoursSince < 24) {
+            const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+            const accepted = await AsyncStorage.getItem(`group_accepted_${group._id}`);
+            if (!accepted) setShowWelcomeBanner(true);
+          }
+        }
       }
     } catch (e) {
       if (e.response?.status === 403) setIsBanned(true);
@@ -311,7 +324,6 @@ export default function GroupRoomScreen({ route, navigation }) {
       setMessages(prev =>
         prev.some(m => m._id?.toString() === message._id?.toString()) ? prev : [...prev, message]
       );
-      flatRef.current?.scrollToOffset({ offset: 0, animated: true });
       api.post(`/groups/${group._id}/read`).catch(() => {});
     });
 
@@ -438,6 +450,44 @@ export default function GroupRoomScreen({ route, navigation }) {
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'No se pudo rechazar la invitación');
     }
+  }
+
+  function handleTextChange(val) {
+    setText(val);
+    const match = val.match(/@(\w*)$/);
+    if (match) {
+      const q = match[1].toLowerCase();
+      const suggestions = [];
+      // @todos solo para admins
+      if (isAdmin && ('todos'.startsWith(q) || 'all'.startsWith(q) || q === '')) {
+        suggestions.push({ _id: '__todos__', username: 'todos', special: true });
+      }
+      const members = group?.members || [];
+      for (const m of members) {
+        if (suggestions.length >= 8) break;
+        const uname = (m.user?.username || '').toLowerCase();
+        if (uname === user?.username?.toLowerCase()) continue;
+        if (q === '' || uname.startsWith(q)) {
+          suggestions.push({ _id: m.user?._id || m.user, username: m.user?.username || '', avatarUrl: m.user?.avatarUrl });
+        }
+      }
+      setMentionSuggestions(suggestions);
+    } else {
+      setMentionSuggestions([]);
+    }
+  }
+
+  function pickMention(username) {
+    const newText = text.replace(/@(\w*)$/, `@${username} `);
+    setText(newText);
+    setMentionSuggestions([]);
+  }
+
+  async function handleLeaveWelcome() {
+    try {
+      await api.post(`/groups/${group._id}/leave`);
+      navigation.goBack();
+    } catch (e) { navigation.goBack(); }
   }
 
   function sendMessage() {
@@ -732,7 +782,7 @@ export default function GroupRoomScreen({ route, navigation }) {
       </SafeAreaView>
 
       {/* ── Cuerpo ───────────────────────────────────────────────────────────── */}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: '#080f18' }}>
         {loading ? (
           <View style={{ flex:1, alignItems:'center', justifyContent:'center' }}>
             <ActivityIndicator color={colors.c1} size="large" />
@@ -749,7 +799,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             removeClippedSubviews={true}
             windowSize={5}
             maxToRenderPerBatch={10}
-            initialNumToRender={15}
+            initialNumToRender={20}
             updateCellsBatchingPeriod={50}
             keyboardShouldPersistTaps="handled"
             onScroll={(e) => setShowScrollBtn(e.nativeEvent.contentOffset.y > 150)}
@@ -797,6 +847,26 @@ export default function GroupRoomScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* ── Banner bienvenida (añadido recientemente) ── */}
+        {showWelcomeBanner && !isKicked && !isBanned && (
+          <View style={s.welcomeBanner}>
+            <Ionicons name="people-outline" size={18} color={colors.c1} />
+            <Text style={s.welcomeBannerTxt}>Fuiste añadido a este grupo</Text>
+            <View style={s.welcomeBannerBtns}>
+              <TouchableOpacity style={s.kickedBtnLeave} onPress={handleLeaveWelcome}>
+                <Text style={s.kickedBtnLeaveTxt}>Salir</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.kickedBtnJoin} onPress={async () => {
+                setShowWelcomeBanner(false);
+                const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+                await AsyncStorage.setItem(`group_accepted_${group._id}`, 'true');
+              }}>
+                <Text style={s.kickedBtnJoinTxt}>Quedarme</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* ── Banner invitación pendiente ── */}
         {isPending && (
           <View style={s.inviteBanner}>
@@ -813,9 +883,30 @@ export default function GroupRoomScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* ── Input area ── */}
+        {/* ── Popup menciones + Input area ── */}
         {!isKicked && !isBanned && !isPending && (
-          <>
+          <View>
+            {mentionSuggestions.length > 0 && (
+              <View style={s.mentionPopup}>
+                <FlatList
+                  data={mentionSuggestions}
+                  keyExtractor={m => String(m._id)}
+                  keyboardShouldPersistTaps="always"
+                  style={{ maxHeight: 200 }}
+                  renderItem={({ item: m }) => (
+                    <TouchableOpacity style={s.mentionRow} onPress={() => pickMention(m.username)}>
+                      {m.special
+                        ? <View style={s.mentionAvPlaceholder}><Ionicons name="megaphone-outline" size={14} color={colors.c1} /></View>
+                        : m.avatarUrl
+                          ? <Image source={{ uri: m.avatarUrl }} style={s.mentionAv} />
+                          : <View style={s.mentionAvPlaceholder}><Text style={{ color: colors.c1, fontSize: 11, fontWeight: '700' }}>{m.username?.[0]?.toUpperCase()}</Text></View>
+                      }
+                      <Text style={s.mentionName}>{m.special ? '@todos — Mencionar a todos' : `@${m.username}`}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
             {audioPreview ? (
               <View style={s.audioPreviewRow}>
                 <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -849,7 +940,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 <TextInput
                   style={s.input}
                   value={text}
-                  onChangeText={setText}
+                  onChangeText={handleTextChange}
                   placeholder="Mensaje..."
                   placeholderTextColor={colors.textDim}
                   multiline
@@ -865,7 +956,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
             )}
-          </>
+          </View>
         )}
       </View>
 
@@ -953,6 +1044,24 @@ const s = StyleSheet.create({
   kickedBtnLeaveTxt: { color: colors.textDim, fontSize:13, fontWeight:'600' },
   kickedBtnJoin: { paddingHorizontal:24, paddingVertical:8, borderRadius:20, backgroundColor:'rgba(0,229,204,0.15)', borderWidth:1, borderColor:'rgba(0,229,204,0.4)' },
   kickedBtnJoinTxt: { color: colors.c1, fontSize:13, fontWeight:'700' },
+
+  // Banner bienvenida
+  welcomeBanner:    { flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, paddingVertical:14, paddingHorizontal:16, backgroundColor:'rgba(0,229,204,0.06)', borderTopWidth:1, borderTopColor:'rgba(0,229,204,0.2)' },
+  welcomeBannerTxt: { color: colors.textMid, fontSize:13, textAlign:'center' },
+  welcomeBannerBtns:{ flexDirection:'row', gap:12, marginTop:4 },
+
+  // Popup menciones
+  mentionPopup: {
+    maxHeight: 200,
+    overflow: 'hidden',
+    backgroundColor: '#0b1521',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.07)',
+  },
+  mentionRow:   { flexDirection:'row', alignItems:'center', gap:10, paddingHorizontal:14, paddingVertical:10, borderBottomWidth:1, borderBottomColor: colors.border },
+  mentionAv:    { width:28, height:28, borderRadius:14 },
+  mentionAvPlaceholder: { width:28, height:28, borderRadius:14, backgroundColor:'rgba(0,229,204,0.1)', borderWidth:1, borderColor:'rgba(0,229,204,0.25)', alignItems:'center', justifyContent:'center' },
+  mentionName:  { color: colors.textHi, fontSize:13, fontWeight:'600' },
 
   // Banner baneado
   bannedBanner: { flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, paddingVertical:14, paddingHorizontal:16, backgroundColor:'rgba(255,68,68,0.08)', borderTopWidth:1, borderTopColor:'rgba(255,68,68,0.3)' },

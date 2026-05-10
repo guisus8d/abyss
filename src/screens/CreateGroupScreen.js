@@ -94,6 +94,7 @@ export default function CreateGroupScreen({ navigation }) {
           formData.append('image', { uri: image.uri, type: 'image/jpeg', name: 'group.jpg' });
         }
       }
+      console.log('selectedIds antes del fetch:', selected);
       const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
       const token = await AsyncStorage.getItem('token');
       const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -175,9 +176,6 @@ export default function CreateGroupScreen({ navigation }) {
         {/* Seleccionar miembros */}
         <View style={s.section}>
           <Text style={s.sectionLabel}>AGREGAR MIEMBROS</Text>
-          <Text style={s.sectionHint}>
-            ✓ Amigos mutuos se agregan directo · Solo seguidores reciben invitación
-          </Text>
 
           {!loading && contacts.length > 0 && (
             <View style={s.searchBox}>
@@ -231,9 +229,6 @@ export default function CreateGroupScreen({ navigation }) {
                         />
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <Text style={s.contactName}>{contact.username}</Text>
-                          <Text style={s.contactType}>
-                            {contact.isMutual ? '✓ Amigo — acceso directo' : 'Seguidor — recibirá invitación'}
-                          </Text>
                         </View>
                         <View style={[s.checkbox, isSelected && s.checkboxSelected]}>
                           {isSelected && <Ionicons name="checkmark" size={14} color="#000" />}
