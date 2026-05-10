@@ -2,7 +2,7 @@ export const colors = {
   black:   '#020509',
   deep:    '#050c14',
   surface: '#091525',
-  card:    'rgba(17, 31, 45, 0.95)',
+  card:    '#111f2d',
   c1:      '#00e5cc',
   c2:      '#2979ff',
   c3:      '#d946ef',
@@ -11,6 +11,6 @@ export const colors = {
   textHi:  '#e8f4f8',
   textMid: '#7a9ab8',
   textDim: '#3a5570',
-  border:  'rgba(255,255,255,0.05)',
-  borderC: 'rgba(20, 92, 126, 0.18)',
+  border:  '#0d1520',
+  borderC: '#0f2d45',
 };
