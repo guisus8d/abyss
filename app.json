@@ -24,9 +24,11 @@
       "edgeToEdgeEnabled": false,
       "navigationBarColor": "#020509",
       "navigationBarStyle": "dark",
+      "backgroundColor": "#020509",
       "androidStatusBar": {
         "barStyle": "light-content",
-        "backgroundColor": "#020509"
+        "backgroundColor": "#020509",
+        "translucent": false
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
