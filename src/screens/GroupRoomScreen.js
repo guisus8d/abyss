@@ -991,7 +991,7 @@ const s = StyleSheet.create({
   adminBadgeTxt:  { color:'rgba(0,220,130,1)', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
 
   bubble:      { maxWidth:'75%', borderRadius:16, padding:10, gap:4 },
-  bubbleMe:    { backgroundColor:'rgba(0,180,160,0.85)', borderBottomRightRadius:4 },
+  bubbleMe:    { backgroundColor:'#00a896', borderBottomRightRadius:4 },
   bubbleThem:  { backgroundColor: colors.surface, borderBottomLeftRadius:4, borderWidth:1, borderColor: colors.border },
   bubblePost:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0 },
   bubbleText:  { color:'#ffffff', fontSize:14, lineHeight:20 },
