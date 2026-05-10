@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Descargar Abyss — Beta Android</title>
+  <meta name="description" content="Descarga la beta de Abyss para Android. La red social de las profundidades.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background: #020509;
+      color: #e8f4f8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+
+    /* Fondo */
+    .glow {
+      position: fixed; pointer-events: none;
+      width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,80,100,0.18) 0%, transparent 70%);
+      top: 50%; left: 50%; transform: translate(-50%, -60%);
+    }
+
+    .card {
+      position: relative;
+      background: rgba(0,15,30,0.85);
+      border: 1px solid rgba(0,229,204,0.12);
+      border-radius: 28px;
+      padding: 52px 40px 44px;
+      width: 100%; max-width: 480px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, #00e5cc, #2979ff, transparent);
+    }
+
+    /* Logo */
+    .logo-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    .logo-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(0,229,204,0.15);
+    }
+    .ring1 { width: 90px;  height: 90px;  }
+    .ring2 { width: 116px; height: 116px; border-color: rgba(41,121,255,0.08); }
+    .ring3 { width: 144px; height: 144px; border-color: rgba(0,229,204,0.05); }
+    .logo-img {
+      width: 68px; height: 68px;
+      border-radius: 18px;
+      position: relative; z-index: 1;
+    }
+
+    /* Texto */
+    .wordmark {
+      font-size: 28px; font-weight: 900; letter-spacing: 10px;
+      color: #00e5cc;
+      text-shadow: 0 0 24px rgba(0,229,204,0.35);
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 11px; letter-spacing: 3px; font-weight: 700;
+      color: rgba(0,229,204,0.5);
+      margin-bottom: 36px;
+    }
+
+    /* Botón descarga */
+    .btn-download {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 18px 24px;
+      border-radius: 16px;
+      background: linear-gradient(90deg, #005c55, #00b4a0, #00e5cc);
+      color: #001a18;
+      font-size: 15px; font-weight: 800; letter-spacing: 1px;
+      text-decoration: none;
+      transition: opacity .2s, transform .15s;
+      margin-bottom: 20px;
+    }
+    .btn-download:hover  { opacity: .88; transform: translateY(-1px); }
+    .btn-download:active { opacity: .75; transform: translateY(0); }
+    .btn-download svg { flex-shrink: 0; }
+
+    /* Requisito */
+    .req {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0,229,204,0.06);
+      border: 1px solid rgba(0,229,204,0.15);
+      border-radius: 20px;
+      padding: 7px 16px;
+      font-size: 12px; color: rgba(0,229,204,0.7);
+      margin-bottom: 28px;
+    }
+
+    /* Instrucciones */
+    .instructions {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 18px 20px;
+      text-align: left;
+    }
+    .inst-title {
+      font-size: 9px; letter-spacing: 2.5px; font-weight: 800;
+      color: rgba(232,244,248,0.35);
+      margin-bottom: 12px;
+    }
+    .inst-step {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 10px;
+      font-size: 13px; color: rgba(232,244,248,0.5); line-height: 1.5;
+    }
+    .inst-step:last-child { margin-bottom: 0; }
+    .inst-num {
+      min-width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: rgba(0,229,204,0.7);
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .inst-step em { color: rgba(232,244,248,0.75); font-style: normal; font-weight: 600; }
+
+    .footer {
+      margin-top: 32px;
+      color: rgba(232,244,248,0.18);
+      font-size: 11px;
+    }
+    .footer a { color: rgba(0,229,204,0.4); text-decoration: none; }
+    .footer a:hover { color: rgba(0,229,204,0.7); }
+
+    @media (max-width: 520px) {
+      .card { padding: 44px 24px 36px; border-radius: 0; border-left: none; border-right: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glow"></div>
+
+  <div class="card">
+    <!-- Logo -->
+    <div class="logo-wrap">
+      <div class="logo-ring ring3"></div>
+      <div class="logo-ring ring2"></div>
+      <div class="logo-ring ring1"></div>
+      <img src="/Abyss.png" alt="Abyss" class="logo-img" />
+    </div>
+
+    <p class="wordmark">ABYSS</p>
+    <p class="subtitle">VERSIÓN BETA · ANDROID</p>
+
+    <!-- Botón descarga -->
+    <a class="btn-download" href="https://expo.dev/artifacts/eas/sbaGozmmKzLRd1gMWRBRyw.apk" download>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Descargar APK
+    </a>
+
+    <!-- Requisito -->
+    <div class="req">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      Requiere Android 8.0 o superior
+    </div>
+
+    <!-- Instrucciones -->
+    <div class="instructions">
+      <p class="inst-title">CÓMO INSTALAR</p>
+      <div class="inst-step">
+        <div class="inst-num">1</div>
+        <span>Descarga el archivo <em>.apk</em> usando el botón de arriba</span>
+      </div>
+      <div class="inst-step">
+        <div class="inst-num">2</div>
+        <span>Ve a <em>Ajustes → Seguridad</em> y habilita <em>Fuentes desconocidas</em> (o "Instalar apps desconocidas")</span>
+      </div>
+      <div class="inst-step">
+        <div class="inst-num">3</div>
+        <span>Abre el archivo descargado desde tu gestor de archivos y sigue las instrucciones de instalación</span>
+      </div>
+      <div class="inst-step">
+        <div class="inst-num">4</div>
+        <span>¡Listo! Abre Abyss y sumérgete</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="footer">
+    © 2025 Abyss · <a href="https://abyss.social">abyss.social</a>
+    &nbsp;·&nbsp; <a href="https://abyss.social/terminos">Términos</a>
+    &nbsp;·&nbsp; <a href="https://abyss.social/privacidad">Privacidad</a>
+  </p>
+</body>
+</html>
