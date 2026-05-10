@@ -258,7 +258,6 @@ export default function LoginScreen() {
               <Image source={require('../../assets/logo.png')} style={s.logoImg} resizeMode="contain" />
             </View>
             <Text style={s.wordmark}>ABYSS</Text>
-            <Text style={s.tagline}>las profundidades te esperan</Text>
           </View>
 
           {/* ── Card ── */}

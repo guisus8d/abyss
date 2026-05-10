@@ -94,10 +94,20 @@ export default function CreateGroupScreen({ navigation }) {
           formData.append('image', { uri: image.uri, type: 'image/jpeg', name: 'group.jpg' });
         }
       }
-      const { data } = await api.post('/groups', formData);
+      const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+      const token = await AsyncStorage.getItem('token');
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+      const res = await fetch(`${BASE_URL}/groups`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al crear grupo');
       navigation.replace('GroupRoom', { group: data.group });
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'No se pudo crear el grupo');
+      console.log('crear grupo error:', err.message);
+      Alert.alert('Error', err.message || 'No se pudo crear el grupo');
     } finally { setCreating(false); }
   }
 

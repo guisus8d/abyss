@@ -181,7 +181,7 @@ export default function NotificationsScreen({ navigation }) {
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
-      <SafeAreaView>
+      <SafeAreaView edges={['top']}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Text style={s.backTxt}>←</Text>
