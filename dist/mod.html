@@ -99,6 +99,7 @@
     .b-admin{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
     .b-mod{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:var(--gold)}
     .b-user{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);color:var(--dim)}
+    .b-collaborator{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple)}
     .b-banned{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
     .b-post{background:var(--green-bg);border-color:var(--green-border);color:var(--accent)}
     .b-usert{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:var(--gold)}
@@ -252,6 +253,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Usuarios
       </button>
+      <button class="tab" id="t-log" onclick="showTab('logs')" style="display:none">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Historial
+      </button>
     </div>
 
     <!-- REPORTES -->
@@ -262,6 +267,14 @@
         <div class="stat"    id="s-dismissed" onclick="setFilter('dismissed')"><div class="stat-n" id="c-dismissed">0</div><div class="stat-l">DESESTIMADOS</div></div>
       </div>
       <div id="rep-list"></div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div id="pane-logs" style="display:none">
+      <div id="log-list"></div>
+      <div id="log-more" style="display:none;text-align:center;margin-top:14px">
+        <button class="btn-cancel" onclick="loadMoreLogs()">Cargar más</button>
+      </div>
     </div>
 
     <!-- USUARIOS -->
@@ -340,6 +353,39 @@
   </div>
 </div>
 
+<!-- Modal: confirmar revertir acción -->
+<div class="overlay" id="m-revert" onclick="closeModal('m-revert')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+      <span class="modal-title">Revertir acción</span>
+      <button class="modal-close" onclick="closeModal('m-revert')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p id="m-revert-desc" style="color:var(--mid);font-size:13px;margin-bottom:20px"></p>
+      <p class="section-title">CONFIRMA CON EL PIN DE MODERACIÓN</p>
+      <div class="pin-row" style="margin:16px 0 6px">
+        <input class="pin-digit" type="number" min="0" max="9" id="rp0" oninput="onRevertPinInput(this,0)" onkeydown="onRevertPinKey(event,0)" autocomplete="off"/>
+        <input class="pin-digit" type="number" min="0" max="9" id="rp1" oninput="onRevertPinInput(this,1)" onkeydown="onRevertPinKey(event,1)" autocomplete="off"/>
+        <input class="pin-digit" type="number" min="0" max="9" id="rp2" oninput="onRevertPinInput(this,2)" onkeydown="onRevertPinKey(event,2)" autocomplete="off"/>
+        <input class="pin-digit" type="number" min="0" max="9" id="rp3" oninput="onRevertPinInput(this,3)" onkeydown="onRevertPinKey(event,3)" autocomplete="off"/>
+        <input class="pin-digit" type="number" min="0" max="9" id="rp4" oninput="onRevertPinInput(this,4)" onkeydown="onRevertPinKey(event,4)" autocomplete="off"/>
+        <input class="pin-digit" type="number" min="0" max="9" id="rp5" oninput="onRevertPinInput(this,5)" onkeydown="onRevertPinKey(event,5)" autocomplete="off"/>
+      </div>
+      <p id="m-revert-err" style="color:var(--red);font-size:12px;min-height:18px;text-align:center"></p>
+    </div>
+    <div class="modal-footer">
+      <div class="action-group">
+        <button class="btn-cancel" onclick="closeModal('m-revert')">Cancelar</button>
+        <button class="btn-action" style="background:rgba(251,191,36,.15);color:var(--gold);border:1px solid rgba(251,191,36,.3)" onclick="submitRevert()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+          Revertir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const API='https://abyss-production-7171.up.railway.app/api';
 const MOD_PIN='482937';
@@ -366,6 +412,7 @@ const ICO={
   profile:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
   trash:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`,
   ext:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+  star:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
 };
 
 function load(on){document.getElementById('loader').classList.toggle('on',on)}
@@ -483,15 +530,19 @@ function showApp(){
   document.getElementById('app').style.display='block';
   document.getElementById('h-uname').textContent=`@${me?.username}`;
   document.getElementById('h-role').textContent=(me?.role||'').toUpperCase();
+  if(me?.role==='admin')document.getElementById('t-log').style.display='flex';
   loadReports();
 }
 
 function showTab(t){
   document.getElementById('pane-reports').style.display=t==='reports'?'block':'none';
   document.getElementById('pane-users').style.display=t==='users'?'block':'none';
+  document.getElementById('pane-logs').style.display=t==='logs'?'block':'none';
   document.getElementById('t-rep').classList.toggle('on',t==='reports');
   document.getElementById('t-usr').classList.toggle('on',t==='users');
+  document.getElementById('t-log').classList.toggle('on',t==='logs');
   if(t==='users')loadUsers();
+  if(t==='logs')loadLogs(1,true);
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────────
@@ -683,6 +734,7 @@ async function loadUsers(q=''){
             :`<button class="act red" title="Banear" onclick="openBan('${x._id}','${esc(x.username)}')">${ICO.ban}</button>`
           ):''}
           ${me?.role==='admin'&&x.role!=='admin'?`<button class="act" title="${x.role==='mod'?'Quitar mod':'Hacer mod'}" onclick="setrole('${x._id}','${x.role==='mod'?'user':'mod'}')">${ICO.shield}</button>`:''}
+          ${me?.role==='admin'&&(x.role==='user'||x.role==='collaborator')?`<button class="act" title="${x.role==='collaborator'?'Quitar colaborador':'Hacer colaborador'}" style="${x.role==='collaborator'?'border-color:rgba(167,139,250,.4);color:var(--purple)':''}" onclick="setrole('${x._id}','${x.role==='collaborator'?'user':'collaborator'}')">${ICO.star}</button>`:''}
           <button class="act" title="Ver perfil" onclick="window.open('https://abyss.social/@${esc(x.username)}','_blank')">${ICO.profile}</button>
         </div>
       </div>
@@ -730,6 +782,108 @@ async function setrole(id,role){
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal('m-report');closeModal('m-ban')}});
+
+// ── Logs ──────────────────────────────────────────────────────────────────────
+let logPage=1,logTotal=0;
+const ACTION_LABEL={ban:'Ban',unban:'Desban',delete_post:'Post eliminado',change_role:'Cambio de rol'};
+const ACTION_COLOR={ban:'var(--red)',unban:'var(--accent)',delete_post:'var(--dim)',change_role:'var(--gold)'};
+const REVERTIBLE=['ban','change_role'];
+
+async function loadLogs(page=1,reset=false){
+  const el=document.getElementById('log-list');
+  if(reset){el.innerHTML='<div class="empty"><div class="spin" style="margin:auto"></div></div>';logPage=1}
+  try{
+    const d=await apiFetch(`/modlogs?page=${page}`);
+    logTotal=d.total;logPage=page;
+    const rows=d.logs.map(l=>logRow(l)).join('');
+    if(reset)el.innerHTML=rows?'<div class="list">'+rows+'</div>':'<div class="empty"><p>Sin acciones registradas</p></div>';
+    else{
+      const list=el.querySelector('.list');
+      if(list)list.insertAdjacentHTML('beforeend',rows);
+    }
+    document.getElementById('log-more').style.display=(page*40<logTotal)?'block':'none';
+  }catch(ex){el.innerHTML=`<div class="empty"><p style="color:var(--red)">${esc(ex.message)}</p></div>`}
+}
+
+function loadMoreLogs(){loadLogs(logPage+1,false)}
+
+function logRow(l){
+  const who=l.mod?.username?`@${esc(l.mod.username)}`:'?';
+  const tgt=l.target?.username?`@${esc(l.target.username)}`:(l.details?.username?`@${esc(l.details.username)}`:'—');
+  let desc='';
+  if(l.action==='ban')       desc=`baneó a ${tgt} — <em>${esc(l.details?.reason||'')}</em>`;
+  if(l.action==='unban')     desc=`desbaneó a ${tgt}`;
+  if(l.action==='delete_post') desc=`eliminó un post${tgt!=='—'?` de ${tgt}`:''}`;
+  if(l.action==='change_role') desc=`cambió rol de ${tgt}: <span style="color:var(--dim)">${esc(l.details?.oldRole||'?')}</span> → <span style="color:var(--gold)">${esc(l.details?.newRole||'?')}</span>`;
+
+  const revertBtn=REVERTIBLE.includes(l.action)&&!l.reverted
+    ?`<button class="act" title="Revertir" style="border-color:rgba(251,191,36,.3);color:var(--gold)" onclick="openRevert('${l._id}','${l.action}','${tgt}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg></button>`:'';
+
+  const revertedBadge=l.reverted
+    ?`<span class="badge" style="background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.2);color:var(--gold)">REVERTIDA</span>`:'';
+
+  return `<div class="row">
+    <div style="width:8px;height:8px;border-radius:50%;background:${ACTION_COLOR[l.action]};flex-shrink:0"></div>
+    <div class="ri">
+      <div class="rn">
+        <span style="color:${ACTION_COLOR[l.action]};font-size:11px;font-weight:800;letter-spacing:.5px">${ACTION_LABEL[l.action]||l.action}</span>
+        ${revertedBadge}
+        <span style="color:var(--mid);font-weight:400">${who}</span>
+      </div>
+      <div class="rs" style="margin-top:2px">${desc} &middot; ${fdate(l.createdAt)}${l.reverted&&l.revertedBy?.username?` &middot; revertida por @${esc(l.revertedBy.username)}`:''}
+      </div>
+    </div>
+    <div class="acts">${revertBtn}</div>
+  </div>`;
+}
+
+// ── Revertir con PIN ──────────────────────────────────────────────────────────
+let revertTargetId=null;
+function openRevert(id,action,tgt){
+  revertTargetId=id;
+  const msgs={ban:`Revertir ban: ${tgt} volverá a estar activo.`,change_role:`Revertir cambio de rol de ${tgt} al rol anterior.`};
+  document.getElementById('m-revert-desc').textContent=msgs[action]||'¿Confirmas revertir esta acción?';
+  document.getElementById('m-revert-err').textContent='';
+  for(let i=0;i<6;i++){const e=document.getElementById('rp'+i);e.value='';e.classList.remove('filled')}
+  openModal('m-revert');
+  setTimeout(()=>document.getElementById('rp0').focus(),80);
+}
+
+function onRevertPinInput(el,idx){
+  if(el.value.length>1)el.value=el.value.slice(-1);
+  el.classList.toggle('filled',!!el.value);
+  if(el.value&&idx<5)document.getElementById('rp'+(idx+1)).focus();
+  const pin=Array.from({length:6},(_,i)=>document.getElementById('rp'+i).value).join('');
+  if(pin.length===6)submitRevertWithPin(pin);
+}
+function onRevertPinKey(e,idx){
+  if(e.key==='Backspace'&&!e.target.value&&idx>0){const p=document.getElementById('rp'+(idx-1));p.value='';p.classList.remove('filled');p.focus()}
+}
+
+function submitRevert(){
+  const pin=Array.from({length:6},(_,i)=>document.getElementById('rp'+i).value).join('');
+  if(pin.length<6){document.getElementById('m-revert-err').textContent='Ingresa el PIN completo';return}
+  submitRevertWithPin(pin);
+}
+
+async function submitRevertWithPin(pin){
+  const errEl=document.getElementById('m-revert-err');
+  if(pin!==MOD_PIN){
+    errEl.textContent='PIN incorrecto';
+    for(let i=0;i<6;i++){const e=document.getElementById('rp'+i);e.value='';e.classList.remove('filled')}
+    document.getElementById('rp0').focus();
+    return;
+  }
+  if(!revertTargetId)return;
+  load(true);
+  try{
+    const d=await apiFetch(`/modlogs/${revertTargetId}/revert`,{method:'POST'});
+    closeModal('m-revert');
+    toast(`Acción revertida correctamente (@${d.target})`);
+    loadLogs(1,true);
+  }catch(ex){errEl.textContent=ex.message}
+  finally{load(false)}
+}
 
 // Init
 (async()=>{
