@@ -90,7 +90,12 @@ function CommentSection({
                 </TouchableOpacity>
                 <View style={s.commentBubble}>
                   <TouchableOpacity onPress={() => goToProfile(c.user?.username)}>
-                    <Text style={s.commentUser}>{c.user?.username}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                      <Text style={s.commentUser}>{c.user?.username}</Text>
+                      {c.user?.role === 'admin'        && <View style={s.badgeAdmin}><Text style={s.badgeAdminTxt}>ADMIN</Text></View>}
+                      {c.user?.role === 'mod'          && <View style={s.badgeMod}><Text style={s.badgeModTxt}>MOD</Text></View>}
+                      {c.user?.role === 'collaborator' && <View style={s.badgeCollab}><Text style={s.badgeCollabTxt}>COLAB</Text></View>}
+                    </View>
                   </TouchableOpacity>
                   <Text style={s.commentText}>{c.text}</Text>
                 </View>
@@ -121,7 +126,12 @@ function CommentSection({
                       </View>
                     )}
                     <TouchableOpacity onPress={() => goToProfile(r.user?.username)}>
-                      <Text style={s.commentUser}>{r.user?.username}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                        <Text style={s.commentUser}>{r.user?.username}</Text>
+                        {r.user?.role === 'admin'        && <View style={s.badgeAdmin}><Text style={s.badgeAdminTxt}>ADMIN</Text></View>}
+                        {r.user?.role === 'mod'          && <View style={s.badgeMod}><Text style={s.badgeModTxt}>MOD</Text></View>}
+                        {r.user?.role === 'collaborator' && <View style={s.badgeCollab}><Text style={s.badgeCollabTxt}>COLAB</Text></View>}
+                      </View>
                     </TouchableOpacity>
                     <Text style={s.commentText}>{r.text}</Text>
                   </View>
@@ -302,8 +312,9 @@ const PostCard = memo(function PostCard({
           <TouchableOpacity onPress={() => goToProfile(post.author.username)}>
             <View style={s.usernameRow}>
               <Text style={s.username}>{post.author.username}</Text>
-              {post.author.role === 'mod'   && <View style={s.badgeMod}><Text style={s.badgeModTxt}>MOD</Text></View>}
-              {post.author.role === 'admin' && <View style={s.badgeAdmin}><Text style={s.badgeAdminTxt}>ADMIN</Text></View>}
+              {post.author.role === 'admin'        && <View style={s.badgeAdmin}><Text style={s.badgeAdminTxt}>ADMIN</Text></View>}
+              {post.author.role === 'mod'          && <View style={s.badgeMod}><Text style={s.badgeModTxt}>MOD</Text></View>}
+              {post.author.role === 'collaborator' && <View style={s.badgeCollab}><Text style={s.badgeCollabTxt}>COLABORADOR</Text></View>}
             </View>
           </TouchableOpacity>
           <Text style={s.meta}>XP {post.author.xp} · {ago}</Text>
@@ -455,6 +466,8 @@ const s = StyleSheet.create({
   badgeModTxt:   { color: C.gold, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
   badgeAdmin:    { backgroundColor: C.redDim, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: C.redBorder },
   badgeAdminTxt: { color: C.red, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
+  badgeCollab:    { backgroundColor: 'rgba(167,139,250,0.12)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(167,139,250,0.35)' },
+  badgeCollabTxt: { color: '#a78bfa', fontSize: 8, fontWeight: '800', letterSpacing: 1 },
   bodyText:    { color: C.textMid, fontSize: 14, lineHeight: 22, marginBottom: 10, letterSpacing: 0.1 },
   postImage:   { width: '100%', aspectRatio: 16/9, maxHeight: 380, borderRadius: 14, marginBottom: 10, backgroundColor: C.surface },
   newsCard:     { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(234,179,8,0.22)', overflow: 'hidden', marginBottom: 12, backgroundColor: C.surface },

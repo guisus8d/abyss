@@ -325,8 +325,20 @@ export default function PublicProfileScreen({ route, navigation }) {
             <AvatarWithFrame size={88} avatarUrl={profile?.avatarUrl} username={profile?.username} profileFrame={profile?.profileFrame} frameUrl={profile?.profileFrameUrl} bgColor="rgba(0,229,204,0.12)" banned={!!profile?.banned} />
           </TouchableOpacity>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Text style={s.username}>@{profile?.username}</Text>
+            {profile?.role === 'admin' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }}>
+                <Ionicons name="shield" size={11} color="#ef4444" />
+                <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>Admin</Text>
+              </View>
+            )}
+            {profile?.role === 'mod' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(251,191,36,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' }}>
+                <Ionicons name="shield-half" size={11} color="#fbbf24" />
+                <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>Mod</Text>
+              </View>
+            )}
             {profile?.role === 'collaborator' && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(167,139,250,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(167,139,250,0.3)' }}>
                 <Ionicons name="star" size={11} color="#a78bfa" />

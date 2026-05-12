@@ -143,6 +143,15 @@ const MessageBubble = memo(function MessageBubble({
             {senderIsAdmin && (
               <View style={s.adminBadge}><Text style={s.adminBadgeTxt}>Admin</Text></View>
             )}
+            {sender?.role === 'admin' && (
+              <View style={s.platformAdminBadge}><Text style={s.platformAdminBadgeTxt}>ADMIN</Text></View>
+            )}
+            {sender?.role === 'mod' && (
+              <View style={s.platformModBadge}><Text style={s.platformModBadgeTxt}>MOD</Text></View>
+            )}
+            {sender?.role === 'collaborator' && (
+              <View style={s.platformCollabBadge}><Text style={s.platformCollabBadgeTxt}>COLAB</Text></View>
+            )}
           </View>
         )}
 
@@ -989,6 +998,12 @@ const s = StyleSheet.create({
   msgSenderName:  { color:'rgba(255,255,255,0.65)', fontSize:11, fontWeight:'700' },
   adminBadge:     { backgroundColor:'rgba(0,200,120,0.12)', borderRadius:4, borderWidth:1, borderColor:'rgba(0,200,120,0.4)', paddingHorizontal:4, paddingVertical:1 },
   adminBadgeTxt:  { color:'rgba(0,220,130,1)', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
+  platformAdminBadge:    { backgroundColor:'rgba(239,68,68,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(239,68,68,0.35)', paddingHorizontal:4, paddingVertical:1 },
+  platformAdminBadgeTxt: { color:'#ef4444', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
+  platformModBadge:      { backgroundColor:'rgba(251,191,36,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(251,191,36,0.35)', paddingHorizontal:4, paddingVertical:1 },
+  platformModBadgeTxt:   { color:'#fbbf24', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
+  platformCollabBadge:    { backgroundColor:'rgba(167,139,250,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(167,139,250,0.35)', paddingHorizontal:4, paddingVertical:1 },
+  platformCollabBadgeTxt: { color:'#a78bfa', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
 
   bubble:      { maxWidth:'75%', borderRadius:16, padding:10, gap:4 },
   bubbleMe:    { backgroundColor:'#00a896', borderBottomRightRadius:4 },
