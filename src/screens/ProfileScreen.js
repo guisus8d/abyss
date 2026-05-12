@@ -276,6 +276,12 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={{ color: '#00e5cc', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>Verificado</Text>
               </View>
             )}
+            {profile?.role === 'collaborator' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(167,139,250,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(167,139,250,0.3)' }}>
+                <Ionicons name="star" size={11} color="#a78bfa" />
+                <Text style={{ color: '#a78bfa', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>Colaborador</Text>
+              </View>
+            )}
           </View>
           {prefs.showXp && <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>}
 

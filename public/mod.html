@@ -99,6 +99,7 @@
     .b-admin{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
     .b-mod{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:var(--gold)}
     .b-user{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);color:var(--dim)}
+    .b-collaborator{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple)}
     .b-banned{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
     .b-post{background:var(--green-bg);border-color:var(--green-border);color:var(--accent)}
     .b-usert{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:var(--gold)}
@@ -411,6 +412,7 @@ const ICO={
   profile:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
   trash:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`,
   ext:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+  star:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
 };
 
 function load(on){document.getElementById('loader').classList.toggle('on',on)}
@@ -732,6 +734,7 @@ async function loadUsers(q=''){
             :`<button class="act red" title="Banear" onclick="openBan('${x._id}','${esc(x.username)}')">${ICO.ban}</button>`
           ):''}
           ${me?.role==='admin'&&x.role!=='admin'?`<button class="act" title="${x.role==='mod'?'Quitar mod':'Hacer mod'}" onclick="setrole('${x._id}','${x.role==='mod'?'user':'mod'}')">${ICO.shield}</button>`:''}
+          ${me?.role==='admin'&&(x.role==='user'||x.role==='collaborator')?`<button class="act" title="${x.role==='collaborator'?'Quitar colaborador':'Hacer colaborador'}" style="${x.role==='collaborator'?'border-color:rgba(167,139,250,.4);color:var(--purple)':''}" onclick="setrole('${x._id}','${x.role==='collaborator'?'user':'collaborator'}')">${ICO.star}</button>`:''}
           <button class="act" title="Ver perfil" onclick="window.open('https://abyss.social/@${esc(x.username)}','_blank')">${ICO.profile}</button>
         </div>
       </div>
