@@ -322,7 +322,7 @@ export default function PublicProfileScreen({ route, navigation }) {
             activeOpacity={profile?.profileFrame && profile.profileFrame !== 'default' ? 0.8 : 1}
             disabled={!profile?.profileFrame || profile.profileFrame === 'default'}
           >
-            <AvatarWithFrame size={88} avatarUrl={profile?.avatarUrl} username={profile?.username} profileFrame={profile?.profileFrame} frameUrl={profile?.profileFrameUrl} bgColor="rgba(0,229,204,0.12)" banned={!!profile?.banned} />
+            <AvatarWithFrame size={88} avatarUrl={profile?.avatarUrl} username={profile?.username} profileFrame={profile?.profileFrame} frameUrl={profile?.profileFrameUrl} bgColor="rgba(0,229,204,0.12)" banned={!!profile?.banned} badgeRole={profile?.role} />
           </TouchableOpacity>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>

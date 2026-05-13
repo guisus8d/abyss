@@ -3,6 +3,7 @@ import { View, Image, Text } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 
 const FRAME_001_URL = 'https://res.cloudinary.com/dlpdzgkeg/image/upload/frames/frame_001.webp';
+const BADGE_ADMIN   = require('../../assets/badge-admin.png');
 
 export default function AvatarWithFrame({
   size = 40,
@@ -13,6 +14,7 @@ export default function AvatarWithFrame({
   bgColor = 'rgba(0,229,204,0.1)',
   style,
   banned = false,
+  badgeRole,
 }) {
   if (banned) {
     return (
@@ -28,21 +30,31 @@ export default function AvatarWithFrame({
   const radius      = size / 2;
   const frameSize   = size * 1.42; // ~1/0.70
   const offset      = (frameSize - size) / 2;
+  const badgeSize   = size * 0.35;
+  const showBadge   = badgeRole === 'admin';
 
   // Sin marco — simple
   if (!hasFrame) {
     return (
-      <View style={[{
-        width: size, height: size, borderRadius: radius,
-        backgroundColor: bgColor,
-        alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden',
-      }, style]}>
-        {avatarUrl
-          ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
-          : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
-              {username?.[0]?.toUpperCase()}
-            </Text>}
+      <View style={[{ width: size, height: size }, style]}>
+        <View style={{
+          width: size, height: size, borderRadius: radius,
+          backgroundColor: bgColor,
+          alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          {avatarUrl
+            ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
+            : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
+                {username?.[0]?.toUpperCase()}
+              </Text>}
+        </View>
+        {showBadge && (
+          <Image
+            source={BADGE_ADMIN}
+            style={{ position: 'absolute', bottom: 0, right: 0, width: badgeSize, height: badgeSize, zIndex: 20 }}
+          />
+        )}
       </View>
     );
   }
@@ -91,6 +103,14 @@ export default function AvatarWithFrame({
             zIndex: 10,
           }}
           contentFit="contain"
+        />
+      )}
+
+      {/* Badge de admin — encima del marco */}
+      {showBadge && (
+        <Image
+          source={BADGE_ADMIN}
+          style={{ position: 'absolute', bottom: offset, right: offset, width: badgeSize, height: badgeSize, zIndex: 20 }}
         />
       )}
     </View>

@@ -264,6 +264,7 @@ export default function ProfileScreen({ navigation }) {
                 profileFrame={profile?.profileFrame}
                 frameUrl={profile?.profileFrameUrl}
                 bgColor="rgba(0,229,204,0.12)"
+                badgeRole={profile?.role}
               />
             </TouchableOpacity>
           </View>
