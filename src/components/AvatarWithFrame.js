@@ -52,7 +52,7 @@ export default function AvatarWithFrame({
         {showBadge && (
           <Image
             source={BADGE_ADMIN}
-            style={{ position: 'absolute', bottom: -badgeSize * 0.2, left: (size - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
+            style={{ position: 'absolute', bottom: -badgeSize * 0.38, left: (size - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
           />
         )}
       </View>
@@ -110,7 +110,7 @@ export default function AvatarWithFrame({
       {showBadge && (
         <Image
           source={BADGE_ADMIN}
-          style={{ position: 'absolute', bottom: offset - badgeSize * 0.2, left: (frameSize - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
+          style={{ position: 'absolute', bottom: offset - badgeSize * 0.38, left: (frameSize - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
         />
       )}
     </View>
