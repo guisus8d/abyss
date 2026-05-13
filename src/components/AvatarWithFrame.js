@@ -32,7 +32,6 @@ export default function AvatarWithFrame({
   const offset      = (frameSize - size) / 2;
   const badgeSize   = size * 0.45;
   const showBadge   = badgeRole === 'admin';
-  const badgeStyle  = { position: 'absolute', bottom: 0, left: '50%', transform: [{ translateX: -badgeSize / 2 }], width: badgeSize, height: badgeSize, zIndex: 20 };
 
   // Sin marco — simple
   if (!hasFrame) {
@@ -49,8 +48,13 @@ export default function AvatarWithFrame({
             : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
                 {username?.[0]?.toUpperCase()}
               </Text>}
-          {showBadge && <Image source={BADGE_ADMIN} style={badgeStyle} />}
         </View>
+        {showBadge && (
+          <Image
+            source={BADGE_ADMIN}
+            style={{ position: 'absolute', bottom: -badgeSize * 0.2, left: (size - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
+          />
+        )}
       </View>
     );
   }
@@ -106,7 +110,7 @@ export default function AvatarWithFrame({
       {showBadge && (
         <Image
           source={BADGE_ADMIN}
-          style={[badgeStyle, { bottom: offset }]}
+          style={{ position: 'absolute', bottom: offset - badgeSize * 0.2, left: (frameSize - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
         />
       )}
     </View>
