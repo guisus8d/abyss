@@ -2,8 +2,12 @@ import React from 'react';
 import { View, Image, Text } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 
-const FRAME_001_URL = 'https://res.cloudinary.com/dlpdzgkeg/image/upload/frames/frame_001.webp';
-const BADGE_ADMIN   = require('../../assets/badge-admin.png');
+const FRAME_001_URL       = 'https://res.cloudinary.com/dlpdzgkeg/image/upload/frames/frame_001.webp';
+const BADGE_ADMIN        = require('../../assets/badge-admin.png');
+const BADGE_MOD          = require('../../assets/badge-mod.png');
+const BADGE_COL          = require('../../assets/badge-col.png');
+
+const BADGE_BY_ROLE = { admin: BADGE_ADMIN, mod: BADGE_MOD, collaborator: BADGE_COL };
 
 export default function AvatarWithFrame({
   size = 40,
@@ -31,7 +35,7 @@ export default function AvatarWithFrame({
   const frameSize   = size * 1.42; // ~1/0.70
   const offset      = (frameSize - size) / 2;
   const badgeSize   = size * 0.45;
-  const showBadge   = badgeRole === 'admin';
+  const badgeSource = BADGE_BY_ROLE[badgeRole] ?? null;
 
   // Sin marco — simple
   if (!hasFrame) {
@@ -49,9 +53,9 @@ export default function AvatarWithFrame({
                 {username?.[0]?.toUpperCase()}
               </Text>}
         </View>
-        {showBadge && (
+        {badgeSource && (
           <Image
-            source={BADGE_ADMIN}
+            source={badgeSource}
             style={{ position: 'absolute', bottom: -badgeSize * 0.38, left: (size - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
           />
         )}
@@ -106,10 +110,10 @@ export default function AvatarWithFrame({
         />
       )}
 
-      {/* Badge de admin — encima del marco */}
-      {showBadge && (
+      {/* Badge de rol — encima del marco */}
+      {badgeSource && (
         <Image
-          source={BADGE_ADMIN}
+          source={badgeSource}
           style={{ position: 'absolute', bottom: offset - badgeSize * 0.38, left: (frameSize - badgeSize) / 2, width: badgeSize, height: badgeSize, zIndex: 20 }}
         />
       )}
