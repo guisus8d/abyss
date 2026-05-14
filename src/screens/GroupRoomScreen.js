@@ -124,8 +124,6 @@ const MessageBubble = memo(function MessageBubble({
   }
 
   const displayName   = isMe ? (user?.username || 'Tu') : (sender?.username || '');
-  const senderRole    = group?.members?.find(m => (m.user?._id || m.user)?.toString() === thisSenderId)?.role;
-  const senderIsAdmin = senderRole === 'admin';
   const isPostType    = msg.type === 'shared_post' || msg.type === 'shared_profile';
   const isDeleted     = msg.deletedFor?.map(d => d.toString()).includes(user?._id?.toString());
 
@@ -140,18 +138,6 @@ const MessageBubble = memo(function MessageBubble({
         {showAvatar && (
           <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
             <Text style={s.msgSenderName}>{displayName}</Text>
-            {senderIsAdmin && (
-              <View style={s.adminBadge}><Text style={s.adminBadgeTxt}>Admin</Text></View>
-            )}
-            {sender?.role === 'admin' && (
-              <View style={s.platformAdminBadge}><Text style={s.platformAdminBadgeTxt}>ADMIN</Text></View>
-            )}
-            {sender?.role === 'mod' && (
-              <View style={s.platformModBadge}><Text style={s.platformModBadgeTxt}>MOD</Text></View>
-            )}
-            {sender?.role === 'collaborator' && (
-              <View style={s.platformCollabBadge}><Text style={s.platformCollabBadgeTxt}>COLAB</Text></View>
-            )}
           </View>
         )}
 
@@ -271,8 +257,17 @@ export default function GroupRoomScreen({ route, navigation }) {
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   useFocusEffect(useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.emit('group:join', { groupId: group._id });
+    }
     api.get(`/groups/${group._id}`)
-      .then(({ data }) => setGroup(data.group))
+      .then(({ data }) => {
+        setGroup(data.group);
+        if (!data.isPending) {
+          setMessages(data.group.messages || []);
+          api.post(`/groups/${group._id}/read`).catch(() => {});
+        }
+      })
       .catch(() => {});
   }, [group._id]));
 
@@ -779,7 +774,7 @@ export default function GroupRoomScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <SafeAreaView>
+      <SafeAreaView edges={['top']}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />

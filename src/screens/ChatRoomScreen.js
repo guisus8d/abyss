@@ -532,7 +532,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
 
-      <SafeAreaView>
+      <SafeAreaView edges={['top']}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
