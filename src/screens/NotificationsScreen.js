@@ -11,11 +11,12 @@ import api from '../services/api';
 import { connectSocket } from '../services/socket';
 
 const TABS = [
-  { key: 'all',          label: 'Todo' },
-  { key: 'like',         label: 'Reacciones' },
-  { key: 'comment',      label: 'Comentarios' },
-  { key: 'follow',       label: 'Seguidores' },
-  { key: 'group_invite', label: 'Invitaciones' },
+  { key: 'all',            label: 'Todo' },
+  { key: 'like',           label: 'Reacciones' },
+  { key: 'comment',        label: 'Comentarios' },
+  { key: 'follow',         label: 'Seguidores' },
+  { key: 'group_invite',   label: 'Invitaciones' },
+  { key: 'admin_transfer', label: 'Administración' },
 ];
 
 function timeAgo(date) {
@@ -43,8 +44,10 @@ function notifText(n) {
     case 'follow':        return 'empezó a seguirte';
     case 'chat_accepted': return 'aceptó tu solicitud de chat';
     case 'mention':       return 'te mencionó en un mensaje';
-    case 'group_invite':  return `te invitó al grupo "${n.groupName || 'un grupo'}"`;
-    default:              return '';
+    case 'group_invite':            return `te invitó al grupo "${n.groupName || 'un grupo'}"`;
+    case 'admin_transfer':          return `te ofrece la administración del grupo "${n.groupName || 'un grupo'}"`;
+    case 'admin_transfer_declined': return n.text || 'rechazó la transferencia de admin';
+    default:                        return '';
   }
 }
 
@@ -90,6 +93,13 @@ export default function NotificationsScreen({ navigation }) {
   async function handleInvite(groupId, action) {
     try {
       await api.post(`/groups/${groupId}/invite/${action}`);
+      load(1, tab, true);
+    } catch (e) { console.log(e); }
+  }
+
+  async function handleTransfer(groupId, action) {
+    try {
+      await api.post(`/groups/${groupId}/transfer-admin/${action}`);
       load(1, tab, true);
     } catch (e) { console.log(e); }
   }
@@ -169,6 +179,43 @@ export default function NotificationsScreen({ navigation }) {
               <TouchableOpacity
                 style={s.btnDecline}
                 onPress={() => handleInvite(item.groupId, 'decline')}
+              >
+                <Text style={s.btnDeclineTxt}>Rechazar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Card expandida de transferencia de admin */}
+        {item.type === 'admin_transfer' && item.groupId && (
+          <View style={s.inviteCard}>
+            <View style={s.inviteCardHeader}>
+              {item.groupImageUrl
+                ? <Image source={{ uri: item.groupImageUrl }} style={s.inviteGroupImg} />
+                : <View style={s.inviteGroupImgPlaceholder}>
+                    <Text style={s.inviteGroupImgLetter}>
+                      {item.groupName?.[0]?.toUpperCase() || 'G'}
+                    </Text>
+                  </View>
+              }
+              <View style={{ flex: 1 }}>
+                <Text style={s.inviteGroupName}>{item.groupName}</Text>
+                <Text style={s.inviteGroupDesc} numberOfLines={2}>
+                  {item.from?.username} quiere cederte la administración
+                </Text>
+              </View>
+            </View>
+
+            <View style={s.inviteActions}>
+              <TouchableOpacity
+                style={s.btnAccept}
+                onPress={() => handleTransfer(item.groupId, 'accept')}
+              >
+                <Text style={s.btnAcceptTxt}>Aceptar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.btnDecline}
+                onPress={() => handleTransfer(item.groupId, 'decline')}
               >
                 <Text style={s.btnDeclineTxt}>Rechazar</Text>
               </TouchableOpacity>

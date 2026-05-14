@@ -32,6 +32,12 @@ export default function GroupSettingsScreen({ route, navigation }) {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [addSelected, setAddSelected] = useState([]);
   const [adding,      setAdding]      = useState(false);
+  const [showTransfer,   setShowTransfer]   = useState(false);
+  const [transferSent,   setTransferSent]   = useState(false);
+  const [transferring,   setTransferring]   = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteText,     setDeleteText]     = useState('');
+  const [deleting,       setDeleting]       = useState(false);
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user)?.toString() === user?._id?.toString() && m.role === 'admin'
@@ -163,6 +169,33 @@ export default function GroupSettingsScreen({ route, navigation }) {
     ]);
   }
 
+  // ── Ceder administración ──────────────────────────────────────────────────
+  async function transferAdmin(memberId) {
+    setTransferring(true);
+    try {
+      await api.post(`/groups/${group._id}/transfer-admin`, { newAdminId: memberId });
+      setTransferSent(true);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
+    } finally { setTransferring(false); }
+  }
+
+  // ── Eliminar grupo ────────────────────────────────────────────────────────
+  async function deleteGroup() {
+    if (deleteText.trim() !== 'ELIMINAR') {
+      Alert.alert('Texto incorrecto', 'Escribe exactamente ELIMINAR para confirmar');
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.delete(`/groups/${group._id}`);
+      setShowDeleteConfirm(false);
+      navigation.navigate('Chats');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo eliminar el grupo');
+    } finally { setDeleting(false); }
+  }
+
   const previewMembers = group.members?.slice(0, 5) || [];
   const extraCount = Math.max(0, (group.members?.length || 0) - 5);
   const currentImage = editImage || group.imageUrl;
@@ -216,6 +249,108 @@ export default function GroupSettingsScreen({ route, navigation }) {
               );
             }}
           />
+        </View>
+      </Modal>
+
+      {/* ── Modal ceder administración ── */}
+      <Modal visible={showTransfer} animationType="slide" onRequestClose={() => { setShowTransfer(false); setTransferSent(false); }}>
+        <View style={[s.root, { paddingTop: insets.top }]}>
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>CEDER ADMINISTRACIÓN</Text>
+            <TouchableOpacity onPress={() => { setShowTransfer(false); setTransferSent(false); }} style={s.closeBtn}>
+              <Ionicons name="close" size={22} color={colors.textHi} />
+            </TouchableOpacity>
+          </View>
+          {transferSent ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+              <Ionicons name="checkmark-circle-outline" size={56} color={colors.c1} />
+              <Text style={[s.memberName, { textAlign: 'center', marginTop: 16, fontSize: 16 }]}>
+                Solicitud enviada
+              </Text>
+              <Text style={[s.emptyTxt, { marginTop: 8, textAlign: 'center' }]}>
+                El miembro debe aceptar la solicitud para convertirse en administrador
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={group.members?.filter(m => {
+                const uid = (m.user?._id || m.user)?.toString();
+                return uid !== user?._id?.toString();
+              })}
+              keyExtractor={(m, i) => String(m.user?._id || m.user || i)}
+              contentContainerStyle={{ padding: 16, gap: 12 }}
+              ListEmptyComponent={<Text style={s.emptyTxt}>No hay otros miembros</Text>}
+              renderItem={({ item: m }) => {
+                const memberId = (m.user?._id || m.user)?.toString();
+                const memberUser = typeof m.user === 'object' ? m.user : null;
+                return (
+                  <TouchableOpacity
+                    style={s.memberRow}
+                    disabled={transferring}
+                    onPress={() => {
+                      Alert.alert(
+                        'Ceder administración',
+                        `¿Ceder la administración a ${memberUser?.username}? Deberás esperar su confirmación.`,
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          { text: 'Enviar solicitud', onPress: () => transferAdmin(memberId) },
+                        ]
+                      );
+                    }}>
+                    <AvatarWithFrame
+                      size={40}
+                      avatarUrl={memberUser?.avatarUrl}
+                      username={memberUser?.username || '?'}
+                      profileFrame={memberUser?.profileFrame}
+                      frameUrl={memberUser?.profileFrameUrl}
+                    />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={s.memberName}>{memberUser?.username || 'Usuario'}</Text>
+                      {m.role === 'admin' && (
+                        <View style={s.adminBadge}><Text style={s.adminBadgeTxt}>Admin</Text></View>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          )}
+        </View>
+      </Modal>
+
+      {/* ── Modal confirmar eliminar grupo ── */}
+      <Modal visible={showDeleteConfirm} animationType="fade" transparent onRequestClose={() => setShowDeleteConfirm(false)}>
+        <View style={s.deleteOverlay}>
+          <View style={s.deleteModal}>
+            <Ionicons name="warning-outline" size={40} color="rgba(239,68,68,0.8)" style={{ marginBottom: 12 }} />
+            <Text style={s.deleteModalTitle}>Eliminar grupo</Text>
+            <Text style={s.deleteModalDesc}>
+              Esta acción no se puede deshacer. Todos los mensajes e historial del grupo se perderán permanentemente.
+            </Text>
+            <Text style={s.deleteModalLabel}>Escribe <Text style={{ color: 'rgba(239,68,68,0.9)', fontWeight: '800' }}>ELIMINAR</Text> para confirmar</Text>
+            <TextInput
+              style={s.deleteInput}
+              value={deleteText}
+              onChangeText={setDeleteText}
+              placeholder="ELIMINAR"
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="characters"
+            />
+            <View style={s.deleteActions}>
+              <TouchableOpacity style={s.deleteCancelBtn} onPress={() => { setShowDeleteConfirm(false); setDeleteText(''); }}>
+                <Text style={s.deleteCancelTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.deleteConfirmBtn, deleteText.trim() !== 'ELIMINAR' && { opacity: 0.4 }]}
+                onPress={deleteGroup}
+                disabled={deleting || deleteText.trim() !== 'ELIMINAR'}>
+                {deleting
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={s.deleteConfirmTxt}>Eliminar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -403,6 +538,30 @@ export default function GroupSettingsScreen({ route, navigation }) {
           </View>
         </View>
 
+        {/* ── Acciones de admin ── */}
+        {isAdmin && (
+          <>
+            <TouchableOpacity style={s.transferBtn} onPress={() => { setTransferSent(false); setShowTransfer(true); }}>
+              <Ionicons name="shield-half-outline" size={18} color={colors.c1} />
+              <Text style={s.transferBtnTxt}>Ceder administración</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.deleteBtn} onPress={() => {
+              Alert.alert(
+                '¿Eliminar grupo?',
+                '¿Estás seguro? Esta acción no se puede deshacer.',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Continuar', style: 'destructive', onPress: () => { setDeleteText(''); setShowDeleteConfirm(true); } },
+                ]
+              );
+            }}>
+              <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.9)" />
+              <Text style={s.deleteBtnTxt}>Eliminar grupo</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
         {/* ── Salir del grupo ── */}
         <TouchableOpacity style={s.leaveBtn} onPress={leaveGroup}>
           <Ionicons name="exit-outline" size={18} color="rgba(239,68,68,0.8)" />
@@ -460,6 +619,24 @@ const s = StyleSheet.create({
 
   leaveBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)' },
   leaveBtnTxt: { color: 'rgba(239,68,68,0.8)', fontSize: 14, fontWeight: '600' },
+
+  transferBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, backgroundColor: 'rgba(0,229,204,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)' },
+  transferBtnTxt: { color: colors.c1, fontSize: 14, fontWeight: '600' },
+
+  deleteBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, backgroundColor: 'rgba(239,68,68,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)' },
+  deleteBtnTxt: { color: 'rgba(239,68,68,0.9)', fontSize: 14, fontWeight: '600' },
+
+  deleteOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  deleteModal:   { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24, width: '100%', alignItems: 'center' },
+  deleteModalTitle: { color: colors.textHi, fontSize: 18, fontWeight: '800', marginBottom: 10 },
+  deleteModalDesc:  { color: colors.textDim, fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 18 },
+  deleteModalLabel: { color: colors.textMid, fontSize: 13, marginBottom: 10, textAlign: 'center' },
+  deleteInput:      { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, color: colors.textHi, fontSize: 15, width: '100%', textAlign: 'center', letterSpacing: 2, marginBottom: 18 },
+  deleteActions:    { flexDirection: 'row', gap: 12, width: '100%' },
+  deleteCancelBtn:  { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  deleteCancelTxt:  { color: colors.textDim, fontSize: 14, fontWeight: '600' },
+  deleteConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)', alignItems: 'center' },
+  deleteConfirmTxt: { color: 'rgba(239,68,68,0.9)', fontSize: 14, fontWeight: '700' },
 
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   modalTitle:  { color: colors.textHi, fontSize: 12, fontWeight: '800', letterSpacing: 2.5 },

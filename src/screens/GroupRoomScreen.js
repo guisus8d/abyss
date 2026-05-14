@@ -286,6 +286,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         socketRef.current.off('group:message_deleted');
         socketRef.current.off('group:kicked');
         socketRef.current.off('group:banned');
+        socketRef.current.off('group:deleted');
       }
       clearInterval(recTimerRef.current);
     };
@@ -325,6 +326,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     socket.off('group:message_deleted');
     socket.off('group:kicked');
     socket.off('group:banned');
+    socket.off('group:deleted');
 
     socket.emit('group:join', { groupId: group._id });
 
@@ -366,6 +368,14 @@ export default function GroupRoomScreen({ route, navigation }) {
           members: prev.members.filter(m => (m.user?._id || m.user)?.toString() !== userId?.toString()),
         }));
       }
+    });
+
+    // Escuchar eliminación del grupo
+    socket.on('group:deleted', ({ groupId }) => {
+      if (groupId.toString() !== group._id.toString()) return;
+      Alert.alert('Grupo eliminado', 'Este grupo fue eliminado.', [
+        { text: 'Aceptar', onPress: () => navigation.navigate('Chats') },
+      ]);
     });
   }
 
