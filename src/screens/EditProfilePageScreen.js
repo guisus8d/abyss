@@ -319,9 +319,8 @@ export default function EditProfilePageScreen({ route, navigation }) {
   const isImageBg = bgType === 'image';
 
   return (
-    <View style={s.root}>
+    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" />
-      <SafeAreaView>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.headerBtn}>
             <Ionicons name="close" size={22} color={colors.textDim} />
@@ -333,7 +332,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
               : <Text style={s.saveBtnTxt}>Guardar</Text>}
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
@@ -376,7 +374,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </KeyboardAvoidingView>
 
       {/* FAB lápiz */}
-      <TouchableOpacity style={[s.fab, { bottom: insets.bottom + 20 }]} onPress={() => setAddModal(true)} activeOpacity={0.85}>
+      <TouchableOpacity style={s.fab} onPress={() => setAddModal(true)} activeOpacity={0.85}>
         <Ionicons name="pencil" size={22} color="#001a18" />
       </TouchableOpacity>
 
@@ -492,7 +490,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
           </View>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
