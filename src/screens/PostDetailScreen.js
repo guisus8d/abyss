@@ -188,7 +188,7 @@ export default function PostDetailScreen({ route, navigation }) {
         onClose={() => setReportOpen(false)}
         type="post"
         targetId={postId}
-        targetName={post.title || `Post de @${post.author?.username}`}
+        targetName={post.title || `Post de ${post.author?.username}`}
       />
 
       {/* ── Header ── */}

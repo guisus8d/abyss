@@ -160,11 +160,11 @@ export default function ModPanelScreen({ navigation, route }) {
                   {(selectedReport.type === 'post' || selectedReport.type === 'user') && (
                     <TouchableOpacity
                       style={s.viewLinkBtn}
-                      onPress={() => {
+                      onPress={async () => {
                         const url = selectedReport.type === 'post'
                           ? `https://abyss.social/post/${selectedReport.targetId}`
                           : `https://abyss.social/user/${selectedReport.targetName}`;
-                        Linking.openURL(url);
+                        try { await Linking.openURL(url); } catch (e) { console.error('openURL:', e); }
                       }}
                     >
                       <Ionicons name="open-outline" size={14} color={colors.c1} />
