@@ -166,13 +166,6 @@ const MessageBubble = memo(function MessageBubble({
 
   return (
     <>
-      {showDate && (
-        <View style={s.dateSep}>
-          <View style={s.dateLine} />
-          <Text style={s.dateLabel}>{dateLabel(item.createdAt)}</Text>
-          <View style={s.dateLine} />
-        </View>
-      )}
       <View style={[s.msgRow, isMe && s.msgRowMe]}>
         <View style={{ width: AVATAR_SLOT, alignSelf:'flex-start', alignItems:'center' }}>
           {showAvatar && (
@@ -223,6 +216,13 @@ const MessageBubble = memo(function MessageBubble({
         <Text style={[s.msgSenderName, isMe && { textAlign:'right', marginLeft:0, marginRight: AVATAR_SLOT + 8 }]}>
           {senderName}
         </Text>
+      )}
+      {showDate && (
+        <View style={s.dateSep}>
+          <View style={s.dateLine} />
+          <Text style={s.dateLabel}>{dateLabel(item.createdAt)}</Text>
+          <View style={s.dateLine} />
+        </View>
       )}
     </>
   );

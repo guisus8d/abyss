@@ -65,7 +65,7 @@ function FriendBubble({ user, sent, sending, onPress }) {
         </View>
         {sent && <View style={fb.check}><Ionicons name="checkmark" size={10} color="#fff" /></View>}
       </View>
-      <Text style={fb.name} numberOfLines={1}>{user.username}</Text>
+      <Text style={fb.name} numberOfLines={1} ellipsizeMode="tail">{user.username}</Text>
       <View style={[fb.chip, sent && fb.chipDone]}>
         <Ionicons name={sent?'checkmark':'send-outline'} size={9} color={sent?C.success:C.accent} />
         <Text style={[fb.chipTxt, sent&&{color:C.success}]}>{sending?'...':sent?'Enviado':'Enviar'}</Text>
@@ -75,11 +75,11 @@ function FriendBubble({ user, sent, sending, onPress }) {
 }
 
 const fb = StyleSheet.create({
-  wrap: { alignItems:'center', gap:4, width:68 },
+  wrap: { alignItems:'center', gap:4, width:80 },
   ring: { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
   ringDone: { borderColor:'rgba(34,197,94,0.55)' },
   av:   { borderRadius:26, overflow:'hidden' },
-  name: { color:C.textMid, fontSize:10, fontWeight:'600', maxWidth:64, textAlign:'center' },
+  name: { color:C.textMid, fontSize:11, fontWeight:'600', maxWidth:76, textAlign:'center' },
   check:{ position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
   chip: { flexDirection:'row', alignItems:'center', gap:3, paddingHorizontal:6, paddingVertical:2, borderRadius:8, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
   chipDone:{ backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },

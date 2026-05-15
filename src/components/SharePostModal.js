@@ -127,11 +127,11 @@ function FriendBubble({ user, sent, sending, onPress }) {
 }
 
 const fb = StyleSheet.create({
-  wrap:         { alignItems:'center', gap:4, width:72 },
+  wrap:         { alignItems:'center', gap:4, width:80 },
   ringOuter:    { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
   ringOuterDone:{ borderColor:'rgba(34,197,94,0.55)' },
   avatarWrap:   { borderRadius:26, overflow:'hidden' },
-  name:         { color:C.textMid, fontSize:11, fontWeight:'600', maxWidth:68, textAlign:'center' },
+  name:         { color:C.textMid, fontSize:11, fontWeight:'600', maxWidth:76, textAlign:'center' },
   check:        { position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
   sendChip:     { flexDirection:'row', alignItems:'center', gap:3, paddingHorizontal:6, paddingVertical:2, borderRadius:8, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
   sendChipDone: { backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },
