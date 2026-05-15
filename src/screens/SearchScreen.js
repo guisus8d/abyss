@@ -58,15 +58,6 @@ function UserRow({ user, onPress, currentUserId }) {
         <Text style={s.userRowName}>{user.username}</Text>
         <Text style={s.userRowMeta}>XP {user.xp || 0}</Text>
       </View>
-      {user._id?.toString() !== currentUserId?.toString() && (
-        <TouchableOpacity style={[s.followBtn, following && s.followingBtn]} onPress={toggleFollow} disabled={loading}>
-          {loading
-            ? <ActivityIndicator size="small" color={following ? C.textDim : C.bg} />
-            : <Text style={[s.followBtnTxt, following && s.followingBtnTxt]}>
-                {following ? 'Siguiendo' : 'Seguir'}
-              </Text>}
-        </TouchableOpacity>
-      )}
     </TouchableOpacity>
   );
 }
