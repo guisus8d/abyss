@@ -58,20 +58,22 @@ const pp = StyleSheet.create({
 
 function FriendBubble({ user, sent, sending, onPress }) {
   return (
-    <TouchableOpacity style={fb.wrap} onPress={onPress} activeOpacity={0.75} disabled={sent||sending}>
-      {sending
-        ? <ActivityIndicator size="small" color={C.accent} style={{ width:48, height:48 }} />
-        : <PlainAvatar size={48} avatarUrl={user.avatarUrl} username={user.username} />
-      }
-      <Text style={fb.name} numberOfLines={1} ellipsizeMode="tail">{user.username}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={sent || sending}
+      style={{ alignItems:'center', justifyContent:'center', width:70, marginHorizontal:6 }}
+    >
+      <PlainAvatar size={48} avatarUrl={user.avatarUrl} username={user.username} />
+      <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={{ fontSize:11, color:'#ffffff', textAlign:'center', marginTop:6, width:66 }}
+      >
+        {user.username}
+      </Text>
     </TouchableOpacity>
   );
 }
-
-const fb = StyleSheet.create({
-  wrap: { alignItems:'center', width:80 },
-  name: { fontSize:11, color:'#fff', textAlign:'center', width:76, marginTop:4 },
-});
 
 function GroupRow({ group, sent, sending, onPress }) {
   return (
@@ -222,15 +224,26 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
           {loading ? (
             <ActivityIndicator color={C.accent} style={{ marginVertical:16 }} />
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.friendsRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ paddingVertical:8 }}
+              contentContainerStyle={{ paddingHorizontal:12, alignItems:'flex-start', gap:4 }}
+            >
               {friends.slice(0, 5).map((f, i) => (
                 <FriendBubble key={`f_${f._id}_${i}`} user={f} sent={!!sentMap[`friend_${f._id}`]} sending={!!sendingMap[`friend_${f._id}`]} onPress={() => sendToFriend(f)} />
               ))}
-              <TouchableOpacity style={fb.wrap} onPress={() => setShowSearch(true)} activeOpacity={0.75}>
+              <TouchableOpacity
+                onPress={() => setShowSearch(true)}
+                activeOpacity={0.75}
+                style={{ alignItems:'center', justifyContent:'center', width:70, marginHorizontal:6 }}
+              >
                 <View style={s.plusCircle}>
                   <Ionicons name="add" size={24} color={C.accent} />
                 </View>
-                <Text style={fb.name}>Buscar</Text>
+                <Text style={{ fontSize:11, color:'#ffffff', textAlign:'center', marginTop:6, width:66 }}>
+                  Buscar
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           )}
