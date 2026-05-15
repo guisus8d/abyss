@@ -13,3 +13,6 @@ print("✅ OG tags inyectadas")
 PYEOF
 
 grep "og:image" dist/index.html || echo "❌ FALLÓ"
+cp web/post.html dist/post.html
+cp web/user.html dist/user.html
+echo "✅ post.html y user.html copiados"
