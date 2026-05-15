@@ -458,7 +458,7 @@ const s = StyleSheet.create({
     ...(isWeb ? { cursor: 'default' } : {}),
   },
   header:      { flexDirection: 'row', alignItems: 'center', marginBottom: 13, gap: 10 },
-  avatarWrap:  { width: 40, height: 40, overflow: 'visible' },
+  avatarWrap:  { width: 60, height: 60, overflow: 'visible' },
   usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   username:    { color: C.textHi, fontWeight: '700', fontSize: 14 },
   meta:        { color: C.textDim, fontSize: 11, marginTop: 3 },
