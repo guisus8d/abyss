@@ -225,7 +225,7 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
             <View style={s.headerRight}>
               <TouchableOpacity style={s.iconBtnBox}
-                onPress={() => { setSearchOpen(!searchOpen); setSearchQuery(''); setSearchResults([]); }}>
+                onPress={() => navigation.navigate('Search')}>
                 <Ionicons name="search" size={18} color={colors.textHi} />
               </TouchableOpacity>
               <TouchableOpacity style={s.iconBtnBox}
