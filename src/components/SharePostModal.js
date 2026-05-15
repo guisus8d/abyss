@@ -355,8 +355,7 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ paddingVertical:8 }}
-              contentContainerStyle={{ paddingHorizontal:12, alignItems:'flex-start', gap:4 }}
+              contentContainerStyle={{ paddingHorizontal:12, paddingTop:8, paddingBottom:8, alignItems:'flex-start', gap:4 }}
             >
               {friends.slice(0, 5).map((f, idx) => (
                 <FriendBubble
