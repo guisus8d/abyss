@@ -930,6 +930,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 />
               </View>
             )}
+            <View style={{ paddingBottom: insets.bottom }}>
             {audioPreview ? (
               <View style={s.audioPreviewRow}>
                 <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -941,7 +942,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
             ) : (
-              <View style={[s.inputRow, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
+              <View style={s.inputRow}>
                 <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
                   {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
                 </TouchableOpacity>
@@ -979,6 +980,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
             )}
+            </View>
           </View>
         )}
       </View>
