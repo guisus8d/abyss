@@ -95,24 +95,18 @@ const p = StyleSheet.create({
 function FriendBubble({ user, sent, sending, onPress }) {
   return (
     <TouchableOpacity style={fb.wrap} onPress={onPress} activeOpacity={0.75} disabled={sent||sending}>
-      <View style={[fb.ring, sent && fb.ringDone]}>
-        <View style={fb.av}>
-          {sending ? <ActivityIndicator size="small" color={C.accent} /> : <PlainAvatar size={48} avatarUrl={user.avatarUrl} username={user.username} />}
-        </View>
-        {sent && <View style={fb.check}><Ionicons name="checkmark" size={10} color="#fff" /></View>}
-      </View>
+      {sending
+        ? <ActivityIndicator size="small" color={C.accent} style={{ width:48, height:48 }} />
+        : <PlainAvatar size={48} avatarUrl={user.avatarUrl} username={user.username} />
+      }
       <Text style={fb.name} numberOfLines={1} ellipsizeMode="tail">{user.username}</Text>
     </TouchableOpacity>
   );
 }
 
 const fb = StyleSheet.create({
-  wrap:    { alignItems:'center', gap:4, width:72 },
-  ring:    { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
-  ringDone:{ borderColor:'rgba(34,197,94,0.55)' },
-  av:      { borderRadius:26, overflow:'hidden', width:48, height:48 },
-  name:    { color:C.textMid, fontSize:11, fontWeight:'600', textAlign:'center', maxWidth:68 },
-  check:   { position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
+  wrap: { alignItems:'center', width:72 },
+  name: { fontSize:11, color:'#fff', textAlign:'center', width:68, marginTop:4 },
 });
 
 // ─── GroupRow ─────────────────────────────────────────────────────────────────
@@ -382,7 +376,7 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
 
               {/* Botón + buscar más */}
               <TouchableOpacity style={fb.wrap} onPress={() => setShowSearch(true)} activeOpacity={0.75}>
-                <View style={[fb.ring, s.plusCircle]}>
+                <View style={s.plusCircle}>
                   <Ionicons name="add" size={24} color={C.accent} />
                 </View>
                 <Text style={fb.name}>Buscar</Text>
@@ -604,12 +598,12 @@ const s = StyleSheet.create({
   sectionRow:  { paddingHorizontal:16, marginBottom:10 },
   sectionLabel:{ color:C.textDim, fontSize:11, fontWeight:'700', letterSpacing:0.8, textTransform:'uppercase' },
 
-  friendsRow: { paddingHorizontal:16, gap:4, paddingBottom:4 },
+  friendsRow: { paddingHorizontal:16, gap:4, paddingBottom:8, alignItems:'flex-start' },
 
   plusCircle: {
-    width:50, height:50, borderRadius:25,
+    width:48, height:48, borderRadius:24,
     backgroundColor:'rgba(0,229,204,0.07)',
-    borderStyle:'dashed',
+    borderWidth:1.5, borderStyle:'dashed', borderColor:'rgba(0,229,204,0.35)',
     alignItems:'center', justifyContent:'center',
   },
 
