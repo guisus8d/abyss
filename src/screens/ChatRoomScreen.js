@@ -259,7 +259,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       result.push(reversed[i]);
       const next = reversed[i + 1];
       if (!next || dateLabel(reversed[i].createdAt) !== dateLabel(next.createdAt)) {
-        result.push({ _id: `sep_${reversed[i]._id}`, type: 'date_separator', label: dateLabel(reversed[i].createdAt) });
+        result.push({ _id: `sep_${dateLabel(reversed[i].createdAt)}`, type: 'date_separator', label: dateLabel(reversed[i].createdAt) });
       }
     }
     return result;

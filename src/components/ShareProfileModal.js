@@ -75,11 +75,11 @@ function FriendBubble({ user, sent, sending, onPress }) {
 }
 
 const fb = StyleSheet.create({
-  wrap: { alignItems:'center', gap:4, width:80 },
+  wrap: { alignItems:'center', gap:4, width:88 },
   ring: { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
   ringDone: { borderColor:'rgba(34,197,94,0.55)' },
   av:   { borderRadius:26, overflow:'hidden' },
-  name: { color:C.textMid, fontSize:11, fontWeight:'600', maxWidth:76, textAlign:'center' },
+  name: { color:C.textMid, fontSize:11, fontWeight:'600', flexShrink:1, alignSelf:'stretch', textAlign:'center' },
   check:{ position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
   chip: { flexDirection:'row', alignItems:'center', gap:3, paddingHorizontal:6, paddingVertical:2, borderRadius:8, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
   chipDone:{ backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },
@@ -231,7 +231,7 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
             <ActivityIndicator color={C.accent} style={{ marginVertical:16 }} />
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.friendsRow}>
-              {friends.map((f, i) => (
+              {friends.slice(0, 5).map((f, i) => (
                 <FriendBubble key={`f_${f._id}_${i}`} user={f} sent={!!sentMap[`friend_${f._id}`]} sending={!!sendingMap[`friend_${f._id}`]} onPress={() => sendToFriend(f)} />
               ))}
               {friends.length === 0 && !loading && (
