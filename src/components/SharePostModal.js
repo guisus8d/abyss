@@ -110,7 +110,7 @@ const fb = StyleSheet.create({
   wrap:    { alignItems:'center', gap:4, width:72 },
   ring:    { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
   ringDone:{ borderColor:'rgba(34,197,94,0.55)' },
-  av:      { borderRadius:26, overflow:'hidden' },
+  av:      { borderRadius:26, overflow:'hidden', width:48, height:48 },
   name:    { color:C.textMid, fontSize:11, fontWeight:'600', textAlign:'center', maxWidth:68 },
   check:   { position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
 });
@@ -142,11 +142,14 @@ function GroupRow({ group, sent, sending, onPress }) {
 }
 
 const gr = StyleSheet.create({
-  row:      { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
+  row:     { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
   avatarWrap:{ },
-  avatar:   { width:40, height:40, borderRadius:20 },
-  name:     { color:C.textHi, fontSize:13, fontWeight:'600' },
-  sub:      { color:C.textDim, fontSize:11, marginTop:1 },
+  avatar:  { width:40, height:40, borderRadius:20 },
+  name:    { color:C.textHi, fontSize:13, fontWeight:'600' },
+  sub:     { color:C.textDim, fontSize:11, marginTop:1 },
+  btn:     { flexDirection:'row', alignItems:'center', gap:4, paddingHorizontal:12, paddingVertical:7, borderRadius:10, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
+  btnDone: { backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },
+  btnTxt:  { color:C.accent, fontSize:11, fontWeight:'700' },
 });
 
 // ─── Plataformas sociales ─────────────────────────────────────────────────────
@@ -211,10 +214,14 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
     setSearching(true);
     try {
       const { data } = await api.get(`/users/search?q=${q.trim()}`);
-      setSearchResults((data.users || []).filter(u => u._id !== currentUserId));
+      const results = (data.users || []).filter(u => u._id !== currentUserId);
+      setSearchResults(results.map(u => {
+        const f = friends.find(x => x._id?.toString() === u._id?.toString());
+        return f ? { ...u, chatId: f.chatId } : u;
+      }));
     } catch {}
     finally { setSearching(false); }
-  }, [currentUserId]);
+  }, [currentUserId, friends]);
 
   // ── Payload compartir ─────────────────────────────────────────────────────
   const sharedPostPayload = {

@@ -74,7 +74,7 @@ const fb = StyleSheet.create({
   wrap:    { alignItems:'center', gap:4, width:72 },
   ring:    { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
   ringDone:{ borderColor:'rgba(34,197,94,0.55)' },
-  av:      { borderRadius:26, overflow:'hidden' },
+  av:      { borderRadius:26, overflow:'hidden', width:48, height:48 },
   name:    { color:C.textMid, fontSize:11, fontWeight:'600', textAlign:'center', maxWidth:68 },
   check:   { position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
 });
@@ -96,10 +96,13 @@ function GroupRow({ group, sent, sending, onPress }) {
 }
 
 const gr = StyleSheet.create({
-  row:    { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
-  av:     { width:40, height:40, borderRadius:20, backgroundColor:'#0d2a3e', alignItems:'center', justifyContent:'center', overflow:'hidden' },
-  name:   { color:C.textHi, fontSize:13, fontWeight:'600' },
-  sub:    { color:C.textDim, fontSize:11, marginTop:1 },
+  row:     { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
+  av:      { width:40, height:40, borderRadius:20, backgroundColor:'#0d2a3e', alignItems:'center', justifyContent:'center', overflow:'hidden' },
+  name:    { color:C.textHi, fontSize:13, fontWeight:'600' },
+  sub:     { color:C.textDim, fontSize:11, marginTop:1 },
+  btn:     { flexDirection:'row', alignItems:'center', gap:4, paddingHorizontal:12, paddingVertical:7, borderRadius:10, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
+  btnDone: { backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },
+  btnTxt:  { color:C.accent, fontSize:11, fontWeight:'700' },
 });
 
 export default function ShareProfileModal({ visible, onClose, profile, currentUserId }) {
@@ -110,13 +113,18 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
   const [groupQuery,  setGroupQuery]  = useState('');
   const [sentMap,     setSentMap]     = useState({});
   const [sendingMap,  setSendingMap]  = useState({});
-  const [linkCopied,  setLinkCopied]  = useState(false);
+  const [linkCopied,    setLinkCopied]    = useState(false);
+  const [showSearch,    setShowSearch]    = useState(false);
+  const [searchQuery,   setSearchQuery]   = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching,     setSearching]     = useState(false);
 
   const profileUrl = `https://abyss.social/user/${profile?.username}`;
 
   useEffect(() => {
     if (!visible) return;
     setSentMap({}); setSendingMap({}); setGroupQuery(''); setLinkCopied(false);
+    setShowSearch(false); setSearchQuery(''); setSearchResults([]);
     setLoading(true);
     Promise.all([
       api.get('/chats').catch(() => ({ data: { chats: [] } })),
@@ -167,6 +175,21 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
     finally { setSendingMap(p => ({ ...p, [key]:false })); }
   }
 
+  const handleSearchFriend = useCallback(async (q) => {
+    setSearchQuery(q);
+    if (q.trim().length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const { data } = await api.get(`/users/search?q=${q.trim()}`);
+      const results = (data.users || []).filter(u => u._id !== currentUserId);
+      setSearchResults(results.map(u => {
+        const f = friends.find(x => x._id?.toString() === u._id?.toString());
+        return f ? { ...u, chatId: f.chatId } : u;
+      }));
+    } catch {}
+    finally { setSearching(false); }
+  }, [currentUserId, friends]);
+
   async function handleCopyLink() {
     try {
       if (Platform.OS === 'web') {
@@ -210,7 +233,7 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
           {profile && <ProfilePreviewCard profile={profile} />}
 
           {/* Amigos */}
-          <View style={s.sectionRow}><Text style={s.sectionLabel}>Enviar a amigo</Text></View>
+          <View style={s.sectionRow}><Text style={s.sectionLabel}>Amigos</Text></View>
           {loading ? (
             <ActivityIndicator color={C.accent} style={{ marginVertical:16 }} />
           ) : (
@@ -218,9 +241,12 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
               {friends.slice(0, 5).map((f, i) => (
                 <FriendBubble key={`f_${f._id}_${i}`} user={f} sent={!!sentMap[`friend_${f._id}`]} sending={!!sendingMap[`friend_${f._id}`]} onPress={() => sendToFriend(f)} />
               ))}
-              {friends.length === 0 && !loading && (
-                <Text style={[s.sectionLabel, { paddingVertical:16 }]}>Sin chats activos</Text>
-              )}
+              <TouchableOpacity style={fb.wrap} onPress={() => setShowSearch(true)} activeOpacity={0.75}>
+                <View style={[fb.ring, s.plusCircle]}>
+                  <Ionicons name="add" size={24} color={C.accent} />
+                </View>
+                <Text style={fb.name}>Buscar</Text>
+              </TouchableOpacity>
             </ScrollView>
           )}
 
@@ -244,7 +270,7 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
 
           {/* Grupos */}
           <View style={s.divider} />
-          <View style={s.sectionRow}><Text style={s.sectionLabel}>Enviar a grupo</Text></View>
+          <View style={s.sectionRow}><Text style={s.sectionLabel}>Grupos</Text></View>
           <View style={s.searchBar}>
             <Ionicons name="search-outline" size={14} color={C.textDim} style={{ marginLeft:10 }} />
             <TextInput style={s.searchInput} placeholder="Buscar grupo..." placeholderTextColor={C.textDim} value={groupQuery} onChangeText={setGroupQuery} />
@@ -264,6 +290,83 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
           />
         </View>
       </View>
+
+      {/* ── Modal buscar amigo (+) ── */}
+      <Modal
+        visible={showSearch}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSearch(false)}
+      >
+        <View style={s.overlay}>
+          <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowSearch(false)} />
+          <View style={[s.searchSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={s.handle} />
+            <View style={s.header}>
+              <Text style={s.headerTitle}>Buscar amigo</Text>
+              <TouchableOpacity onPress={() => setShowSearch(false)} style={s.closeBtn}>
+                <Ionicons name="close" size={18} color={C.textDim} />
+              </TouchableOpacity>
+            </View>
+            <View style={[s.searchBar, { marginHorizontal:16, marginBottom:10 }]}>
+              <Ionicons name="search-outline" size={14} color={C.textDim} style={{ marginLeft:10 }} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Buscar usuario..."
+                placeholderTextColor={C.textDim}
+                value={searchQuery}
+                onChangeText={handleSearchFriend}
+                autoFocus
+              />
+              {searching && <ActivityIndicator size="small" color={C.accent} style={{ marginRight:10 }} />}
+            </View>
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item, i) => `search_${String(item._id || i)}_${i}`}
+              style={{ maxHeight:300 }}
+              contentContainerStyle={{ paddingHorizontal:16 }}
+              ListEmptyComponent={() => (
+                <View style={s.empty}>
+                  <Text style={s.emptyTxt}>
+                    {searchQuery.length >= 2 ? 'Sin resultados' : 'Escribe para buscar'}
+                  </Text>
+                </View>
+              )}
+              renderItem={({ item }) => {
+                const key = `friend_${item._id}`;
+                return (
+                  <TouchableOpacity
+                    style={[gr.row, { paddingHorizontal:0 }]}
+                    onPress={async () => {
+                      await sendToFriend(item);
+                      if (!friends.find(f => f._id === item._id)) {
+                        setFriends(prev => [item, ...prev]);
+                      }
+                    }}
+                    activeOpacity={0.75}
+                    disabled={!!sentMap[key] || !!sendingMap[key]}
+                  >
+                    <PlainAvatar size={40} avatarUrl={item.avatarUrl} username={item.username} />
+                    <View style={{ flex:1, marginLeft:10 }}>
+                      <Text style={gr.name}>{item.username}</Text>
+                    </View>
+                    {sendingMap[key] ? (
+                      <ActivityIndicator size="small" color={C.accent} />
+                    ) : (
+                      <View style={[gr.btn, sentMap[key] && gr.btnDone]}>
+                        <Ionicons name={sentMap[key] ? 'checkmark' : 'send-outline'} size={13} color={sentMap[key] ? C.success : C.accent} />
+                        <Text style={[gr.btnTxt, sentMap[key] && { color: C.success }]}>
+                          {sentMap[key] ? 'Enviado' : 'Enviar'}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -272,6 +375,8 @@ const s = StyleSheet.create({
   overlay:  { flex:1, justifyContent:'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor:'rgba(0,0,0,0.6)' },
   sheet:    { backgroundColor:C.bg, borderTopLeftRadius:24, borderTopRightRadius:24, borderTopWidth:1, borderLeftWidth:1, borderRightWidth:1, borderColor:'rgba(0,229,204,0.12)', maxHeight:'92%', paddingTop:12 },
+  searchSheet: { backgroundColor:C.bg, borderTopLeftRadius:24, borderTopRightRadius:24, borderTopWidth:1, borderLeftWidth:1, borderRightWidth:1, borderColor:'rgba(0,229,204,0.12)', paddingTop:12 },
+  plusCircle: { width:50, height:50, borderRadius:25, backgroundColor:'rgba(0,229,204,0.07)', borderStyle:'dashed', alignItems:'center', justifyContent:'center' },
   handle:   { width:40, height:4, backgroundColor:'rgba(255,255,255,0.12)', borderRadius:2, alignSelf:'center', marginBottom:14 },
   header:   { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:20, marginBottom:14 },
   headerTitle: { color:C.textHi, fontSize:17, fontWeight:'700' },
