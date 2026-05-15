@@ -552,7 +552,7 @@ const s = StyleSheet.create({
   mentionAt:      { color: colors.c1, fontWeight: '800', fontSize: 15 },
   mentionSub:     { color: colors.textDim, fontSize: 11, marginTop: 2 },
 
-  fab: { position:'absolute', bottom:40, right:20, width:52, height:52, borderRadius:26, backgroundColor:colors.c1, alignItems:'center', justifyContent:'center', shadowColor:colors.c1, shadowOpacity:0.45, shadowRadius:12, shadowOffset:{ width:0, height:4 }, elevation:10 },
+  fab: { position:'absolute', bottom:64, right:20, width:52, height:52, borderRadius:26, backgroundColor:colors.c1, alignItems:'center', justifyContent:'center', shadowColor:colors.c1, shadowOpacity:0.45, shadowRadius:12, shadowOffset:{ width:0, height:4 }, elevation:10 },
 
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end', margin: 0 },
   sheet:        { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, borderTopWidth: 1, borderTopColor: colors.border, width: '100%' },
