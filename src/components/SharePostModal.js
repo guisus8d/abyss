@@ -160,20 +160,6 @@ function GroupRow({ group, sent, sending, onPress }) {
           {group.members?.length || 0} miembros
         </Text>
       </View>
-      {sending ? (
-        <ActivityIndicator size="small" color={C.accent} />
-      ) : (
-        <View style={[gr.btn, sent && gr.btnDone]}>
-          <Ionicons
-            name={sent ? 'checkmark' : 'send-outline'}
-            size={13}
-            color={sent ? C.success : C.accent}
-          />
-          <Text style={[gr.btnTxt, sent && { color:C.success }]}>
-            {sent ? 'Enviado' : 'Enviar'}
-          </Text>
-        </View>
-      )}
     </TouchableOpacity>
   );
 }
@@ -184,9 +170,6 @@ const gr = StyleSheet.create({
   avatar:   { width:40, height:40, borderRadius:20 },
   name:     { color:C.textHi, fontSize:13, fontWeight:'600' },
   sub:      { color:C.textDim, fontSize:11, marginTop:1 },
-  btn:      { flexDirection:'row', alignItems:'center', gap:4, paddingHorizontal:12, paddingVertical:7, borderRadius:10, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
-  btnDone:  { backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },
-  btnTxt:   { color:C.accent, fontSize:11, fontWeight:'700' },
 });
 
 // ─── Plataformas sociales ─────────────────────────────────────────────────────
