@@ -5,7 +5,7 @@ import {
   Dimensions, Alert, Modal, ActivityIndicator,
   KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -42,6 +42,7 @@ function uid() { return Math.random().toString(36).slice(2, 9); }
 export default function EditProfilePageScreen({ route, navigation }) {
   const { profile } = route.params || {};
   const { updateUser } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   const [blocks, setBlocks]       = useState(profile?.profileBlocks || []);
   const [bg, setBg]               = useState(profile?.profileBg || '');
@@ -375,14 +376,14 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </KeyboardAvoidingView>
 
       {/* FAB lápiz */}
-      <TouchableOpacity style={s.fab} onPress={() => setAddModal(true)} activeOpacity={0.85}>
+      <TouchableOpacity style={[s.fab, { bottom: insets.bottom + 20 }]} onPress={() => setAddModal(true)} activeOpacity={0.85}>
         <Ionicons name="pencil" size={22} color="#001a18" />
       </TouchableOpacity>
 
       {/* ── Modal: Tipo de bloque ── */}
       <Modal visible={addModal === true} transparent animationType="slide" onRequestClose={() => setAddModal(false)}>
         <TouchableOpacity style={s.sheetOverlay} activeOpacity={1} onPress={() => setAddModal(false)}>
-          <View style={s.sheet}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>AGREGAR BLOQUE</Text>
             <View style={s.blockTypesRow}>
@@ -465,7 +466,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
       {/* ── Modal: Fondo ── */}
       <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>
         <TouchableOpacity style={s.sheetOverlay} activeOpacity={1} onPress={() => setBgModal(false)}>
-          <View style={s.sheet}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>FONDO DE PÁGINA</Text>
             <View style={s.colorGrid}>
