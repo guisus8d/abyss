@@ -618,6 +618,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
 
+        <View style={{ paddingBottom: insets.bottom }}>
         {audioPreview ? (
           <View style={s.audioPreviewRow}>
             <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -629,7 +630,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={[s.inputRow, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
+          <View style={s.inputRow}>
             <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
               {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
             </TouchableOpacity>
@@ -664,6 +665,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         )}
+        </View>
       </View>
 
       {showScrollBtn && (
@@ -722,7 +724,7 @@ const s = StyleSheet.create({
   recDot:             { width:8, height:8, borderRadius:4, backgroundColor:'rgba(239,68,68,0.9)' },
   recTimer:           { color: colors.c1, fontSize:13, fontWeight:'700', minWidth:38 },
   recStop:            { width:28, height:28, borderRadius:14, backgroundColor:'rgba(239,68,68,0.8)', alignItems:'center', justifyContent:'center' },
-  audioPreviewRow:    { flexDirection:'row', alignItems:'center', justifyContent:'center', paddingHorizontal:16, paddingVertical:10, paddingBottom:30, gap:12, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
+  audioPreviewRow:    { flexDirection:'row', alignItems:'center', justifyContent:'center', paddingHorizontal:16, paddingVertical:10, gap:12, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
   audioPreviewCancel: { width:36, height:36, borderRadius:18, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)', alignItems:'center', justifyContent:'center' },
   audioPreviewSend:   { width:36, height:36, borderRadius:18, backgroundColor:'rgba(0,229,204,0.8)', alignItems:'center', justifyContent:'center' },
   inputRow:     { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:12, paddingVertical:10, borderTopWidth:1, borderTopColor: colors.border, backgroundColor: colors.deep, overflow:'hidden' },
