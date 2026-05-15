@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Modal, TouchableOpacity, Image,
-  StyleSheet, ActivityIndicator, TextInput, Platform, Alert, Share,
+  StyleSheet, ActivityIndicator, TextInput, Platform, Alert, Share, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -200,8 +200,8 @@ export default function PostDetailScreen({ route, navigation }) {
         <Text style={s.headerDate}>{formatDate(post.createdAt)}</Text>
 
         <View style={{ flexDirection:'row', gap:8 }}>
-          {/* Botón reportar — solo para no-autores */}
-          {!isAuthor && (
+          {/* Botón reportar — solo para no-autores logueados */}
+          {!isAuthor && user && (
             <TouchableOpacity onPress={() => setReportOpen(true)} style={s.actionBtn}>
               <Ionicons name="flag-outline" size={18} color="rgba(239,68,68,0.7)" />
             </TouchableOpacity>
@@ -271,41 +271,53 @@ export default function PostDetailScreen({ route, navigation }) {
         <View style={{ height:80 }} />
       </ScrollView>
 
-      {/* ── Input ── */}
-      <View style={[s.inputWrap, { paddingBottom: inputBottomPad }]}>
-        {replyTo ? (
-          <View style={s.replyBanner}>
-            <View style={s.replyBannerAccent} />
-            <Text style={s.replyBannerTxt} numberOfLines={1}>{'↩ Respondiendo a @'}{replyTo.username}</Text>
-            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding:4 }}>
-              <Ionicons name="close" size={14} color={C.textDim} />
+      {/* ── Input o CTA ── */}
+      {user ? (
+        <View style={[s.inputWrap, { paddingBottom: inputBottomPad }]}>
+          {replyTo ? (
+            <View style={s.replyBanner}>
+              <View style={s.replyBannerAccent} />
+              <Text style={s.replyBannerTxt} numberOfLines={1}>{'↩ Respondiendo a @'}{replyTo.username}</Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding:4 }}>
+                <Ionicons name="close" size={14} color={C.textDim} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          <View style={s.inputRow}>
+            <TextInput
+              ref={inputRef}
+              style={s.input}
+              value={comment}
+              onChangeText={setComment}
+              placeholder="Escribe un comentario..."
+              placeholderTextColor={C.textDim}
+              multiline
+              maxLength={500}
+              onKeyPress={isWeb ? (e) => {
+                if (e.nativeEvent.key==='Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); handleComment(); }
+              } : undefined}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!comment.trim()||sending) && s.sendBtnDisabled]}
+              onPress={handleComment}
+              disabled={!comment.trim()||sending}
+              activeOpacity={0.8}
+            >
+              {sending ? <ActivityIndicator size="small" color="#020509" /> : <Ionicons name="send" size={15} color="#020509" />}
             </TouchableOpacity>
           </View>
-        ) : null}
-        <View style={s.inputRow}>
-          <TextInput
-            ref={inputRef}
-            style={s.input}
-            value={comment}
-            onChangeText={setComment}
-            placeholder="Escribe un comentario..."
-            placeholderTextColor={C.textDim}
-            multiline
-            maxLength={500}
-            onKeyPress={isWeb ? (e) => {
-              if (e.nativeEvent.key==='Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); handleComment(); }
-            } : undefined}
-          />
+        </View>
+      ) : isWeb ? (
+        <View style={[s.ctaWrap, { paddingBottom: inputBottomPad }]}>
           <TouchableOpacity
-            style={[s.sendBtn, (!comment.trim()||sending) && s.sendBtnDisabled]}
-            onPress={handleComment}
-            disabled={!comment.trim()||sending}
+            style={s.ctaBtn}
+            onPress={() => Linking.openURL(`abyss://post/${postId}`)}
             activeOpacity={0.8}
           >
-            {sending ? <ActivityIndicator size="small" color="#020509" /> : <Ionicons name="send" size={15} color="#020509" />}
+            <Text style={s.ctaTxt}>Abrir en Abyss</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -353,4 +365,7 @@ const s = StyleSheet.create({
   input: { flex:1, backgroundColor:C.surface, borderRadius:16, paddingHorizontal:14, paddingVertical:10, color:C.textHi, fontSize:14, maxHeight:100, borderWidth:1, borderColor:C.cardBorder, ...(isWeb?{outlineStyle:'none'}:{}) },
   sendBtn:         { backgroundColor:C.accent, width:40, height:40, borderRadius:20, alignItems:'center', justifyContent:'center' },
   sendBtnDisabled: { backgroundColor:'rgba(15,227,184,0.2)' },
+  ctaWrap: { backgroundColor:C.card, borderTopWidth:1, borderTopColor:C.cardBorder, padding:16, alignItems:'center' },
+  ctaBtn:  { backgroundColor:C.accent, paddingVertical:13, paddingHorizontal:32, borderRadius:14 },
+  ctaTxt:  { color:'#020509', fontWeight:'800', fontSize:14 },
 });

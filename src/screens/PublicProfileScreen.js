@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, StatusBar, ActivityIndicator,
-  Alert, Dimensions, Clipboard, Modal, Pressable,
+  Alert, Dimensions, Clipboard, Modal, Pressable, Linking, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +16,7 @@ import ReportModal from '../components/ReportModal';
 import ShareProfileModal from '../components/ShareProfileModal';
 
 const W = Dimensions.get('window').width;
+const isWeb = Platform.OS === 'web';
 
 const TABS_BASE = [
   { key: 'profile', icon: 'person-outline' },
@@ -62,11 +63,13 @@ export default function PublicProfileScreen({ route, navigation }) {
       setTotalPosts(postsRes.data.total || 0);
       setPostsHasMore(postsRes.data.hasMore ?? false);
       setPostsPage(1);
-      setFollowing(profileRes.data.user.followers?.some(f => f._id === me._id || f === me._id));
-      try {
-        const chatRes = await api.get(`/chats/check/${profileRes.data.user._id}`);
-        setChatStatus(chatRes.data.status);
-      } catch { setChatStatus('none'); }
+      setFollowing(profileRes.data.user.followers?.some(f => f._id === me?._id || f === me?._id));
+      if (me) {
+        try {
+          const chatRes = await api.get(`/chats/check/${profileRes.data.user._id}`);
+          setChatStatus(chatRes.data.status);
+        } catch { setChatStatus('none'); }
+      }
     } catch {
       Alert.alert('Error', 'No se pudo cargar el perfil');
     } finally {
@@ -190,7 +193,7 @@ export default function PublicProfileScreen({ route, navigation }) {
     <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 80 }} /></View>
   );
 
-  const theyFollowMe = profile?.following?.some(f => f._id === me._id || f === me._id);
+  const theyFollowMe = profile?.following?.some(f => f._id === me?._id || f === me?._id);
   const isMutual     = following && theyFollowMe;
   const prefs        = { showXp: true, showFollowers: true, showFollowing: true, showPosts: true, ...(profile?.profilePrefs || {}) };
   const TABS         = TABS_BASE.filter(t => t.key !== 'posts' || prefs.showPosts);
@@ -245,29 +248,33 @@ export default function PublicProfileScreen({ route, navigation }) {
               <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
             </TouchableOpacity>
 
-            <View style={s.menuDivider} />
+            {me && (
+              <>
+                <View style={s.menuDivider} />
 
-            <TouchableOpacity style={s.menuItem} onPress={handleBlock} activeOpacity={0.7}>
-              <View style={[s.menuItemIcon, { backgroundColor: blocked ? 'rgba(0,229,204,0.1)' : 'rgba(239,68,68,0.08)' }]}>
-                <Ionicons name={blocked ? 'lock-open-outline' : 'ban-outline'} size={18} color={blocked ? colors.c1 : 'rgba(239,68,68,0.8)'} />
-              </View>
-              <View style={{ flex:1 }}>
-                <Text style={[s.menuItemTxt, { color: blocked ? colors.c1 : 'rgba(239,68,68,0.85)' }]}>
-                  {blocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
-                </Text>
-                <Text style={s.menuItemSub}>{blocked ? 'Volver a ver su contenido' : 'No verás su contenido'}</Text>
-              </View>
-            </TouchableOpacity>
+                <TouchableOpacity style={s.menuItem} onPress={handleBlock} activeOpacity={0.7}>
+                  <View style={[s.menuItemIcon, { backgroundColor: blocked ? 'rgba(0,229,204,0.1)' : 'rgba(239,68,68,0.08)' }]}>
+                    <Ionicons name={blocked ? 'lock-open-outline' : 'ban-outline'} size={18} color={blocked ? colors.c1 : 'rgba(239,68,68,0.8)'} />
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <Text style={[s.menuItemTxt, { color: blocked ? colors.c1 : 'rgba(239,68,68,0.85)' }]}>
+                      {blocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
+                    </Text>
+                    <Text style={s.menuItemSub}>{blocked ? 'Volver a ver su contenido' : 'No verás su contenido'}</Text>
+                  </View>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={s.menuItem} onPress={handleReport} activeOpacity={0.7}>
-              <View style={[s.menuItemIcon, { backgroundColor:'rgba(239,68,68,0.08)' }]}>
-                <Ionicons name="flag-outline" size={18} color="rgba(239,68,68,0.8)" />
-              </View>
-              <View style={{ flex:1 }}>
-                <Text style={[s.menuItemTxt, { color:'rgba(239,68,68,0.85)' }]}>Reportar usuario</Text>
-                <Text style={s.menuItemSub}>Notificar al equipo de moderación</Text>
-              </View>
-            </TouchableOpacity>
+                <TouchableOpacity style={s.menuItem} onPress={handleReport} activeOpacity={0.7}>
+                  <View style={[s.menuItemIcon, { backgroundColor:'rgba(239,68,68,0.08)' }]}>
+                    <Ionicons name="flag-outline" size={18} color="rgba(239,68,68,0.8)" />
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <Text style={[s.menuItemTxt, { color:'rgba(239,68,68,0.85)' }]}>Reportar usuario</Text>
+                    <Text style={s.menuItemSub}>Notificar al equipo de moderación</Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -351,7 +358,17 @@ export default function PublicProfileScreen({ route, navigation }) {
             )}
           </View>
 
-          {!blocked && (
+          {!me && isWeb && (
+            <TouchableOpacity
+              style={s.ctaBtn}
+              onPress={() => Linking.openURL(`abyss://user/${username}`)}
+              activeOpacity={0.8}
+            >
+              <Text style={s.ctaTxt}>Abrir en Abyss</Text>
+            </TouchableOpacity>
+          )}
+
+          {me && !blocked && (
             <View style={s.actionRow}>
               <TouchableOpacity onPress={handleFollow} disabled={loadingBtn} style={{ flex:1 }}>
                 {following ? (
@@ -375,7 +392,7 @@ export default function PublicProfileScreen({ route, navigation }) {
             </View>
           )}
 
-          {blocked && (
+          {me && blocked && (
             <View style={s.blockedBanner}>
               <Ionicons name="ban-outline" size={14} color="rgba(239,68,68,0.7)" />
               <Text style={s.blockedTxt}>Usuario bloqueado</Text>
@@ -538,4 +555,6 @@ const s = StyleSheet.create({
   badgeIcon:       { fontSize:28, marginBottom:6 },
   badgeName:       { color:colors.c1, fontSize:9, letterSpacing:1, textAlign:'center' },
   badgeDesc:       { color:colors.textDim, fontSize:9, textAlign:'center', marginTop:2 },
+  ctaBtn: { backgroundColor:colors.c1, paddingVertical:13, paddingHorizontal:32, borderRadius:12, marginTop:20, alignItems:'center' },
+  ctaTxt: { color:'#001a18', fontWeight:'800', fontSize:14 },
 });

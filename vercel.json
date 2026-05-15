@@ -11,8 +11,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/post/:id",        "destination": "/post.html" },
-    { "source": "/user/:username",  "destination": "/user.html" },
+    { "source": "/post/:id",        "destination": "/index.html" },
+    { "source": "/user/:username",  "destination": "/index.html" },
     { "source": "/mod",        "destination": "/mod.html" },
     { "source": "/privacidad", "destination": "/privacidad.html" },
     { "source": "/terminos",   "destination": "/terminos.html" },

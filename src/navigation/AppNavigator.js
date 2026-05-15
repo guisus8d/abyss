@@ -90,7 +90,11 @@ export default function AppNavigator() {
               <Stack.Screen name="GroupSettings"   component={GroupSettingsScreen} />
             </>
           ) : (
-            <Stack.Screen name="Login" component={LoginScreen} />
+            <>
+              <Stack.Screen name="Login"         component={LoginScreen} />
+              <Stack.Screen name="PostDetail"    component={PostDetailScreen} />
+              <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+            </>
           )}
         </Stack.Navigator>
       </NavigationContainer>
