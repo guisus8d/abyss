@@ -105,8 +105,8 @@ function FriendBubble({ user, sent, sending, onPress }) {
 }
 
 const fb = StyleSheet.create({
-  wrap: { alignItems:'center', width:72 },
-  name: { fontSize:11, color:'#fff', textAlign:'center', width:68, marginTop:4 },
+  wrap: { alignItems:'center', width:80 },
+  name: { fontSize:11, color:'#fff', textAlign:'center', width:76, marginTop:4 },
 });
 
 // ─── GroupRow ─────────────────────────────────────────────────────────────────
@@ -168,7 +168,6 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
   const [showSearch,    setShowSearch]    = useState(false);
   const [searchQuery,   setSearchQuery]   = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searching,     setSearching]     = useState(false);
 
   const postUrl = `https://abyss.social/post/${post?._id}`;
 
@@ -202,20 +201,12 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
   }, [visible]);
 
   // ── Buscar amigos (overlay +) ─────────────────────────────────────────────
-  const handleSearchFriend = useCallback(async (q) => {
+  const handleSearchFriend = useCallback((q) => {
     setSearchQuery(q);
     if (q.trim().length < 2) { setSearchResults([]); return; }
-    setSearching(true);
-    try {
-      const { data } = await api.get(`/users/search?q=${q.trim()}`);
-      const results = (data.users || []).filter(u => u._id !== currentUserId);
-      setSearchResults(results.map(u => {
-        const f = friends.find(x => x._id?.toString() === u._id?.toString());
-        return f ? { ...u, chatId: f.chatId } : u;
-      }));
-    } catch {}
-    finally { setSearching(false); }
-  }, [currentUserId, friends]);
+    const ql = q.trim().toLowerCase();
+    setSearchResults(friends.filter(f => f.username?.toLowerCase().includes(ql)));
+  }, [friends]);
 
   // ── Payload compartir ─────────────────────────────────────────────────────
   const sharedPostPayload = {
@@ -490,7 +481,6 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
                 onChangeText={handleSearchFriend}
                 autoFocus
               />
-              {searching && <ActivityIndicator size="small" color={C.accent} style={{ marginRight:10 }} />}
             </View>
             <FlatList
               data={searchResults}
@@ -598,7 +588,7 @@ const s = StyleSheet.create({
   sectionRow:  { paddingHorizontal:16, marginBottom:10 },
   sectionLabel:{ color:C.textDim, fontSize:11, fontWeight:'700', letterSpacing:0.8, textTransform:'uppercase' },
 
-  friendsRow: { paddingHorizontal:16, gap:4, paddingBottom:8, alignItems:'flex-start' },
+  friendsRow: { paddingHorizontal:8, gap:6, paddingBottom:8, alignItems:'flex-start', paddingTop:4 },
 
   plusCircle: {
     width:48, height:48, borderRadius:24,

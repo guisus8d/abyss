@@ -69,8 +69,8 @@ function FriendBubble({ user, sent, sending, onPress }) {
 }
 
 const fb = StyleSheet.create({
-  wrap: { alignItems:'center', width:72 },
-  name: { fontSize:11, color:'#fff', textAlign:'center', width:68, marginTop:4 },
+  wrap: { alignItems:'center', width:80 },
+  name: { fontSize:11, color:'#fff', textAlign:'center', width:76, marginTop:4 },
 });
 
 function GroupRow({ group, sent, sending, onPress }) {
@@ -111,7 +111,6 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
   const [showSearch,    setShowSearch]    = useState(false);
   const [searchQuery,   setSearchQuery]   = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searching,     setSearching]     = useState(false);
 
   const profileUrl = `https://abyss.social/user/${profile?.username}`;
 
@@ -169,20 +168,12 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
     finally { setSendingMap(p => ({ ...p, [key]:false })); }
   }
 
-  const handleSearchFriend = useCallback(async (q) => {
+  const handleSearchFriend = useCallback((q) => {
     setSearchQuery(q);
     if (q.trim().length < 2) { setSearchResults([]); return; }
-    setSearching(true);
-    try {
-      const { data } = await api.get(`/users/search?q=${q.trim()}`);
-      const results = (data.users || []).filter(u => u._id !== currentUserId);
-      setSearchResults(results.map(u => {
-        const f = friends.find(x => x._id?.toString() === u._id?.toString());
-        return f ? { ...u, chatId: f.chatId } : u;
-      }));
-    } catch {}
-    finally { setSearching(false); }
-  }, [currentUserId, friends]);
+    const ql = q.trim().toLowerCase();
+    setSearchResults(friends.filter(f => f.username?.toLowerCase().includes(ql)));
+  }, [friends]);
 
   async function handleCopyLink() {
     try {
@@ -312,7 +303,6 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
                 onChangeText={handleSearchFriend}
                 autoFocus
               />
-              {searching && <ActivityIndicator size="small" color={C.accent} style={{ marginRight:10 }} />}
             </View>
             <FlatList
               data={searchResults}
@@ -377,7 +367,7 @@ const s = StyleSheet.create({
   closeBtn: { width:32, height:32, borderRadius:16, backgroundColor:'rgba(255,255,255,0.07)', alignItems:'center', justifyContent:'center' },
   sectionRow:   { paddingHorizontal:16, marginBottom:10 },
   sectionLabel: { color:C.textDim, fontSize:11, fontWeight:'700', letterSpacing:0.8, textTransform:'uppercase' },
-  friendsRow:   { paddingHorizontal:16, gap:4, paddingBottom:8, alignItems:'flex-start' },
+  friendsRow:   { paddingHorizontal:8, gap:6, paddingBottom:8, alignItems:'flex-start', paddingTop:4 },
   divider:      { height:1, backgroundColor:'rgba(255,255,255,0.05)', marginHorizontal:16, marginVertical:14 },
   platformsRow: { flexDirection:'row', paddingHorizontal:16, gap:8, marginBottom:4 },
   platformBtn:  { flex:1, alignItems:'center', gap:5, paddingVertical:10, borderRadius:12, backgroundColor:'rgba(255,255,255,0.05)', borderWidth:1, borderColor:C.border },
