@@ -619,7 +619,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         )}
 
         {audioPreview ? (
-          <View style={[s.audioPreviewRow, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={[s.audioPreviewRow, { paddingTop:10, paddingBottom: Math.max(insets.bottom, 10) + 8 }]}>
             <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
               <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.8)" />
             </TouchableOpacity>
