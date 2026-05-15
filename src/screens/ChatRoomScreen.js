@@ -156,7 +156,6 @@ const MessageBubble = memo(function MessageBubble({
   const olderIsMe   = !!myId && !!olderMsg && getSenderId(olderMsg.sender) === myId;
   const sameAsOlder = olderMsg && (isMe ? olderIsMe : !olderIsMe);
   const showAvatar  = !sameAsOlder;
-  const showDate    = !olderMsg || dateLabel(item.createdAt) !== dateLabel(olderMsg.createdAt);
   const isPostType  = item.type === 'shared_post' || item.type === 'shared_profile';
 
   const senderAvatar   = item.sender?.avatarUrl       ?? (isMe ? user.avatarUrl       : other.avatarUrl);
@@ -217,13 +216,6 @@ const MessageBubble = memo(function MessageBubble({
           {senderName}
         </Text>
       )}
-      {showDate && (
-        <View style={s.dateSep}>
-          <View style={s.dateLine} />
-          <Text style={s.dateLabel}>{dateLabel(item.createdAt)}</Text>
-          <View style={s.dateLine} />
-        </View>
-      )}
     </>
   );
 });
@@ -259,8 +251,19 @@ export default function ChatRoomScreen({ route, navigation }) {
   const typingTimer  = useRef(null);
   const sendingRef   = useRef(false);
 
-  // ✅ reverse una sola vez
-  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
+  // Mensajes más recientes primero, con separadores de fecha como items propios
+  const flatListData = useMemo(() => {
+    const reversed = [...messages].reverse();
+    const result = [];
+    for (let i = 0; i < reversed.length; i++) {
+      result.push(reversed[i]);
+      const next = reversed[i + 1];
+      if (!next || dateLabel(reversed[i].createdAt) !== dateLabel(next.createdAt)) {
+        result.push({ _id: `sep_${reversed[i]._id}`, type: 'date_separator', label: dateLabel(reversed[i].createdAt) });
+      }
+    }
+    return result;
+  }, [messages]);
 
   async function handleSendRequest() {
     if (reqSent) return;
@@ -457,10 +460,10 @@ export default function ChatRoomScreen({ route, navigation }) {
   }
 
   const scrollToMsg = useCallback((msgId) => {
-    const idx = reversedMessages.findIndex(m => m._id === msgId);
+    const idx = flatListData.findIndex(m => m._id === msgId);
     if (idx < 0) return;
     flatRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 });
-  }, [reversedMessages]);
+  }, [flatListData]);
 
   async function reactToMsg(emoji) {
     if (!menuMsg) return;
@@ -481,12 +484,20 @@ export default function ChatRoomScreen({ route, navigation }) {
     } catch(e) { console.log('delete msg error:', e.message); }
   }
 
-  // ✅ renderMessage solo extrae props y delega a MessageBubble (React.memo)
-  // Así cuando llega un mensaje nuevo, solo se re-renderiza la burbuja nueva,
-  // no las 50 anteriores.
   const renderMessage = useCallback(({ item, index }) => {
-    const olderMsg = reversedMessages[index + 1];
-    const isMe     = !!myId && getSenderId(item.sender) === myId;
+    if (item.type === 'date_separator') {
+      return (
+        <View style={s.dateSep}>
+          <View style={s.dateLine} />
+          <Text style={s.dateLabel}>{item.label}</Text>
+          <View style={s.dateLine} />
+        </View>
+      );
+    }
+    const isMe = !!myId && getSenderId(item.sender) === myId;
+    // El item siguiente en flatListData puede ser un separador; saltar uno si hace falta
+    let raw = flatListData[index + 1];
+    const olderMsg = raw?.type === 'date_separator' ? (flatListData[index + 2] ?? null) : (raw ?? null);
     return (
       <MessageBubble
         item={item}
@@ -501,7 +512,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         other={other}
       />
     );
-  }, [reversedMessages, myId, scrollToMsg]);
+  }, [flatListData, myId, scrollToMsg]);
 
   return (
     <View style={s.root}>
@@ -552,7 +563,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         <FlatList
           ref={flatRef}
           style={{ flex: 1, backgroundColor: '#020509' }}
-          data={reversedMessages}
+          data={flatListData}
           keyExtractor={(m) => String(m._id)}
           renderItem={renderMessage}
           inverted
