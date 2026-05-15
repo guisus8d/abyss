@@ -66,24 +66,17 @@ function FriendBubble({ user, sent, sending, onPress }) {
         {sent && <View style={fb.check}><Ionicons name="checkmark" size={10} color="#fff" /></View>}
       </View>
       <Text style={fb.name} numberOfLines={1} ellipsizeMode="tail">{user.username}</Text>
-      <View style={[fb.chip, sent && fb.chipDone]}>
-        <Ionicons name={sent?'checkmark':'send-outline'} size={9} color={sent?C.success:C.accent} />
-        <Text style={[fb.chipTxt, sent&&{color:C.success}]}>{sending?'...':sent?'Enviado':'Enviar'}</Text>
-      </View>
     </TouchableOpacity>
   );
 }
 
 const fb = StyleSheet.create({
-  wrap: { alignItems:'center', gap:4, width:88 },
-  ring: { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
-  ringDone: { borderColor:'rgba(34,197,94,0.55)' },
-  av:   { borderRadius:26, overflow:'hidden' },
-  name: { color:C.textMid, fontSize:11, fontWeight:'600', flexShrink:1, alignSelf:'stretch', textAlign:'center' },
-  check:{ position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
-  chip: { flexDirection:'row', alignItems:'center', gap:3, paddingHorizontal:6, paddingVertical:2, borderRadius:8, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
-  chipDone:{ backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },
-  chipTxt: { color:C.accent, fontSize:9, fontWeight:'700' },
+  wrap:    { alignItems:'center', gap:4, width:72 },
+  ring:    { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
+  ringDone:{ borderColor:'rgba(34,197,94,0.55)' },
+  av:      { borderRadius:26, overflow:'hidden' },
+  name:    { color:C.textMid, fontSize:11, fontWeight:'600', textAlign:'center', maxWidth:68 },
+  check:   { position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
 });
 
 function GroupRow({ group, sent, sending, onPress }) {
@@ -103,7 +96,7 @@ function GroupRow({ group, sent, sending, onPress }) {
 }
 
 const gr = StyleSheet.create({
-  row:    { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:10, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
+  row:    { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
   av:     { width:40, height:40, borderRadius:20, backgroundColor:'#0d2a3e', alignItems:'center', justifyContent:'center', overflow:'hidden' },
   name:   { color:C.textHi, fontSize:13, fontWeight:'600' },
   sub:    { color:C.textDim, fontSize:11, marginTop:1 },
@@ -285,7 +278,7 @@ const s = StyleSheet.create({
   closeBtn: { width:32, height:32, borderRadius:16, backgroundColor:'rgba(255,255,255,0.07)', alignItems:'center', justifyContent:'center' },
   sectionRow:   { paddingHorizontal:16, marginBottom:10 },
   sectionLabel: { color:C.textDim, fontSize:11, fontWeight:'700', letterSpacing:0.8, textTransform:'uppercase' },
-  friendsRow:   { paddingHorizontal:16, gap:16, paddingBottom:4 },
+  friendsRow:   { paddingHorizontal:16, gap:4, paddingBottom:4 },
   divider:      { height:1, backgroundColor:'rgba(255,255,255,0.05)', marginHorizontal:16, marginVertical:14 },
   platformsRow: { flexDirection:'row', paddingHorizontal:16, gap:8, marginBottom:4 },
   platformBtn:  { flex:1, alignItems:'center', gap:5, paddingVertical:10, borderRadius:12, backgroundColor:'rgba(255,255,255,0.05)', borderWidth:1, borderColor:C.border },

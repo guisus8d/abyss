@@ -94,48 +94,25 @@ const p = StyleSheet.create({
 // ─── FriendBubble ─────────────────────────────────────────────────────────────
 function FriendBubble({ user, sent, sending, onPress }) {
   return (
-    <TouchableOpacity style={fb.wrap} onPress={onPress} activeOpacity={0.75} disabled={sent || sending}>
-      <View style={[fb.ringOuter, sent && fb.ringOuterDone]}>
-        <View style={fb.avatarWrap}>
-          {sending ? (
-            <View style={{ width:48, height:48, alignItems:'center', justifyContent:'center' }}>
-              <ActivityIndicator size="small" color={C.accent} />
-            </View>
-          ) : (
-            <PlainAvatar size={48} avatarUrl={user.avatarUrl} username={user.username} />
-          )}
+    <TouchableOpacity style={fb.wrap} onPress={onPress} activeOpacity={0.75} disabled={sent||sending}>
+      <View style={[fb.ring, sent && fb.ringDone]}>
+        <View style={fb.av}>
+          {sending ? <ActivityIndicator size="small" color={C.accent} /> : <PlainAvatar size={48} avatarUrl={user.avatarUrl} username={user.username} />}
         </View>
-        {sent && (
-          <View style={fb.check}>
-            <Ionicons name="checkmark" size={10} color="#fff" />
-          </View>
-        )}
+        {sent && <View style={fb.check}><Ionicons name="checkmark" size={10} color="#fff" /></View>}
       </View>
       <Text style={fb.name} numberOfLines={1} ellipsizeMode="tail">{user.username}</Text>
-      <View style={[fb.sendChip, sent && fb.sendChipDone]}>
-        <Ionicons
-          name={sent ? 'checkmark' : 'send-outline'}
-          size={9}
-          color={sent ? C.success : C.accent}
-        />
-        <Text style={[fb.sendChipTxt, sent && { color: C.success }]}>
-          {sending ? '...' : sent ? 'Enviado' : 'Enviar'}
-        </Text>
-      </View>
     </TouchableOpacity>
   );
 }
 
 const fb = StyleSheet.create({
-  wrap:         { alignItems:'center', gap:4, width:88 },
-  ringOuter:    { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
-  ringOuterDone:{ borderColor:'rgba(34,197,94,0.55)' },
-  avatarWrap:   { borderRadius:26, overflow:'hidden' },
-  name:         { color:C.textMid, fontSize:11, fontWeight:'600', flexShrink:1, alignSelf:'stretch', textAlign:'center' },
-  check:        { position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
-  sendChip:     { flexDirection:'row', alignItems:'center', gap:3, paddingHorizontal:6, paddingVertical:2, borderRadius:8, backgroundColor:C.accentDim, borderWidth:1, borderColor:C.accentBorder },
-  sendChipDone: { backgroundColor:'rgba(34,197,94,0.08)', borderColor:'rgba(34,197,94,0.25)' },
-  sendChipTxt:  { color:C.accent, fontSize:9, fontWeight:'700' },
+  wrap:    { alignItems:'center', gap:4, width:72 },
+  ring:    { borderRadius:30, borderWidth:2, borderColor:'rgba(0,229,204,0.25)', padding:2, position:'relative' },
+  ringDone:{ borderColor:'rgba(34,197,94,0.55)' },
+  av:      { borderRadius:26, overflow:'hidden' },
+  name:    { color:C.textMid, fontSize:11, fontWeight:'600', textAlign:'center', maxWidth:68 },
+  check:   { position:'absolute', bottom:0, right:0, width:16, height:16, borderRadius:8, backgroundColor:C.success, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor:C.bg },
 });
 
 // ─── GroupRow ─────────────────────────────────────────────────────────────────
@@ -165,7 +142,7 @@ function GroupRow({ group, sent, sending, onPress }) {
 }
 
 const gr = StyleSheet.create({
-  row:      { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:10, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
+  row:      { flexDirection:'row', alignItems:'center', gap:10, paddingVertical:6, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
   avatarWrap:{ },
   avatar:   { width:40, height:40, borderRadius:20 },
   name:     { color:C.textHi, fontSize:13, fontWeight:'600' },
@@ -620,7 +597,7 @@ const s = StyleSheet.create({
   sectionRow:  { paddingHorizontal:16, marginBottom:10 },
   sectionLabel:{ color:C.textDim, fontSize:11, fontWeight:'700', letterSpacing:0.8, textTransform:'uppercase' },
 
-  friendsRow: { paddingHorizontal:16, gap:16, paddingBottom:4 },
+  friendsRow: { paddingHorizontal:16, gap:4, paddingBottom:4 },
 
   plusCircle: {
     width:50, height:50, borderRadius:25,
