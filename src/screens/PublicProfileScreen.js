@@ -132,8 +132,8 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   function handleCopyLink() {
     setMenuVisible(false);
-    Clipboard.setString(`https://abyss.social/@${username}`);
-    Alert.alert('Enlace copiado', `abyss.social/@${username}`);
+    Clipboard.setString(`https://abyss.social/user/${username}`);
+    Alert.alert('Enlace copiado', `abyss.social/user/${username}`);
   }
 
   async function handleBlock() {
@@ -243,7 +243,7 @@ export default function PublicProfileScreen({ route, navigation }) {
               </View>
               <View style={{ flex:1 }}>
                 <Text style={s.menuItemTxt}>Copiar enlace</Text>
-                <Text style={s.menuItemSub}>abyss.social/@{username}</Text>
+                <Text style={s.menuItemSub}>abyss.social/user/{username}</Text>
               </View>
               <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
             </TouchableOpacity>

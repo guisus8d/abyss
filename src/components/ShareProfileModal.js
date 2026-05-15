@@ -128,7 +128,7 @@ export default function ShareProfileModal({ visible, onClose, profile, currentUs
   const [sendingMap,  setSendingMap]  = useState({});
   const [linkCopied,  setLinkCopied]  = useState(false);
 
-  const profileUrl = `https://abyss.social/@${profile?.username}`;
+  const profileUrl = `https://abyss.social/user/${profile?.username}`;
 
   useEffect(() => {
     if (!visible) return;
