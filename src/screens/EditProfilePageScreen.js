@@ -14,7 +14,6 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 
 const W = Dimensions.get('window').width;
-const DISPLAY_NAME_MAX = 30;
 
 const BG_COLORS = [
   { id: 'none',   value: '',                        label: 'Ninguno'  },
@@ -44,7 +43,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
   const { profile } = route.params || {};
   const { updateUser } = useAuthStore();
 
-  const [displayName, setDisplayName] = useState(profile?.displayName || profile?.username || '');
   const [blocks, setBlocks]       = useState(profile?.profileBlocks || []);
   const [bg, setBg]               = useState(profile?.profileBg || '');
   const [bgType, setBgType]       = useState(profile?.profileBgType || 'color');
@@ -174,7 +172,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
     setSaving(true);
     try {
       const { data } = await api.patch('/users/me/profile', {
-        displayName: displayName.trim() || profile?.username,
+        displayName: profile?.displayName || profile?.username,
         profileBlocks: blocks,
         profileBg: bg,
         profileBgType: bgType,
@@ -339,31 +337,6 @@ export default function EditProfilePageScreen({ route, navigation }) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
 
-          {/* ── Nombre de perfil ── */}
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>NOMBRE DE PERFIL</Text>
-            <View style={s.nameInputWrap}>
-              <TextInput
-                style={s.nameInput}
-                value={displayName}
-                onChangeText={t => t.length <= DISPLAY_NAME_MAX && setDisplayName(t)}
-                placeholder={profile?.username || 'Tu nombre...'}
-                placeholderTextColor={colors.textDim}
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              <Text style={[
-                s.nameCounter,
-                displayName.length >= DISPLAY_NAME_MAX && { color: 'rgba(239,68,68,0.8)' }
-              ]}>
-                {displayName.length}/{DISPLAY_NAME_MAX}
-              </Text>
-            </View>
-            <Text style={s.sectionHint}>
-              Puedes usar emojis y caracteres especiales ✦  El {profile?.username} no cambia.
-            </Text>
-          </View>
-
           {/* Canvas */}
           <View style={s.canvas}>
             {isImageBg && bg
@@ -401,11 +374,9 @@ export default function EditProfilePageScreen({ route, navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* FAB + */}
-      <TouchableOpacity style={s.fab} onPress={() => setAddModal(true)}>
-        <LinearGradient colors={['#00e5cc','#006b63']} style={s.fabGrad} start={{x:0,y:0}} end={{x:1,y:1}}>
-          <Ionicons name="add" size={30} color="#001a18" />
-        </LinearGradient>
+      {/* FAB lápiz */}
+      <TouchableOpacity style={s.fab} onPress={() => setAddModal(true)} activeOpacity={0.85}>
+        <Ionicons name="pencil" size={22} color="#001a18" />
       </TouchableOpacity>
 
       {/* ── Modal: Tipo de bloque ── */}
@@ -582,14 +553,13 @@ const s = StyleSheet.create({
   mentionAt:      { color: colors.c1, fontWeight: '800', fontSize: 15 },
   mentionSub:     { color: colors.textDim, fontSize: 11, marginTop: 2 },
 
-  fab:     { position: 'absolute', bottom: 32, right: 24, borderRadius: 34, overflow: 'hidden', shadowColor: colors.c1, shadowOpacity: 0.5, shadowRadius: 16, elevation: 10 },
-  fabGrad: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center' },
+  fab: { position:'absolute', bottom:20, right:20, width:52, height:52, borderRadius:26, backgroundColor:colors.c1, alignItems:'center', justifyContent:'center', shadowColor:colors.c1, shadowOpacity:0.45, shadowRadius:12, shadowOffset:{ width:0, height:4 }, elevation:10 },
 
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet:        { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 44, borderTopWidth: 1, borderTopColor: colors.border },
-  sheetHandle:  { width: 44, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 22 },
-  sheetTitle:   { fontSize: 11, letterSpacing: 5, color: colors.c1, fontWeight: '900', textAlign: 'center', marginBottom: 24 },
-  sheetCancelBtn:{ marginTop: 20, alignItems: 'center' },
+  sheet:        { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 28, borderTopWidth: 1, borderTopColor: colors.border },
+  sheetHandle:  { width: 44, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 14 },
+  sheetTitle:   { fontSize: 11, letterSpacing: 5, color: colors.c1, fontWeight: '900', textAlign: 'center', marginBottom: 16 },
+  sheetCancelBtn:{ marginTop: 12, alignItems: 'center' },
   sheetCancelTxt:{ color: colors.textDim, fontSize: 14, paddingVertical: 6 },
 
   blockTypesRow:      { flexDirection: 'row', gap: 12 },
