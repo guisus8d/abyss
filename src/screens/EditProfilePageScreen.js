@@ -379,9 +379,9 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </TouchableOpacity>
 
       {/* ── Modal: Tipo de bloque ── */}
-      <Modal visible={addModal === true} transparent animationType="slide" onRequestClose={() => setAddModal(false)}>
+      <Modal visible={addModal === true} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setAddModal(false)}>
         <TouchableOpacity style={s.sheetOverlay} activeOpacity={1} onPress={() => setAddModal(false)}>
-          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>AGREGAR BLOQUE</Text>
             <View style={s.blockTypesRow}>
@@ -421,9 +421,9 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Modal: Menciones ── */}
-      <Modal visible={addModal === 'mention'} transparent animationType="slide" onRequestClose={() => setAddModal(false)}>
+      <Modal visible={addModal === 'mention'} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setAddModal(false)}>
         <TouchableOpacity style={s.sheetOverlay} activeOpacity={1} onPress={() => setAddModal(false)}>
-          <View style={[s.sheet, { maxHeight: '72%' }]}>
+          <View style={[s.sheet, { maxHeight: '72%', paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>MENCIONAR USUARIO</Text>
             <View style={s.mentionSearch}>
@@ -462,9 +462,9 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Modal: Fondo ── */}
-      <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>
+      <Modal visible={bgModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setBgModal(false)}>
         <TouchableOpacity style={s.sheetOverlay} activeOpacity={1} onPress={() => setBgModal(false)}>
-          <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>FONDO DE PÁGINA</Text>
             <View style={s.colorGrid}>
@@ -554,8 +554,8 @@ const s = StyleSheet.create({
 
   fab: { position:'absolute', bottom:20, right:20, width:52, height:52, borderRadius:26, backgroundColor:colors.c1, alignItems:'center', justifyContent:'center', shadowColor:colors.c1, shadowOpacity:0.45, shadowRadius:12, shadowOffset:{ width:0, height:4 }, elevation:10 },
 
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet:        { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 28, borderTopWidth: 1, borderTopColor: colors.border },
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end', margin: 0 },
+  sheet:        { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, borderTopWidth: 1, borderTopColor: colors.border, width: '100%' },
   sheetHandle:  { width: 44, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 14 },
   sheetTitle:   { fontSize: 11, letterSpacing: 5, color: colors.c1, fontWeight: '900', textAlign: 'center', marginBottom: 16 },
   sheetCancelBtn:{ marginTop: 12, alignItems: 'center' },
