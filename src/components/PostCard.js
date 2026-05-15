@@ -72,15 +72,17 @@ const cm = StyleSheet.create({
 
 function CommentSection({
   post, currentUserId, replyToComment, setReplyToComment,
-  commentText, setCommentText, sending, onSubmit, onDeleteComment, goToProfile,
+  commentText, setCommentText, sending, onSubmit, onDeleteComment, goToProfile, onViewAll,
 }) {
   const topLevel = useMemo(() => post.comments.filter(c => !c.replyTo?.commentId), [post.comments]);
   const replies  = useMemo(() => post.comments.filter(c => !!c.replyTo?.commentId), [post.comments]);
+  const preview  = topLevel.slice(0, 2);
+  const remaining = topLevel.length - preview.length;
 
   return (
     <View style={s.commentsBox}>
       <ScrollView style={{ maxHeight: 280 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-        {topLevel.map((c, i) => {
+        {preview.map((c, i) => {
           const cReplies = replies.filter(r => r.replyTo.commentId?.toString() === c._id?.toString());
           return (
             <View key={c._id || i}>
@@ -141,6 +143,12 @@ function CommentSection({
           );
         })}
       </ScrollView>
+
+      {remaining > 0 && onViewAll && (
+        <TouchableOpacity onPress={onViewAll} style={s.viewAllBtn}>
+          <Text style={s.viewAllTxt}>Ver los {topLevel.length} comentarios</Text>
+        </TouchableOpacity>
+      )}
 
       {replyToComment && (
         <View style={s.replyBar}>
@@ -262,7 +270,8 @@ const PostCard = memo(function PostCard({
     setSending(false);
   }, [commentText, replyToComment, onComment, post._id]);
 
-  const isAuthor = post.author._id === currentUserId || post.author.id === currentUserId;
+  const isAuthor = post.author?._id?.toString() === currentUserId?.toString() ||
+                   post.author?.id?.toString()  === currentUserId?.toString();
 
   return (
     <View style={s.card}>
@@ -421,6 +430,7 @@ const PostCard = memo(function PostCard({
           onSubmit={submitComment}
           onDeleteComment={setDeleteCommentModal}
           goToProfile={goToProfile}
+          onViewAll={() => navigation.navigate('PostDetail', { postId: post._id })}
         />
       )}
     </View>
@@ -477,6 +487,8 @@ const s = StyleSheet.create({
   emojiAddBtn:     { alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: C.cardBorder },
   emojiAddTxt:     { color: C.textDim, fontSize: 16, fontWeight: '400', lineHeight: 18 },
   commentsBox:         { marginTop: 14, borderTopWidth: 1, borderTopColor: C.divider, paddingTop: 14 },
+  viewAllBtn:          { paddingVertical: 8, alignItems: 'center' },
+  viewAllTxt:          { color: C.accent, fontSize: 12, fontWeight: '600' },
   comment:             { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12, gap: 8 },
   commentAvatarWrap:   { width: 30, height: 30, overflow: 'visible' },
   commentBubble:       { flex: 1, backgroundColor: C.surface, borderRadius: 12, borderTopLeftRadius: 4, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: C.cardBorder },

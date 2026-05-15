@@ -239,7 +239,18 @@ export default function PostDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom:16 }}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={400}
+        onScroll={({ nativeEvent }) => {
+          const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+          if (contentOffset.y + layoutMeasurement.height >= contentSize.height * 0.85) {
+            if (hasMore && !loadingMore) loadMoreComments();
+          }
+        }}
+      >
         <TouchableOpacity style={s.authorRow} onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })} activeOpacity={0.8}>
           <AvatarWithFrame size={44} avatarUrl={post.author?.avatarUrl} username={post.author?.username} profileFrame={post.author?.profileFrame} frameUrl={post.author?.profileFrameUrl} />
           <View style={{ marginLeft:12, flex:1 }}>
@@ -294,12 +305,8 @@ export default function PostDetailScreen({ route, navigation }) {
 
         {(post.comments||[]).filter(c => !c.replyTo?.commentId).map(c => renderComment(c, false))}
 
-        {hasMore && (
-          <TouchableOpacity style={s.loadMoreBtn} onPress={loadMoreComments} disabled={loadingMore}>
-            {loadingMore
-              ? <ActivityIndicator size="small" color={C.accent} />
-              : <Text style={s.loadMoreTxt}>Ver más comentarios</Text>}
-          </TouchableOpacity>
+        {loadingMore && (
+          <ActivityIndicator color={C.accent} style={{ paddingVertical:16 }} />
         )}
 
         <View style={{ height:80 }} />
