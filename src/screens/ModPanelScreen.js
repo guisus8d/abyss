@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, StatusBar,
-  ScrollView, TextInput, Image, ActivityIndicator, Modal, Pressable,
+  ScrollView, TextInput, Image, ActivityIndicator, Modal, Pressable, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -140,7 +140,7 @@ export default function ModPanelScreen({ navigation, route }) {
 
                   <View style={s.reportDetailRow}>
                     <Text style={s.reportDetailLbl}>Reportado por</Text>
-                    <Text style={s.reportDetailVal}>@{selectedReport.reporter?.username}</Text>
+                    <Text style={s.reportDetailVal}>{selectedReport.reporter?.username}</Text>
                   </View>
                   <View style={s.reportDetailRow}>
                     <Text style={s.reportDetailLbl}>Motivo</Text>
@@ -156,6 +156,23 @@ export default function ModPanelScreen({ navigation, route }) {
                     <Text style={s.reportDetailLbl}>Fecha</Text>
                     <Text style={s.reportDetailVal}>{new Date(selectedReport.createdAt).toLocaleDateString('es')}</Text>
                   </View>
+
+                  {(selectedReport.type === 'post' || selectedReport.type === 'user') && (
+                    <TouchableOpacity
+                      style={s.viewLinkBtn}
+                      onPress={() => {
+                        const url = selectedReport.type === 'post'
+                          ? `https://abyss.social/post/${selectedReport.targetId}`
+                          : `https://abyss.social/user/${selectedReport.targetName}`;
+                        Linking.openURL(url);
+                      }}
+                    >
+                      <Ionicons name="open-outline" size={14} color={colors.c1} />
+                      <Text style={s.viewLinkTxt}>
+                        Ver {selectedReport.type === 'post' ? 'post' : 'perfil'} en web
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TextInput
                     style={s.modNotesInput}
@@ -188,7 +205,7 @@ export default function ModPanelScreen({ navigation, route }) {
         <View style={s.modalOverlay}>
           <View style={s.banModalBox}>
             <Text style={s.modalTitle}>BANEAR USUARIO</Text>
-            <Text style={s.modalUser}>@{banModal?.username}</Text>
+            <Text style={s.modalUser}>{banModal?.username}</Text>
             <TextInput
               style={s.modalInput}
               value={banReason}
@@ -216,7 +233,7 @@ export default function ModPanelScreen({ navigation, route }) {
           </TouchableOpacity>
           <View style={{ flex:1 }}>
             <Text style={s.headerTitle}>PANEL MOD</Text>
-            <Text style={s.headerSub}>@{currentUser?.username}</Text>
+            <Text style={s.headerSub}>{currentUser?.username}</Text>
           </View>
           {/* Badge de reportes pendientes */}
           {reportStats.pending > 0 && (
@@ -281,7 +298,7 @@ export default function ModPanelScreen({ navigation, route }) {
                 <View style={{ flex:1 }}>
                   <Text style={s.reportTarget} numberOfLines={1}>{r.targetName || r.targetId}</Text>
                   <Text style={s.reportMeta}>
-                    {REPORT_REASONS[r.reason] || r.reason} · @{r.reporter?.username} · {new Date(r.createdAt).toLocaleDateString('es')}
+                    {REPORT_REASONS[r.reason] || r.reason} · {r.reporter?.username} · {new Date(r.createdAt).toLocaleDateString('es')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
@@ -340,7 +357,7 @@ export default function ModPanelScreen({ navigation, route }) {
                 <View style={{ flex:1 }}>
                   <View style={{ flexDirection:'row', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                     <Text style={[s.userName, u.banned && { color: colors.textDim, textDecorationLine:'line-through' }]}>
-                      @{u.username}
+                      {u.username}
                     </Text>
                     <View style={[s.roleBadge, { backgroundColor: role.bg, borderColor: role.border }]}>
                       <Text style={[s.roleBadgeTxt, { color: role.text }]}>{role.label}</Text>
@@ -425,6 +442,8 @@ const s = StyleSheet.create({
   dismissBtn:        { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6, paddingVertical:12, borderRadius:12, borderWidth:1, borderColor: colors.border },
   resolveBtn:        { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6, paddingVertical:12, borderRadius:12, backgroundColor:'rgba(0,229,204,0.8)' },
   resolveBtn_txt:    { color:'#fff', fontWeight:'700', fontSize:13 },
+  viewLinkBtn:       { flexDirection:'row', alignItems:'center', gap:6, alignSelf:'flex-start', paddingVertical:8, paddingHorizontal:12, borderRadius:10, borderWidth:1, borderColor:'rgba(0,229,204,0.3)', backgroundColor:'rgba(0,229,204,0.06)', marginBottom:4 },
+  viewLinkTxt:       { color: colors.c1, fontWeight:'600', fontSize:12 },
 
   // Users
   searchRow:    { flexDirection:'row', alignItems:'center', gap:10, marginHorizontal:16, marginBottom:12, backgroundColor: colors.card, borderRadius:12, borderWidth:1, borderColor: colors.border, paddingHorizontal:14, paddingVertical:10 },

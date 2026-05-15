@@ -104,7 +104,7 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onLongPress }) {
         <View style={sp.accentBar} />
         <View style={{ flex:1, gap:2 }}>
           {isNews && <View style={sp.newsBadge}><Text style={sp.newsBadgeTxt}>NOTICIA</Text></View>}
-          <Text style={sp.authorTxt}>@{sharedPost.authorUsername}</Text>
+          <Text style={sp.authorTxt}>{sharedPost.authorUsername}</Text>
         </View>
         <Ionicons name="open-outline" size={13} color="rgba(0,229,204,0.5)" />
       </View>
@@ -543,7 +543,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           </TouchableOpacity>
           <TouchableOpacity style={{ flex:1 }} onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
             <Text style={s.headerName}>{other.username}</Text>
-            {typing ? <Text style={s.typingTxt}>escribiendo...</Text> : <Text style={s.headerSub}>@{other.username}</Text>}
+            {typing ? <Text style={s.typingTxt}>escribiendo...</Text> : <Text style={s.headerSub}>{other.username}</Text>}
           </TouchableOpacity>
         </View>
       </SafeAreaView>

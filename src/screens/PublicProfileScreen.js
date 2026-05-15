@@ -216,7 +216,7 @@ export default function PublicProfileScreen({ route, navigation }) {
             <View style={s.menuProfile}>
               <AvatarWithFrame size={40} avatarUrl={profile?.avatarUrl} username={profile?.username} profileFrame={profile?.profileFrame} frameUrl={profile?.profileFrameUrl} />
               <View>
-                <Text style={s.menuProfileName}>@{username}</Text>
+                <Text style={s.menuProfileName}>{username}</Text>
                 <Text style={s.menuProfileSub}>{profile?.followers?.length || 0} seguidores</Text>
               </View>
             </View>
@@ -278,7 +278,7 @@ export default function PublicProfileScreen({ route, navigation }) {
         onClose={() => setReportOpen(false)}
         type="user"
         targetId={profile?._id}
-        targetName={`@${profile?.username}`}
+        targetName={profile?.username}
       />
       <ShareProfileModal
         visible={shareProfileOpen}
@@ -326,7 +326,7 @@ export default function PublicProfileScreen({ route, navigation }) {
           </TouchableOpacity>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Text style={s.username}>@{profile?.username}</Text>
+            <Text style={s.username}>{profile?.username}</Text>
           </View>
           {prefs.showXp && <Text style={s.xpTxt}>XP {profile?.xp || 0}</Text>}
 
@@ -426,7 +426,7 @@ export default function PublicProfileScreen({ route, navigation }) {
                           ? <Image source={{ uri:block.mentionAvatar }} style={{ width:'100%', height:'100%', borderRadius:18 }} />
                           : <Text style={{ color:colors.c1, fontWeight:'700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
                       </View>
-                      <Text style={s.mentionAt}>@{block.mentionUsername}</Text>
+                      <Text style={s.mentionAt}>{block.mentionUsername}</Text>
                       <Ionicons name="arrow-forward" size={14} color={colors.c1} />
                     </TouchableOpacity>
                   );

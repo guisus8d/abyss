@@ -16,7 +16,6 @@ export async function connectSocket() {
     auth: { token },
     transports: ['polling', 'websocket'],
   });
-  socket.on('connect', () => console.log('🔌 Socket conectado'));
   socket.on('connect_error', (e) => console.error('Socket error:', e.message));
   return socket;
 }

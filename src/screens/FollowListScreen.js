@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
 import api from "../services/api";
 import { useAuthStore } from "../store/authStore";
@@ -24,7 +25,7 @@ export default function FollowListScreen({ route, navigation }) {
       api.get(`/social/following/${me.username}`),
     ])
       .then(([listRes, myFollowingRes]) => {
-        const users = listRes.data[type] || []; console.log("USERS:", JSON.stringify(users.slice(0,2)));
+        const users = listRes.data[type] || [];
         setList(users);
         const myFollowing = myFollowingRes.data.following || [];
         const map = {};
@@ -59,15 +60,15 @@ export default function FollowListScreen({ route, navigation }) {
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
-      <SafeAreaView>
+      <SafeAreaView edges={['top']}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Text style={s.backTxt}>←</Text>
+            <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>
             {type === "followers" ? "SEGUIDORES" : "SIGUIENDO"}
           </Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 36 }} />
         </View>
       </SafeAreaView>
       {loading ? (
@@ -101,7 +102,7 @@ export default function FollowListScreen({ route, navigation }) {
                   frameUrl={item.profileFrameUrl}
                 />
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={s.username}>@{item.username}</Text>
+                  <Text style={s.username}>{item.username}</Text>
                   <Text style={s.xp}>XP {item.xp || 0}</Text>
                 </View>
                 {showBtn && (
@@ -136,9 +137,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  headerTitle:    { fontSize: 16, fontWeight: "900", letterSpacing: 6, color: colors.c1 },
-  backBtn:        { padding: 8, width: 40 },
-  backTxt:        { color: colors.c1, fontSize: 22 },
+  headerTitle:    { fontSize: 13, fontWeight: "800", letterSpacing: 1, color: colors.textHi },
+  backBtn:        { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   item:           {
     flexDirection: "row", alignItems: "center",
     padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border,

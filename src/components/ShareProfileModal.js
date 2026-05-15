@@ -37,7 +37,7 @@ function ProfilePreviewCard({ profile }) {
       <View style={pp.body}>
         <AvatarWithFrame size={44} avatarUrl={profile.avatarUrl} username={profile.username} profileFrame={profile.profileFrame} frameUrl={profile.profileFrameUrl} />
         <View style={{ flex:1, gap:3 }}>
-          <Text style={pp.username}>@{profile.username}</Text>
+          <Text style={pp.username}>{profile.username}</Text>
           <View style={{ flexDirection:'row', gap:8 }}>
             <Text style={pp.meta}>XP {profile.xp||0}</Text>
             <Text style={pp.meta}>{profile.followers?.length||0} seguidores</Text>

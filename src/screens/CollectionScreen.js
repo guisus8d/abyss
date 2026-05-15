@@ -48,7 +48,7 @@ function FrameCard({ frame, units, index, onPress }) {
           {units === null && frame.price && <View style={s.priceBadge}><Text style={s.priceTxt}>✦{frame.price}</Text></View>}
         </View>
         <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
-        {frame.creator?.username && <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator.username}</Text>}
+        {frame.creator?.username && <Text style={s.cardCreator} numberOfLines={1}>{frame.creator.username}</Text>}
       </TouchableOpacity>
     </View>
   );
@@ -256,7 +256,7 @@ export default function CollectionScreen({ navigation }) {
                     {frame.creator?.username && (
                       <View style={s.modalInfoItem}>
                         <Ionicons name="person-outline" size={13} color={colors.textDim} />
-                        <Text style={s.modalInfoTxt}>@{frame.creator.username}</Text>
+                        <Text style={s.modalInfoTxt}>{frame.creator.username}</Text>
                       </View>
                     )}
                     {frame.totalSold > 0 && (

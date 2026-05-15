@@ -15,7 +15,6 @@ const TABS = [
   { key: 'like',           label: 'Reacciones' },
   { key: 'comment',        label: 'Comentarios' },
   { key: 'follow',         label: 'Seguidores' },
-  { key: 'group_invite',   label: 'Invitaciones' },
   { key: 'admin_transfer', label: 'Administración' },
 ];
 

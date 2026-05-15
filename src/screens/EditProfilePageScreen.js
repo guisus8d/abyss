@@ -305,7 +305,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
                 : <Text style={{ color: colors.c1, fontWeight: '900', fontSize: 16 }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.mentionAt}>@{block.mentionUsername}</Text>
+              <Text style={s.mentionAt}>{block.mentionUsername}</Text>
               <Text style={s.mentionSub}>Perfil vinculado</Text>
             </View>
             <Ionicons name="arrow-forward" size={16} color={colors.c1} />
@@ -360,7 +360,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
               </Text>
             </View>
             <Text style={s.sectionHint}>
-              Puedes usar emojis y caracteres especiales ✦  El @{profile?.username} no cambia.
+              Puedes usar emojis y caracteres especiales ✦  El {profile?.username} no cambia.
             </Text>
           </View>
 
@@ -476,7 +476,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
                       ? <Image source={{ uri: u.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 20 }} />
                       : <Text style={{ color: colors.c1, fontWeight: '700' }}>{u.username?.[0]?.toUpperCase()}</Text>}
                   </View>
-                  <Text style={s.mentionResultName}>@{u.username}</Text>
+                  <Text style={s.mentionResultName}>{u.username}</Text>
                   <Ionicons name="add-circle" size={22} color={colors.c1} />
                 </TouchableOpacity>
               ))}

@@ -81,7 +81,7 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
     >
       <View style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:9, gap:7, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' }}>
         <View style={{ width:2, height:16, backgroundColor:'#00e5cc', borderRadius:1 }} />
-        <Text style={{ color:'#00e5cc', fontSize:11, fontWeight:'700', flex:1 }}>@{sharedPost.authorUsername}</Text>
+        <Text style={{ color:'#00e5cc', fontSize:11, fontWeight:'700', flex:1 }}>{sharedPost.authorUsername}</Text>
         <Ionicons name="open-outline" size={13} color="rgba(0,229,204,0.5)" />
       </View>
       {hasImage && <Image source={{ uri: sharedPost.imageUrl }} style={{ width:'100%', height:110 }} resizeMode="cover" />}

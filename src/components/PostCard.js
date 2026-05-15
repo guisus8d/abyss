@@ -118,7 +118,7 @@ function CommentSection({
                     {r.replyTo?.text && (
                       <View style={s.replyPreview}>
                         <Text style={s.replyPreviewTxt} numberOfLines={1}>
-                          ↩ @{r.replyTo.username}: {r.replyTo.text}
+                          ↩ {r.replyTo.username}: {r.replyTo.text}
                         </Text>
                       </View>
                     )}
@@ -146,7 +146,7 @@ function CommentSection({
         <View style={s.replyBar}>
           <View style={s.replyBarAccent} />
           <Text style={s.replyBarTxt} numberOfLines={1}>
-            ↩ @{replyToComment.username}: {replyToComment.text?.slice(0, 40)}
+            ↩ {replyToComment.username}: {replyToComment.text?.slice(0, 40)}
           </Text>
           <TouchableOpacity onPress={() => setReplyToComment(null)} style={s.replyBarClose}>
             <Ionicons name="close" size={14} color={C.textDim} />

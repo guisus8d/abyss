@@ -108,7 +108,7 @@ export default function FrameDetailScreen({ route, navigation }) {
                       <Text style={s.creatorAvatarTxt}>{creator.username[0].toUpperCase()}</Text>
                     </View>
                 }
-                <Text style={s.creatorName}>@{creator.username}</Text>
+                <Text style={s.creatorName}>{creator.username}</Text>
                 <Ionicons name="chevron-forward" size={11} color={colors.textDim} />
               </TouchableOpacity>
             )}
@@ -226,7 +226,7 @@ export default function FrameDetailScreen({ route, navigation }) {
               {[
                 { label: 'Nombre',      value: frame.name },
                 { label: 'Descripcion', value: frame.description || '—' },
-                { label: 'Creador',     value: creator?.username ? `@${creator.username}` : '—' },
+                { label: 'Creador',     value: creator?.username || '—' },
                 { label: 'ID',          value: frame._id },
                 { label: 'Vendidos',    value: String(frame.totalSold || 0) },
                 { label: 'Precio',      value: frame.price ? `${frame.price} monedas` : '—' },

@@ -64,7 +64,7 @@ function PostPreviewCard({ post }) {
       <View style={p.body}>
         <View style={p.authorRow}>
           <Ionicons name="person-circle-outline" size={12} color={C.textDim} />
-          <Text style={p.author}>@{post.author?.username || post.authorUsername}</Text>
+          <Text style={p.author}>{post.author?.username || post.authorUsername}</Text>
         </View>
         {post.title ? <Text style={p.title} numberOfLines={1}>{post.title}</Text> : null}
         <Text style={p.content} numberOfLines={2}>{post.content}</Text>
@@ -278,7 +278,6 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
     if (sendingMap[key] || sentMap[key]) return;
     const chatId = friend.chatId;
     if (!chatId) {
-      console.log('sendToFriend: sin chatId para', friend.username);
       return;
     }
     setSendingMap(prev => ({ ...prev, [key]: true }));

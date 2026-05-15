@@ -155,7 +155,7 @@ export default function PostDetailScreen({ route, navigation }) {
                 <Text style={s.replyPreviewTxt} numberOfLines={1}>{'↩ @'}{c.replyTo.username}{': '}{c.replyTo.text}</Text>
               </View>
             ) : null}
-            <Text style={s.commentUser} onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>{'@'}{c.user?.username}</Text>
+            <Text style={s.commentUser} onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>{c.user?.username}</Text>
             <Text style={s.commentTxt}>{c.text}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { setReplyTo(replyData); inputRef.current?.focus(); }} style={{ paddingLeft:10, paddingVertical:4 }}>
@@ -217,7 +217,7 @@ export default function PostDetailScreen({ route, navigation }) {
         <TouchableOpacity style={s.authorRow} onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })} activeOpacity={0.8}>
           <AvatarWithFrame size={44} avatarUrl={post.author?.avatarUrl} username={post.author?.username} profileFrame={post.author?.profileFrame} frameUrl={post.author?.profileFrameUrl} />
           <View style={{ marginLeft:12, flex:1 }}>
-            <Text style={s.authorName}>{'@'}{post.author?.username}</Text>
+            <Text style={s.authorName}>{post.author?.username}</Text>
             <Text style={s.authorMeta}>{'XP '}{post.author?.xp||0}{' · '}{timeAgo(post.createdAt)}</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={C.textDim} />

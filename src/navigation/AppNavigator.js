@@ -32,6 +32,16 @@ import GroupSettingsScreen   from '../screens/GroupSettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
+const linking = {
+  prefixes: ['https://abyss.social', 'abyss://'],
+  config: {
+    screens: {
+      PostDetail:    'post/:postId',
+      PublicProfile: 'user/:username',
+    },
+  },
+};
+
 export default function AppNavigator() {
   const { user, isRestoring, restoreSession } = useAuthStore();
   useEffect(() => { restoreSession(); }, []);
@@ -48,7 +58,7 @@ export default function AppNavigator() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,

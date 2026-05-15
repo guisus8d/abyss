@@ -357,7 +357,7 @@ export default function ProfileScreen({ navigation }) {
                           ? <Image source={{ uri: block.mentionAvatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
                           : <Text style={{ color: colors.c1, fontWeight: '700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
                       </View>
-                      <Text style={s.mentionBlockAt}>@{block.mentionUsername}</Text>
+                      <Text style={s.mentionBlockAt}>{block.mentionUsername}</Text>
                       <Ionicons name="arrow-forward" size={14} color={colors.c1} />
                     </TouchableOpacity>
                   );

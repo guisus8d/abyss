@@ -43,7 +43,7 @@ export default function SharedProfileBubble({ sharedProfile, navigation, isMe, o
           frameUrl={sharedProfile.profileFrameUrl}
         />
         <View style={{ flex:1, gap:3 }}>
-          <Text style={s.username}>@{sharedProfile.username}</Text>
+          <Text style={s.username}>{sharedProfile.username}</Text>
           <View style={s.statsRow}>
             {sharedProfile.xp > 0 && (
               <View style={s.statPill}>

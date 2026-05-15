@@ -94,7 +94,6 @@ export default function CreateGroupScreen({ navigation }) {
           formData.append('image', { uri: image.uri, type: 'image/jpeg', name: 'group.jpg' });
         }
       }
-      console.log('selectedIds antes del fetch:', selected);
       const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
       const token = await AsyncStorage.getItem('token');
       const BASE_URL = process.env.EXPO_PUBLIC_API_URL;

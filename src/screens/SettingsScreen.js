@@ -236,7 +236,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Text style={s.modalTitle}>CAMBIAR USERNAME</Text>
-            <Text style={s.modalHint}>Actual: @{user?.username}</Text>
+            <Text style={s.modalHint}>Actual: {user?.username}</Text>
             <TextInput
               style={s.modalInput}
               value={newUsername}
