@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -23,10 +23,10 @@
       "softwareKeyboardLayoutMode": "pan",
       "edgeToEdgeEnabled": false,
       "navigationBarColor": "#020509",
-      "navigationBarStyle": "dark",
+      "navigationBarStyle": "light",
       "backgroundColor": "#020509",
       "androidStatusBar": {
-        "barStyle": "dark-content",
+        "barStyle": "light-content",
         "backgroundColor": "#020509",
         "translucent": false
       },
