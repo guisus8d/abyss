@@ -79,20 +79,40 @@ export default function PostDetailScreen({ route, navigation }) {
   const [replyTo,            setReplyTo]             = useState(null);
   const [deleteCommentModal, setDeleteCommentModal]  = useState(null);
   const [shareOpen,          setShareOpen]           = useState(false);
-  const [reportOpen,         setReportOpen]          = useState(false); // ← NUEVO
+  const [reportOpen,         setReportOpen]          = useState(false);
+  const [hasMore,            setHasMore]             = useState(false);
+  const [loadingMore,        setLoadingMore]         = useState(false);
+  const [commentsPage,       setCommentsPage]        = useState(1);
+  const [totalComments,      setTotalComments]       = useState(0);
 
   const inputRef   = useRef(null);
   const sendingRef = useRef(false);
 
-  const loadPost = useCallback(async () => {
+  const loadPost = useCallback(async (page = 1) => {
     try {
-      const { data } = await api.get(`/posts/${postId}`);
-      if (data.post) setPost(data.post);
+      if (page === 1) setLoading(true);
+      const { data } = await api.get(`/posts/${postId}?commentsPage=${page}`);
+      if (data.post) {
+        setPost(prev =>
+          page === 1
+            ? data.post
+            : { ...prev, comments: [...(prev.comments || []), ...data.post.comments] }
+        );
+        setHasMore(data.hasMore ?? false);
+        setTotalComments(data.totalComments ?? 0);
+        setCommentsPage(page);
+      }
     } catch (e) { console.log('loadPost error:', e.message); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setLoadingMore(false); }
   }, [postId]);
 
-  useEffect(() => { loadPost(); }, [loadPost]);
+  useEffect(() => { loadPost(1); }, [loadPost]);
+
+  const loadMoreComments = useCallback(() => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    loadPost(commentsPage + 1);
+  }, [hasMore, loadingMore, commentsPage, loadPost]);
 
   const handleComment = useCallback(async () => {
     if (!comment.trim() || sendingRef.current) return;
@@ -104,7 +124,7 @@ export default function PostDetailScreen({ route, navigation }) {
       await api.post(`/posts/${postId}/comment`, payload);
       setComment('');
       setReplyTo(null);
-      await loadPost();
+      await loadPost(1);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo comentar');
     } finally {
@@ -115,8 +135,14 @@ export default function PostDetailScreen({ route, navigation }) {
 
   const handleDeleteComment = useCallback(async (commentId) => {
     try {
-      const { data } = await api.delete(`/posts/${postId}/comment/${commentId}`);
-      if (data.comments) setPost(prev => ({ ...prev, comments: data.comments }));
+      await api.delete(`/posts/${postId}/comment/${commentId}`);
+      setPost(prev => ({
+        ...prev,
+        comments: (prev.comments || []).filter(c =>
+          c._id?.toString() !== commentId &&
+          c.replyTo?.commentId?.toString() !== commentId
+        ),
+      }));
     } catch { Alert.alert('Error', 'No se pudo eliminar'); }
     finally { setDeleteCommentModal(null); }
   }, [postId]);
@@ -225,7 +251,7 @@ export default function PostDetailScreen({ route, navigation }) {
 
         {isNews ? (
           <View style={s.newsWrap}>
-            {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="cover" /> : null}
+            {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="contain" /> : null}
             <View style={s.newsBody}>
               <View style={s.newsBadge}>
                 <Ionicons name="newspaper-outline" size={11} color={C.gold} />
@@ -238,7 +264,7 @@ export default function PostDetailScreen({ route, navigation }) {
         ) : (
           <View style={s.postWrap}>
             {post.content  ? <Text style={s.postContent}>{post.content}</Text>  : null}
-            {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="cover" /> : null}
+            {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.postImage} resizeMode="contain" /> : null}
           </View>
         )}
 
@@ -255,7 +281,7 @@ export default function PostDetailScreen({ route, navigation }) {
         <View style={s.commentsHeader}>
           <Ionicons name="chatbubble-outline" size={13} color={C.textDim} />
           <Text style={s.commentsTitle}>
-            {post.comments?.length||0}{post.comments?.length!==1?' comentarios':' comentario'}
+            {totalComments || post.comments?.length || 0}{(totalComments||post.comments?.length||0) !== 1 ? ' comentarios' : ' comentario'}
           </Text>
         </View>
 
@@ -267,6 +293,14 @@ export default function PostDetailScreen({ route, navigation }) {
         ) : null}
 
         {(post.comments||[]).filter(c => !c.replyTo?.commentId).map(c => renderComment(c, false))}
+
+        {hasMore && (
+          <TouchableOpacity style={s.loadMoreBtn} onPress={loadMoreComments} disabled={loadingMore}>
+            {loadingMore
+              ? <ActivityIndicator size="small" color={C.accent} />
+              : <Text style={s.loadMoreTxt}>Ver más comentarios</Text>}
+          </TouchableOpacity>
+        )}
 
         <View style={{ height:80 }} />
       </ScrollView>
@@ -332,7 +366,7 @@ const s = StyleSheet.create({
   authorName: { color:C.textHi, fontWeight:'700', fontSize:15 },
   authorMeta: { color:C.textDim, fontSize:11, marginTop:3 },
   newsWrap:     { marginHorizontal:14, borderRadius:18, overflow:'hidden', borderWidth:1, borderColor:'rgba(234,179,8,0.22)', marginBottom:16, backgroundColor:C.surface },
-  newsCover:    { width:'100%', height:230 },
+  newsCover:    { width:'100%', height:230, backgroundColor:C.surface },
   newsBody:     { padding:16, gap:10 },
   newsBadge:    { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:C.goldDim, borderRadius:8, paddingHorizontal:8, paddingVertical:4, alignSelf:'flex-start' },
   newsBadgeTxt: { color:C.gold, fontSize:9, fontWeight:'800', letterSpacing:1.2 },
@@ -340,13 +374,15 @@ const s = StyleSheet.create({
   newsContent:  { color:C.textMid, fontSize:15, lineHeight:24 },
   postWrap:    { paddingHorizontal:16, marginBottom:14 },
   postContent: { color:C.textHi, fontSize:16, lineHeight:26, marginBottom:14, letterSpacing:0.1 },
-  postImage:   { width:'100%', aspectRatio:16/9, borderRadius:16, backgroundColor:C.surface },
+  postImage:   { width:'100%', aspectRatio:4/3, borderRadius:16, backgroundColor:C.surface },
   tagsRow: { flexDirection:'row', flexWrap:'wrap', gap:6, paddingHorizontal:16, marginBottom:14 },
   tagPill: { backgroundColor:C.accentDim, borderRadius:20, paddingHorizontal:10, paddingVertical:4, borderWidth:1, borderColor:C.accentBorder },
   tagTxt:  { color:C.accent, fontSize:11, fontWeight:'600' },
   divider: { height:1, backgroundColor:C.divider, marginHorizontal:16, marginVertical:10 },
   commentsHeader: { flexDirection:'row', alignItems:'center', gap:6, paddingHorizontal:16, marginBottom:10 },
   commentsTitle:  { color:C.textDim, fontSize:12, fontWeight:'600', letterSpacing:0.5 },
+  loadMoreBtn:    { alignItems:'center', paddingVertical:14, marginHorizontal:16, marginTop:4, borderRadius:12, borderWidth:1, borderColor:C.cardBorder },
+  loadMoreTxt:    { color:C.accent, fontSize:13, fontWeight:'600' },
   emptyComments:    { alignItems:'center', paddingVertical:40, gap:6 },
   emptyCommentsTxt: { color:C.textDim, fontSize:13 },
   commentWrap:      { paddingHorizontal:16, paddingVertical:12, borderBottomWidth:1, borderBottomColor:C.divider },
