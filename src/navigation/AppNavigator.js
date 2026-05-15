@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -36,6 +36,8 @@ const linking = {
   prefixes: ['https://abyss.social', 'abyss://'],
   config: {
     screens: {
+      Login:         'login',
+      Home:          '',
       PostDetail:    'post/:postId',
       PublicProfile: 'user/:username',
     },
@@ -49,16 +51,17 @@ export default function AppNavigator() {
   if (isRestoring) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex:1, backgroundColor:'#020509', alignItems:'center', justifyContent:'center' }}>
-          <ActivityIndicator color="#00e5cc" size="large" />
-        </View>
+        <View style={{ flex:1, backgroundColor:'#020509' }} />
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer
+        linking={linking}
+        documentTitle={{ formatter: (options, route) => options?.title ? `${options.title} — Abyss` : 'Abyss' }}
+      >
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
