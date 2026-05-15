@@ -1,32 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Image } from 'react-native';
 import {
   View, Text, Animated, TouchableOpacity, TouchableWithoutFeedback,
-  StyleSheet, Dimensions, ScrollView, Alert, Image,
+  StyleSheet, Dimensions, ScrollView, Alert,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import AvatarWithFrame from './AvatarWithFrame';
-import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = Math.min(width * 0.78, 320);
-
-function timeAgo(date) {
-  if (!date) return null;
-  const diff = Math.floor((Date.now() - new Date(date)) / 1000);
-  if (diff < 60)   return 'activo ahora';
-  if (diff < 3600) return `activo hace ${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `activo hace ${Math.floor(diff / 3600)}h`;
-  return `activo hace ${Math.floor(diff / 86400)}d`;
-}
+const DRAWER_WIDTH = Math.min(width * 0.62, 320);
 
 export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavigate, onAvatarUpdate }) {
   const insets     = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
-  const [rendered,  setRendered]  = useState(false);
+  const [rendered, setRendered]   = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || null);
 
@@ -47,9 +40,15 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería'); return; }
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
     });
     if (result.canceled) return;
     setUploading(true);
@@ -57,7 +56,8 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       const asset = result.assets[0];
       const formData = new FormData();
       if (asset.uri.startsWith('data:') || asset.uri.startsWith('blob:') || asset.uri.startsWith('http')) {
-        const blob = await fetch(asset.uri).then(r => r.blob());
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
         formData.append('avatar', blob, 'avatar.jpg');
       } else {
         formData.append('avatar', { uri: asset.uri, type: 'image/jpeg', name: 'avatar.jpg' });
@@ -65,7 +65,8 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       const { data } = await api.post('/users/me/avatar', formData);
       setAvatarUrl(data.avatarUrl);
       if (onAvatarUpdate) onAvatarUpdate(data.user);
-    } catch {
+      Alert.alert('✅', 'Foto de perfil actualizada');
+    } catch (err) {
       Alert.alert('Error', 'No se pudo subir la imagen');
     } finally {
       setUploading(false);
@@ -74,15 +75,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
   if (!rendered) return null;
 
-  const xp       = user?.xp || 0;
-  const level    = Math.floor(xp / 500) + 1;
-  const xpInLevel = xp % 500;
-  const xpPct    = xpInLevel / 500;
-  const followers = user?.followers?.length ?? 0;
-  const following = user?.following?.length ?? 0;
-  const coins     = user?.coins ?? 0;
-  const activity  = timeAgo(user?.lastActive);
-  const isMod     = user?.role === 'mod' || user?.role === 'admin';
+  const daysSince = Math.floor((Date.now() - new Date(user?.createdAt)) / 86400000);
 
   return (
     <View style={s.root}>
@@ -91,130 +84,87 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       </TouchableWithoutFeedback>
 
       <Animated.View style={[s.drawer, { transform: [{ translateX }] }]}>
-        <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-          {/* ── HEADER ── */}
-          <View style={[s.header, { paddingTop: insets.top + 20 }]}>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn} activeOpacity={0.7}>
-              <Ionicons name="close" size={20} color={colors.textDim} />
+          <View style={[s.drawerHeader, { paddingTop: insets.top + 44 }]}>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
+              <Text style={s.closeTxt}>✕</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handlePickAvatar} activeOpacity={0.85} style={s.avatarWrap}>
+            <TouchableOpacity onPress={() => { onClose(); onNavigate('Profile'); }} style={s.avatarArea}>
               <AvatarWithFrame
-                size={72}
+                size={64}
                 avatarUrl={avatarUrl}
                 username={user?.username}
                 profileFrame={user?.profileFrame}
                 frameUrl={user?.profileFrameUrl}
+                bgColor={colors.surface}
               />
-              <View style={s.cameraBtn}>
-                <Ionicons name={uploading ? 'time-outline' : 'camera'} size={11} color={colors.textMid} />
+              <View style={s.photoBtn}>
+                <Ionicons name={uploading ? 'time-outline' : 'camera'} size={12} color={colors.textMid} />
               </View>
             </TouchableOpacity>
 
-            <Text style={s.username}>{user?.username}</Text>
-            {activity && (
-              <View style={s.activityRow}>
-                <View style={s.activeDot} />
-                <Text style={s.activityTxt}>{activity}</Text>
-              </View>
-            )}
+            <Text style={s.drawerUsername}>{user?.username}</Text>
+            <Text style={s.drawerEmail}>{user?.email}</Text>
           </View>
 
-          {/* ── STATS ── */}
-          <View style={s.statsCard}>
-            <View style={s.statItem}>
-              <Text style={s.statVal}>{followers}</Text>
-              <Text style={s.statLbl}>Seguidores</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={s.statItem}>
-              <Text style={s.statVal}>{following}</Text>
-              <Text style={s.statLbl}>Siguiendo</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={s.statItem}>
-              <Text style={s.statVal}>{xp}</Text>
+          <View style={s.statsRow}>
+            <View style={s.stat}>
+              <Text style={s.statVal}>{user?.xp || 0}</Text>
               <Text style={s.statLbl}>XP</Text>
             </View>
-          </View>
-
-          {/* ── XP / NIVEL ── */}
-          <View style={s.card}>
-            <View style={s.cardRow}>
-              <View style={s.levelBadge}>
-                <Text style={s.levelBadgeTxt}>{level}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={s.levelHeaderRow}>
-                  <Text style={s.levelTxt}>Nivel {level}</Text>
-                  <Text style={s.xpTxt}>{xpInLevel} / 500 XP</Text>
-                </View>
-                <View style={s.progressBg}>
-                  <Animated.View style={[s.progressFill, { width: `${Math.round(xpPct * 100)}%` }]} />
-                </View>
-              </View>
+            <View style={s.statDiv} />
+            <View style={s.stat}>
+              <Text style={s.statVal}>{daysSince}</Text>
+              <Text style={s.statLbl}>DÍAS</Text>
             </View>
           </View>
 
-          {/* ── MONEDAS ── */}
-          <View style={s.card}>
-            <View style={s.cardRow}>
-              <View style={s.coinCircle}>
-                <Text style={s.coinStar}>✦</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.cardLabel}>Monedas</Text>
-                <Text style={s.coinAmt}>{coins}</Text>
-              </View>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>MONEDAS</Text>
+            <View style={s.coinsRow}>
+              <View style={s.coinIcon}><Text style={s.coinEmoji}>✦</Text></View>
+              <Text style={s.coinsAmt}>{user?.coins ?? 50}</Text>
             </View>
           </View>
 
-          {/* ── MENÚ ── */}
-          <View style={s.menuSection}>
-            <Text style={s.menuSectionTitle}>MENÚ</Text>
-
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Profile'); }} activeOpacity={0.7}>
-              <View style={[s.menuIcon, { backgroundColor: 'rgba(0,229,204,0.08)' }]}>
-                <Ionicons name="person-outline" size={16} color={colors.c1} />
-              </View>
-              <Text style={s.menuTxt}>Mi Perfil</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+          <View style={[s.section, { marginTop: 24 }]}>
+            <Text style={s.sectionTitle}>MENÚ</Text>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Collection'); }}>
+              <Ionicons name='albums-outline' size={18} color={colors.textMid} style={s.menuIconV} />
+              <Text style={s.menuTxt}>Mi Colección</Text>
+              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
-
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Notifications'); }} activeOpacity={0.7}>
-              <View style={[s.menuIcon, { backgroundColor: 'rgba(41,121,255,0.08)' }]}>
-                <Ionicons name="notifications-outline" size={16} color={colors.c2} />
-              </View>
-              <Text style={s.menuTxt}>Notificaciones</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Top'); }}>
+              <Ionicons name='trophy-outline' size={18} color={colors.textMid} style={s.menuIconV} />
+              <Text style={s.menuTxt}>Top Semanal</Text>
+              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
-
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Settings'); }} activeOpacity={0.7}>
-              <View style={[s.menuIcon, { backgroundColor: 'rgba(122,154,184,0.08)' }]}>
-                <Ionicons name="settings-outline" size={16} color={colors.textMid} />
-              </View>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Chats'); }}>
+              <Ionicons name='create-outline' size={18} color={colors.textMid} style={s.menuIconV} />
+              <Text style={s.menuTxt}>Crear</Text>
+              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Settings'); }}>
+              <Ionicons name='settings-outline' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Ajustes</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
-
-            {isMod && (
-              <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('ModPanel'); }} activeOpacity={0.7}>
-                <View style={[s.menuIcon, { backgroundColor: 'rgba(251,191,36,0.08)' }]}>
-                  <Ionicons name="shield-checkmark-outline" size={16} color="rgba(251,191,36,1)" />
-                </View>
-                <Text style={[s.menuTxt, { color: 'rgba(251,191,36,0.9)' }]}>Moderación</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-              </TouchableOpacity>
-            )}
           </View>
 
-          {/* ── CERRAR SESIÓN ── */}
-          <TouchableOpacity style={s.logoutBtn} onPress={onLogout} activeOpacity={0.8}>
-            <Ionicons name="log-out-outline" size={16} color="rgba(239,68,68,0.8)" />
+          {(user?.role === 'mod' || user?.role === 'admin') && (
+            <TouchableOpacity style={s.modPanelBtn} onPress={() => { onClose(); onNavigate('ModPanel'); }}>
+              <Ionicons name='shield-checkmark-outline' size={16} color='rgba(251,191,36,1)' />
+              <Text style={s.modPanelTxt}>Panel de Moderación</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={s.logoutBtn} onPress={onLogout}>
             <Text style={s.logoutTxt}>Cerrar sesión</Text>
           </TouchableOpacity>
 
+          <View style={{ height: 30 }} />
         </ScrollView>
       </Animated.View>
     </View>
@@ -222,54 +172,50 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 }
 
 const s = StyleSheet.create({
-  root:    { position:'absolute', top:0, left:0, right:0, bottom:0, zIndex:999 },
-  overlay: { position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.65)' },
-  drawer:  { position:'absolute', top:0, left:0, bottom:0, width:DRAWER_WIDTH, backgroundColor:colors.deep, borderRightWidth:1, borderRightColor:colors.border },
-
-  // Header
-  header:     { paddingHorizontal:20, paddingBottom:20, alignItems:'center' },
-  closeBtn:   { position:'absolute', top:16, right:14, width:32, height:32, alignItems:'center', justifyContent:'center', backgroundColor:'rgba(255,255,255,0.05)', borderRadius:16 },
-  avatarWrap: { position:'relative', marginBottom:12 },
-  cameraBtn:  { position:'absolute', bottom:2, right:0, width:22, height:22, borderRadius:11, backgroundColor:colors.card, borderWidth:1, borderColor:colors.borderC, alignItems:'center', justifyContent:'center' },
-  username:   { color:colors.textHi, fontSize:17, fontWeight:'800', letterSpacing:0.2, marginBottom:5 },
-  activityRow:{ flexDirection:'row', alignItems:'center', gap:5 },
-  activeDot:  { width:6, height:6, borderRadius:3, backgroundColor:'#22c55e' },
-  activityTxt:{ color:colors.textMid, fontSize:11 },
-
-  // Stats
-  statsCard:    { flexDirection:'row', marginHorizontal:14, marginBottom:10, backgroundColor:colors.card, borderRadius:14, borderWidth:1, borderColor:colors.border, paddingVertical:14 },
-  statItem:     { flex:1, alignItems:'center' },
-  statVal:      { color:colors.textHi, fontSize:17, fontWeight:'800' },
-  statLbl:      { color:colors.textDim, fontSize:9, letterSpacing:0.5, marginTop:2 },
-  statDivider:  { width:1, backgroundColor:colors.border, marginVertical:4 },
-
-  // Cards
-  card:      { marginHorizontal:14, marginBottom:10, backgroundColor:colors.card, borderRadius:14, borderWidth:1, borderColor:colors.border, padding:14 },
-  cardRow:   { flexDirection:'row', alignItems:'center', gap:12 },
-  cardLabel: { color:colors.textDim, fontSize:9, letterSpacing:0.8, textTransform:'uppercase', marginBottom:2 },
-
-  // Nivel
-  levelBadge:      { width:38, height:38, borderRadius:19, backgroundColor:'rgba(0,229,204,0.12)', borderWidth:1.5, borderColor:'rgba(0,229,204,0.35)', alignItems:'center', justifyContent:'center' },
-  levelBadgeTxt:   { color:colors.c1, fontSize:15, fontWeight:'900' },
-  levelHeaderRow:  { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:6 },
-  levelTxt:        { color:colors.textHi, fontSize:12, fontWeight:'700' },
-  xpTxt:           { color:colors.textDim, fontSize:10 },
-  progressBg:      { height:5, backgroundColor:'rgba(255,255,255,0.06)', borderRadius:3, overflow:'hidden' },
-  progressFill:    { height:'100%', backgroundColor:colors.c1, borderRadius:3 },
-
-  // Monedas
-  coinCircle: { width:38, height:38, borderRadius:19, backgroundColor:'rgba(251,191,36,0.1)', borderWidth:1.5, borderColor:'rgba(251,191,36,0.3)', alignItems:'center', justifyContent:'center' },
-  coinStar:   { fontSize:14, color:'rgba(251,191,36,1)' },
-  coinAmt:    { color:'rgba(251,191,36,1)', fontSize:17, fontWeight:'800' },
-
-  // Menú
-  menuSection:      { marginHorizontal:14, marginBottom:10 },
-  menuSectionTitle: { fontSize:8, letterSpacing:3, color:colors.textDim, marginBottom:8, marginLeft:2 },
-  menuItem:         { flexDirection:'row', alignItems:'center', gap:12, paddingVertical:11, borderBottomWidth:1, borderBottomColor:colors.border },
-  menuIcon:         { width:32, height:32, borderRadius:10, alignItems:'center', justifyContent:'center' },
-  menuTxt:          { flex:1, color:colors.textMid, fontSize:13, fontWeight:'500' },
-
-  // Logout
-  logoutBtn: { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, marginHorizontal:14, marginTop:4, paddingVertical:13, borderRadius:12, borderWidth:1, borderColor:'rgba(239,68,68,0.25)', backgroundColor:'rgba(239,68,68,0.05)' },
-  logoutTxt: { color:'rgba(239,68,68,0.8)', fontSize:13, fontWeight:'600', letterSpacing:0.3 },
+  root:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)' },
+  drawer: {
+    position: 'absolute', top: 0, left: 0, bottom: 0,
+    width: DRAWER_WIDTH, backgroundColor: colors.deep,
+  },
+  drawerHeader: { paddingHorizontal: 18, paddingBottom: 18, alignItems: 'center', backgroundColor: colors.deep },
+  closeBtn:     { position: 'absolute', top: 52, right: 12, padding: 6 },
+  closeTxt:     { color: colors.textDim, fontSize: 14 },
+  avatarArea:   { position: 'relative', marginBottom: 10 },
+  photoBtn: {
+    position: 'absolute', bottom: 0, right: -2,
+    backgroundColor: colors.deep, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.borderC,
+    width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
+  },
+  drawerUsername: { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 1 },
+  drawerEmail:    { color: colors.textDim, fontSize: 10, marginBottom: 12 },
+  coinsRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 4 },
+  coinIcon:  { width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(251,191,36,0.2)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.5)', alignItems: 'center', justifyContent: 'center' },
+  coinEmoji: { fontSize: 9, color: 'rgba(251,191,36,1)' },
+  coinsAmt:  { color: 'rgba(251,191,36,1)', fontWeight: '800', fontSize: 13 },
+  statsRow: {
+    flexDirection: 'row', marginHorizontal: 12, marginVertical: 10,
+    backgroundColor: colors.card,
+    borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 10,
+  },
+  stat:    { flex: 1, alignItems: 'center' },
+  statVal: { color: colors.textHi, fontSize: 16, fontWeight: '700' },
+  statLbl: { color: colors.textDim, fontSize: 7, letterSpacing: 2, marginTop: 2 },
+  statDiv: { width: 1, backgroundColor: colors.border },
+  section:      { marginHorizontal: 12, marginBottom: 14 },
+  sectionTitle: { fontSize: 8, letterSpacing: 3, color: colors.textDim, marginBottom: 8 },
+  menuItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10,
+  },
+  menuIconV: { width: 22 },
+  menuTxt:   { flex: 1, color: colors.textMid, fontSize: 13 },
+  logoutBtn: {
+    marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 10,
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center',
+  },
+  logoutTxt: { color: 'rgba(239,68,68,0.8)', fontSize: 12, letterSpacing: 1 },
+  modPanelBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 10, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)', backgroundColor: 'rgba(251,191,36,0.07)' },
+  modPanelTxt: { color: 'rgba(251,191,36,1)', fontSize: 12, fontWeight: '700' },
 });
