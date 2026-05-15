@@ -123,9 +123,13 @@ const MessageBubble = memo(function MessageBubble({
     );
   }
 
-  const displayName   = isMe ? (user?.username || 'Tu') : (sender?.username || '');
-  const isPostType    = msg.type === 'shared_post' || msg.type === 'shared_profile';
-  const isDeleted     = msg.deletedFor?.map(d => d.toString()).includes(user?._id?.toString());
+  const displayName        = isMe ? (user?.username || 'Tu') : (sender?.username || '');
+  const isPostType         = msg.type === 'shared_post' || msg.type === 'shared_profile';
+  const isDeleted          = msg.deletedFor?.map(d => d.toString()).includes(user?._id?.toString());
+  const senderIsGroupAdmin = group?.members?.some(
+    m => (m.user?._id || m.user)?.toString() === (sender?._id || sender)?.toString()
+      && m.role === 'admin'
+  );
 
   return (
     <>
@@ -138,6 +142,11 @@ const MessageBubble = memo(function MessageBubble({
         {showAvatar && (
           <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
             <Text style={s.msgSenderName}>{displayName}</Text>
+            {senderIsGroupAdmin && (
+              <View style={s.adminBadge}>
+                <Text style={s.adminBadgeTxt}>ADMIN</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -1001,8 +1010,8 @@ const s = StyleSheet.create({
   msgSenderRow:   { flexDirection:'row', alignItems:'center', gap:6, marginLeft: AVATAR_SLOT + 8, marginBottom:4 },
   msgSenderRowMe: { flexDirection:'row-reverse', marginLeft:0, marginRight: AVATAR_SLOT + 8, marginBottom:4 },
   msgSenderName:  { color:'rgba(255,255,255,0.65)', fontSize:11, fontWeight:'700' },
-  adminBadge:     { backgroundColor:'rgba(0,200,120,0.12)', borderRadius:4, borderWidth:1, borderColor:'rgba(0,200,120,0.4)', paddingHorizontal:4, paddingVertical:1 },
-  adminBadgeTxt:  { color:'rgba(0,220,130,1)', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
+  adminBadge:     { backgroundColor:'rgba(0,200,150,0.15)', borderRadius:4, paddingHorizontal:5, paddingVertical:1, marginLeft:6 },
+  adminBadgeTxt:  { fontSize:10, color:'#00c896', fontWeight:'600' },
   platformAdminBadge:    { backgroundColor:'rgba(239,68,68,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(239,68,68,0.35)', paddingHorizontal:4, paddingVertical:1 },
   platformAdminBadgeTxt: { color:'#ef4444', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
   platformModBadge:      { backgroundColor:'rgba(251,191,36,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(251,191,36,0.35)', paddingHorizontal:4, paddingVertical:1 },
