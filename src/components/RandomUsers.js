@@ -13,6 +13,7 @@ export default function RandomUsers({ navigation }) {
   const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(true);
   const fadeAnim              = useRef(new Animated.Value(0)).current;
+  const seenIds               = useRef(new Set());
 
   useEffect(() => {
     load();
@@ -21,8 +22,11 @@ export default function RandomUsers({ navigation }) {
   async function load() {
     try {
       setLoading(true);
-      const { data } = await api.get('/users/random');
-      setUsers(data.users || []);
+      const seen = [...seenIds.current].join(',');
+      const { data } = await api.get(seen ? `/users/random?seen=${seen}` : '/users/random');
+      const newUsers = data.users || [];
+      newUsers.forEach(u => seenIds.current.add(u._id));
+      setUsers(newUsers);
       Animated.timing(fadeAnim, {
         toValue: 1, duration: 600, useNativeDriver: true,
       }).start();
