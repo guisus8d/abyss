@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { EmojiKeyboard } from 'rn-emoji-keyboard';
 import { colors } from '../theme/colors';
+import { getActivityStatus } from '../utils/timeUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -62,6 +63,13 @@ export default function HomeScreen({ navigation }) {
   const [searchQuery,   setSearchQuery]   = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching,     setSearching]     = useState(false);
+  const [activityStatus, setActivityStatus] = useState(() => getActivityStatus(user?.lastActive));
+
+  useEffect(() => {
+    setActivityStatus(getActivityStatus(user?.lastActive));
+    const interval = setInterval(() => setActivityStatus(getActivityStatus(user?.lastActive)), 60000);
+    return () => clearInterval(interval);
+  }, [user?.lastActive]);
   const [refreshing,    setRefreshing]    = useState(false);
   const [activeTab,     setActiveTab]     = useState('todos');
   const [tabData,       setTabData]       = useState({
@@ -221,7 +229,15 @@ export default function HomeScreen({ navigation }) {
             <TouchableOpacity style={s.headerLeft} onPress={() => setDrawerOpen(true)}>
               <AvatarWithFrame size={34} avatarUrl={user?.avatarUrl} username={user?.username}
                 profileFrame={user?.profileFrame} frameUrl={user?.profileFrameUrl} bgColor="rgba(0,229,204,0.15)" />
-              <Text style={s.headerUsername}>{user?.username}</Text>
+              <View>
+                <Text style={s.headerUsername}>{user?.username}</Text>
+                {activityStatus.text ? (
+                  <View style={{ flexDirection:'row', alignItems:'center', marginTop:1 }}>
+                    <View style={{ width:6, height:6, borderRadius:3, backgroundColor: activityStatus.isOnline ? '#16B88A' : '#6B6090', marginRight:4 }} />
+                    <Text style={{ fontSize:11, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>{activityStatus.text}</Text>
+                  </View>
+                ) : null}
+              </View>
             </TouchableOpacity>
             <View style={s.headerRight}>
               <TouchableOpacity style={s.iconBtnBox}
