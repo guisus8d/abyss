@@ -101,7 +101,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
                 bgColor={colors.surface}
               />
               <View style={s.photoBtn}>
-                <Ionicons name={uploading ? 'time-outline' : 'camera'} size={12} color={colors.textMid} />
+                <Ionicons name={uploading ? 'time' : 'camera'} size={12} color={colors.textMid} />
               </View>
             </TouchableOpacity>
 
@@ -132,22 +132,22 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
           <View style={[s.section, { marginTop: 24 }]}>
             <Text style={s.sectionTitle}>MENÚ</Text>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Collection'); }}>
-              <Ionicons name='albums-outline' size={18} color={colors.textMid} style={s.menuIconV} />
+              <Ionicons name='albums' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Mi Colección</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Top'); }}>
-              <Ionicons name='trophy-outline' size={18} color={colors.textMid} style={s.menuIconV} />
+              <Ionicons name='trophy' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Top Semanal</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Chats'); }}>
-              <Ionicons name='create-outline' size={18} color={colors.textMid} style={s.menuIconV} />
+              <Ionicons name='create' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Crear</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Settings'); }}>
-              <Ionicons name='settings-outline' size={18} color={colors.textMid} style={s.menuIconV} />
+              <Ionicons name='settings' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Ajustes</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
@@ -155,7 +155,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
           {(user?.role === 'mod' || user?.role === 'admin') && (
             <TouchableOpacity style={s.modPanelBtn} onPress={() => { onClose(); onNavigate('ModPanel'); }}>
-              <Ionicons name='shield-checkmark-outline' size={16} color='rgba(251,191,36,1)' />
+              <Ionicons name='shield-checkmark' size={16} color='rgba(251,191,36,1)' />
               <Text style={s.modPanelTxt}>Panel de Moderación</Text>
             </TouchableOpacity>
           )}
