@@ -420,9 +420,9 @@ export default function ChatRoomScreen({ route, navigation }) {
       const formData = new FormData();
       formData.append('file', { uri: preview.uri, type: 'audio/m4a', name: 'audio.m4a' });
       const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-      const res = await fetch(`${BASE_URL}/chats/upload`, {
+      const res = await fetch(`${BASE_URL}/chats/upload/audio`, {
         method:  'POST',
-        headers: { Authorization: `Bearer ${token}`, 'x-file-type': 'audio' },
+        headers: { Authorization: `Bearer ${token}` },
         body:    formData,
       });
       const data = await res.json();
