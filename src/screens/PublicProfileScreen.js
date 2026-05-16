@@ -5,6 +5,7 @@ import {
   Alert, Dimensions, Clipboard, Modal, Pressable, Linking, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -495,6 +496,29 @@ export default function PublicProfileScreen({ route, navigation }) {
 
         <View style={{ height:60 }} />
       </ScrollView>
+
+      {/* ── Overlay de ban ── */}
+      {profile?.banned && (
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <View style={s.banOverlay}>
+            <Ionicons name="ban" size={72} color="#ff4444" />
+            <Text style={s.banTitle}>Usuario suspendido</Text>
+            <Text style={s.banSubtitle}>
+              Esta cuenta ha sido suspendida por violar{'\n'}
+              los términos de uso de Abyss.
+            </Text>
+            {profile?.bannedReason ? (
+              <View style={s.banReasonBox}>
+                <Text style={s.banReasonTxt}>Motivo: {profile.bannedReason}</Text>
+              </View>
+            ) : null}
+            <TouchableOpacity style={s.banBackBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+              <Ionicons name="arrow-back" size={16} color="#fff" />
+              <Text style={s.banBackTxt}>Volver</Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      )}
     </View>
   );
 }
@@ -519,6 +543,13 @@ const s = StyleSheet.create({
   btnChatTxt:    { color:colors.textMid, fontSize:14 },
   blockedBanner: { borderRadius:10, paddingVertical:10, paddingHorizontal:20, borderWidth:1, borderColor:'rgba(239,68,68,0.3)', flexDirection:'row', gap:8, alignItems:'center' },
   blockedTxt:    { color:'rgba(239,68,68,0.7)', fontSize:13 },
+  banOverlay:    { flex:1, alignItems:'center', justifyContent:'center', paddingHorizontal:32, backgroundColor:'rgba(2,5,9,0.75)' },
+  banTitle:      { color:'#ffffff', fontSize:24, fontWeight:'800', marginTop:20, marginBottom:10, textAlign:'center' },
+  banSubtitle:   { color:'rgba(255,255,255,0.6)', fontSize:14, textAlign:'center', lineHeight:22 },
+  banReasonBox:  { marginTop:16, paddingHorizontal:16, paddingVertical:10, borderRadius:10, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)' },
+  banReasonTxt:  { color:'rgba(239,68,68,0.8)', fontSize:12, textAlign:'center' },
+  banBackBtn:    { flexDirection:'row', alignItems:'center', gap:8, marginTop:32, paddingHorizontal:24, paddingVertical:12, borderRadius:14, backgroundColor:'rgba(255,255,255,0.1)', borderWidth:1, borderColor:'rgba(255,255,255,0.15)' },
+  banBackTxt:    { color:'#ffffff', fontSize:14, fontWeight:'600' },
 
   // Menú bottom sheet
   menuOverlay:     { flex:1, backgroundColor:'rgba(0,0,0,0.55)', justifyContent:'flex-end' },
