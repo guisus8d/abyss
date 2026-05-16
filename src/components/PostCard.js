@@ -311,11 +311,9 @@ const PostCard = memo(function PostCard({
           />
         </TouchableOpacity>
 
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
           <TouchableOpacity onPress={() => goToProfile(post.author.username)}>
-            <View style={s.usernameRow}>
-              <Text style={s.username}>{post.author.username}</Text>
-            </View>
+            <Text style={s.username}>{post.author.username}</Text>
           </TouchableOpacity>
           <Text style={s.meta}>XP {post.author.xp} · {ago}</Text>
         </View>
@@ -458,10 +456,10 @@ const s = StyleSheet.create({
     ...(isWeb ? { cursor: 'default' } : {}),
   },
   header:      { flexDirection: 'row', alignItems: 'center', marginBottom: 13, gap: 10 },
-  avatarWrap:  { width: 60, height: 60, overflow: 'visible' },
+  avatarWrap:  { width: 60, height: 60, overflow: 'visible', alignItems: 'center', justifyContent: 'center' },
   usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  username:    { color: C.textHi, fontWeight: '700', fontSize: 14 },
-  meta:        { color: C.textDim, fontSize: 11, marginTop: 3 },
+  username:    { color: C.textHi, fontWeight: '700', fontSize: 15 },
+  meta:        { color: C.textDim, fontSize: 12, marginTop: 2 },
   moreBtn:     { width: 32, height: 32, borderRadius: 10, borderWidth: 1, borderColor: C.cardBorder, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
   bodyText:    { color: C.textMid, fontSize: 14, lineHeight: 22, marginBottom: 10, letterSpacing: 0.1 },
   postImage:   { width: '100%', aspectRatio: 16/9, maxHeight: 380, borderRadius: 14, marginBottom: 10, backgroundColor: C.surface },
