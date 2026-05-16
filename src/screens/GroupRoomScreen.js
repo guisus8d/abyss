@@ -603,10 +603,18 @@ export default function GroupRoomScreen({ route, navigation }) {
     setAudioPreview(null);
     try {
       setUploading(true);
-      const blob = await fetch(preview.uri).then(r => r.blob());
+      const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+      const token = await AsyncStorage.getItem('token');
       const formData = new FormData();
-      formData.append('file', blob, 'audio.m4a');
-      const { data } = await api.post('/chats/upload', formData, { headers: { 'Content-Type': 'multipart/form-data', 'x-file-type': 'audio' } });
+      formData.append('file', { uri: preview.uri, type: 'audio/m4a', name: 'audio.m4a' });
+      const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+      const res = await fetch(`${BASE_URL}/chats/upload`, {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${token}`, 'x-file-type': 'audio' },
+        body:    formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
       socketRef.current?.emit('group:message', { groupId: group._id, text: '', type: 'audio', mediaUrl: data.url, audioDuration: preview.duration });
     } catch (e) { console.log('sendAudioPreview error:', e.message); }
     finally { setUploading(false); }
