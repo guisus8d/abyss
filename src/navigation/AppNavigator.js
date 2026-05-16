@@ -1,6 +1,18 @@
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+
+const AbyssTheme = {
+  dark: false,
+  colors: {
+    primary:      '#00e5cc',
+    background:   '#020509',
+    card:         '#050c14',
+    text:         '#e8f4f8',
+    border:       '#0d1520',
+    notification: '#00e5cc',
+  },
+};
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
@@ -60,6 +72,7 @@ export default function AppNavigator() {
   return (
     <SafeAreaProvider>
       <NavigationContainer
+        theme={AbyssTheme}
         linking={linking}
         documentTitle={{ formatter: (options, route) => options?.title ? `${options.title} — Abyss` : 'Abyss' }}
       >
