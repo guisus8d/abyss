@@ -216,7 +216,6 @@ export default function PublicProfileScreen({ route, navigation }) {
         <View style={{ width:80, height:80, borderRadius:40, backgroundColor:'#091525', alignItems:'center', justifyContent:'center', marginBottom:20, borderWidth:1, borderColor:'#0d1520' }}>
           <Ionicons name="person-outline" size={40} color="#3a5570" />
         </View>
-        <Ionicons name="ban-outline" size={48} color="#ff444480" />
         <Text style={{ color:'#e8f4f8', fontSize:20, fontWeight:'700', marginTop:16, textAlign:'center' }}>
           Contenido bloqueado
         </Text>
