@@ -818,7 +818,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
-            <Ionicons name="settings-outline" size={20} color={colors.textDim} />
+            <Ionicons name="settings" size={20} color={colors.textDim} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
