@@ -393,7 +393,7 @@ export default function PublicProfileScreen({ route, navigation }) {
             <Text style={s.username}>{profile?.username}</Text>
           </View>
           {activityStatus.text ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 2 }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: activityStatus.isOnline ? '#16B88A' : colors.textDim, marginRight: 6 }} />
               <Text style={{ fontSize: 12, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>
                 {activityStatus.text}
@@ -590,7 +590,7 @@ const s = StyleSheet.create({
   hero: { alignItems:'center', paddingBottom:60, paddingHorizontal:24, overflow:'hidden', width:W, alignSelf:'stretch', position:'relative' },
   heroTopRow: { position:'absolute', left:16, right:16, flexDirection:'row', justifyContent:'space-between', zIndex:10 },
   heroBtn: { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.12)', alignItems:'center', justifyContent:'center' },
-  username: { color:colors.textHi, fontSize:22, fontWeight:'700', marginTop:14, marginBottom:4 },
+  username: { color:colors.textHi, fontSize:22, fontWeight:'700', marginTop:14, marginBottom:2 },
   xpTxt:    { color:'rgba(255,255,255,0.6)', fontSize:12, fontWeight:'700', marginBottom:12 },
   heroStats:  { flexDirection:'row', width:'100%', marginTop:8, gap:8, justifyContent:'center' },
   heroStat:   { width:100, alignItems:'center', paddingVertical:12, backgroundColor:'rgba(0,0,0,0.45)', borderRadius:12, borderWidth:1, borderColor:'rgba(255,255,255,0.1)' },
