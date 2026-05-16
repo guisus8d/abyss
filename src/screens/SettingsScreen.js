@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  StatusBar, ScrollView, Alert, Modal, TextInput, ActivityIndicator,
+  StatusBar, ScrollView, Alert, Modal, TextInput, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +24,7 @@ const SECTIONS = [
   {
     title: 'PRIVACIDAD',
     items: [
-      { key: 'blocked',   label: 'Usuarios bloqueados',       icon: 'ban-outline',           soon: true  },
+      { key: 'blocked',   label: 'Usuarios bloqueados',       icon: 'ban-outline',           soon: false },
       { key: 'data',      label: 'Mis datos',                 icon: 'document-text-outline', soon: true  },
     ],
   },
@@ -38,7 +38,7 @@ const SECTIONS = [
     title: 'SOPORTE',
     items: [
       { key: 'report',    label: 'Reportar un problema',      icon: 'bug-outline',           soon: true  },
-      { key: 'terms',     label: 'Términos de uso',           icon: 'shield-outline',        soon: true  },
+      { key: 'terms',     label: 'Términos de uso',           icon: 'shield-outline',        soon: false },
     ],
   },
   {
@@ -161,6 +161,8 @@ export default function SettingsScreen({ navigation }) {
     if (key === 'email')       { setVerifyModal(true); setVerifySent(false); }
     if (key === 'changeEmail') { setEmailModal(true); setCurrentPwd(''); setNewEmail(''); }
     if (key === 'delete')   setDeleteModal(true);
+    if (key === 'blocked')  navigation.navigate('BlockedUsers');
+    if (key === 'terms')    Linking.openURL('https://abyss.social/terminos');
   }
 
   return (

@@ -40,6 +40,7 @@ import CreateGroupScreen     from '../screens/CreateGroupScreen';
 import GroupRoomScreen       from '../screens/GroupRoomScreen';
 import GroupSettingsScreen   from '../screens/GroupSettingsScreen';
 import SearchScreen          from '../screens/SearchScreen';
+import BlockedUsersScreen    from '../screens/BlockedUsersScreen';
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
 // El panel de moderación solo es accesible desde abyss.social/mod
@@ -108,6 +109,7 @@ export default function AppNavigator() {
               <Stack.Screen name="GroupRoom"       component={GroupRoomScreen} />
               <Stack.Screen name="GroupSettings"   component={GroupSettingsScreen} />
               <Stack.Screen name="Search"          component={SearchScreen} />
+              <Stack.Screen name="BlockedUsers"    component={BlockedUsersScreen} />
             </>
           ) : (
             <>

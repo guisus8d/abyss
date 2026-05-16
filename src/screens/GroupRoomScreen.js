@@ -99,7 +99,7 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
-  msg, index, reversedMessages, isMe, user, group, isAdmin,
+  msg, index, reversedMessages, isMe, user, group, isAdmin, blockedIds,
   navigation, onOpenMenu, onReply, onFullImg,
 }) {
   const sender       = msg.sender;
@@ -109,6 +109,7 @@ const MessageBubble = memo(function MessageBubble({
   const sameAsPrev   = prevMsg && prevMsg.type !== 'system' && prevSenderId === thisSenderId;
   const showAvatar   = !sameAsPrev && msg.type !== 'system';
   const showDate     = !prevMsg || dateLabel(msg.createdAt) !== dateLabel(prevMsg.createdAt);
+  const senderIsBlocked = !isMe && blockedIds?.includes((sender?._id || sender)?.toString());
 
   if (msg.type === 'system') {
     return (
@@ -174,7 +175,9 @@ const MessageBubble = memo(function MessageBubble({
             onLongPress={() => !isDeleted && onOpenMenu(msg)}
             activeOpacity={0.85}
           >
-            {isDeleted ? (
+            {senderIsBlocked ? (
+              <Text style={[s.bubbleText, { opacity:0.35, fontStyle:'italic' }]}>Mensaje de usuario bloqueado</Text>
+            ) : isDeleted ? (
               <Text style={[s.bubbleText, { opacity:0.4, fontStyle:'italic' }]}>Mensaje eliminado</Text>
             ) : (
               <>
@@ -616,6 +619,8 @@ export default function GroupRoomScreen({ route, navigation }) {
 
   function cancelAudioPreview() { setAudioPreview(null); recordingRef.current = null; }
 
+  const blockedIds = (user?.blocked || []).map(b => (b._id || b)?.toString());
+
   const renderMessage = useCallback(({ item: msg, index }) => {
     const isMe = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
     return (
@@ -627,6 +632,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         user={user}
         group={group}
         isAdmin={isAdmin}
+        blockedIds={blockedIds}
         navigation={navigation}
         onOpenMenu={openMenu}
         onReply={setReplyTo}

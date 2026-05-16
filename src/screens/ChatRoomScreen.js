@@ -243,6 +243,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [menuMsg,            setMenuMsg]            = useState(null);
   const [replyTo,            setReplyTo]            = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [isBlocked,          setIsBlocked]          = useState(other?.blocked ?? false);
 
   const flatRef      = useRef(null);
   const socketRef    = useRef(null);
@@ -579,6 +580,13 @@ export default function ChatRoomScreen({ route, navigation }) {
           scrollEventThrottle={32}
         />
 
+        {isBlocked && (
+          <View style={s.blockedBanner}>
+            <Ionicons name="ban-outline" size={16} color="rgba(239,68,68,0.8)" />
+            <Text style={s.blockedBannerTxt}>Has bloqueado a {other.username}. No puedes enviar mensajes.</Text>
+          </View>
+        )}
+
         {requestMode && (
           <View style={s.reqBanner}>
             <View style={{ flex:1 }}>
@@ -730,6 +738,8 @@ const s = StyleSheet.create({
   inputRow:     { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:12, paddingVertical:10, borderTopWidth:1, borderTopColor: colors.border, backgroundColor: colors.deep, overflow:'hidden' },
   input:        { flex:1, minWidth:0, flexShrink:1, backgroundColor:'#080f18', borderWidth:1, borderColor: colors.border, borderRadius:22, paddingHorizontal:16, paddingVertical:10, color: colors.textHi, fontSize:14 },
   sendBtn:      { width:42, height:42, minWidth:42, maxWidth:42, borderRadius:21, alignItems:'center', justifyContent:'center', flexShrink:0 },
+  blockedBanner:    { flexDirection:'row', alignItems:'center', gap:8, margin:12, padding:12, backgroundColor:'rgba(239,68,68,0.07)', borderRadius:12, borderWidth:1, borderColor:'rgba(239,68,68,0.25)' },
+  blockedBannerTxt: { flex:1, color:'rgba(239,68,68,0.8)', fontSize:12 },
   reqBanner:         { flexDirection:'row', alignItems:'center', margin:12, padding:14, backgroundColor:'rgba(0,229,204,0.06)', borderRadius:14, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', gap:12 },
   reqBannerTitle:    { color: colors.textHi, fontSize:13, fontWeight:'600', marginBottom:2 },
   reqBannerSub:      { color: colors.textDim, fontSize:11 },
