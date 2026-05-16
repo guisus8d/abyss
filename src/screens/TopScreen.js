@@ -26,11 +26,6 @@ const PODIUM = [
 // Visual order: 2nd left · 1st center · 3rd right
 const PODIUM_ORDER = [1, 0, 2];
 
-function MedalIcon({ rank, size = 28 }) {
-  if (rank === 0) return <Ionicons name="trophy" size={size} color={GOLD} />;
-  if (rank === 1) return <Ionicons name="medal" size={size} color={SILVER} />;
-  return <Ionicons name="medal" size={size} color={BRONZE} />;
-}
 
 function PodiumCard({ user, rank, navigation }) {
   const p = PODIUM[rank];
@@ -41,11 +36,6 @@ function PodiumCard({ user, rank, navigation }) {
       activeOpacity={0.8}
     >
       <LinearGradient colors={p.gradBg} style={StyleSheet.absoluteFill} />
-
-      {/* Medalla / corona */}
-      <View style={s.medalWrap}>
-        <MedalIcon rank={rank} size={rank === 0 ? 30 : 22} />
-      </View>
 
       <AvatarWithFrame
         size={p.size}
@@ -217,7 +207,7 @@ const s = StyleSheet.create({
   podiumCardFirst: {
     borderColor: 'rgba(255,215,0,0.25)',
   },
-  medalWrap: { marginBottom: 8 },
+
   podiumName: { fontSize: 11, fontWeight: '700', marginTop: 8, marginBottom: 6, textAlign: 'center' },
   xpBadge:    { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 8 },
   xpBadgeTxt: { fontSize: 10, fontWeight: '900' },
