@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 
 const AbyssTheme = {
+  ...DefaultTheme,
   dark: false,
   colors: {
+    ...DefaultTheme.colors,
     primary:      '#00e5cc',
     background:   '#020509',
     card:         '#050c14',
