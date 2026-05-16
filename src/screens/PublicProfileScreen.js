@@ -389,17 +389,19 @@ export default function PublicProfileScreen({ route, navigation }) {
             <AvatarWithFrame size={88} avatarUrl={profile?.avatarUrl} username={profile?.username} profileFrame={profile?.profileFrame} frameUrl={profile?.profileFrameUrl} bgColor="rgba(0,229,204,0.12)" banned={!!profile?.banned} badgeRole={profile?.role} />
           </TouchableOpacity>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Text style={s.username}>{profile?.username}</Text>
-          </View>
-          {activityStatus.text ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 2 }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: activityStatus.isOnline ? '#16B88A' : colors.textDim, marginRight: 6 }} />
-              <Text style={{ fontSize: 12, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>
-                {activityStatus.text}
-              </Text>
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Text style={s.username}>{profile?.username}</Text>
             </View>
-          ) : null}
+            {activityStatus.text ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: activityStatus.isOnline ? '#16B88A' : colors.textDim, marginRight: 5 }} />
+                <Text style={{ fontSize: 11, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>
+                  {activityStatus.text}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           {prefs.showXp && <Text style={s.xpTxt}>XP {profile?.xp || 0}</Text>}
 
           <View style={s.heroStats}>
