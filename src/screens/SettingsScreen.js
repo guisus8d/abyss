@@ -254,7 +254,7 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={s.cancelBtnTxt}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.confirmBtn} onPress={handleChangeUsername} disabled={saving}>
-                <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                <LinearGradient colors={[colors.c1,colors.c1]} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                   {saving ? <ActivityIndicator size="small" color="#001a18" /> : <Text style={s.confirmBtnTxt}>Guardar</Text>}
                 </LinearGradient>
               </TouchableOpacity>
@@ -291,7 +291,7 @@ export default function SettingsScreen({ navigation }) {
                   </Text>
                 </View>
                 <TouchableOpacity style={[s.confirmBtn, { marginTop: 4 }]} onPress={() => setPasswordModal(false)}>
-                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                  <LinearGradient colors={[colors.c1,colors.c1]} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                     <Text style={s.confirmBtnTxt}>Cerrar</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -310,7 +310,7 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={s.cancelBtnTxt}>Cancelar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.confirmBtn} onPress={handleForgotPassword} disabled={sendingReset}>
-                    <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                    <LinearGradient colors={[colors.c1,colors.c1]} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                       {sendingReset
                         ? <ActivityIndicator size="small" color="#001a18" />
                         : <Text style={s.confirmBtnTxt}>Enviar enlace</Text>}
@@ -356,7 +356,7 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={s.cancelBtnTxt}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.confirmBtn} onPress={handleChangeEmail} disabled={savingEmail}>
-                <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                <LinearGradient colors={[colors.c1,colors.c1]} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                   {savingEmail
                     ? <ActivityIndicator size="small" color="#001a18" />
                     : <Text style={s.confirmBtnTxt}>Cambiar</Text>}
@@ -382,7 +382,7 @@ export default function SettingsScreen({ navigation }) {
                   <Text style={{ color: colors.textMid }}>{user?.email}</Text>
                 </Text>
                 <TouchableOpacity style={[s.confirmBtn, { marginTop: 8, width: '100%' }]} onPress={() => setVerifyModal(false)}>
-                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                  <LinearGradient colors={[colors.c1,colors.c1]} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                     <Text style={s.confirmBtnTxt}>Cerrar</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -402,7 +402,7 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={s.cancelBtnTxt}>Cancelar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.confirmBtn} onPress={handleSendVerification} disabled={sendingVerify}>
-                    <LinearGradient colors={['#006b63','#00e5cc']} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                    <LinearGradient colors={[colors.c1,colors.c1]} style={s.confirmBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                       {sendingVerify
                         ? <ActivityIndicator size="small" color="#001a18" />
                         : <Text style={s.confirmBtnTxt}>Enviar enlace</Text>}

@@ -60,14 +60,14 @@ function renderRichText(text, navigation) {
       const postId = part.match(/abyss\.social\/post\/([a-f0-9]{24})/i)?.[1];
       if (postId) {
         return (
-          <Text key={i} style={{ color:'#00e5cc', fontWeight:'600' }}
+          <Text key={i} style={{ color:colors.c1, fontWeight:'600' }}
             onPress={() => navigation.navigate('PostDetail', { postId })}>
             {'🔗 Ver post en Abyss'}
           </Text>
         );
       }
       return (
-        <Text key={i} style={{ color:'#00e5cc', textDecorationLine:'underline' }}
+        <Text key={i} style={{ color:colors.c1, textDecorationLine:'underline' }}
           onPress={() => Linking.openURL(part).catch(() => {})}>
           {part}
         </Text>
@@ -123,10 +123,10 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onLongPress }) {
 
 const sp = StyleSheet.create({
   cardHeader:   { flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:9, gap:7, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' },
-  accentBar:    { width:2, height:16, backgroundColor:'#00e5cc', borderRadius:1 },
+  accentBar:    { width:2, height:16, backgroundColor:colors.c1, borderRadius:1 },
   newsBadge:    { backgroundColor:'rgba(251,191,36,0.14)', borderRadius:4, paddingHorizontal:5, paddingVertical:1, alignSelf:'flex-start' },
   newsBadgeTxt: { color:'rgba(251,191,36,0.9)', fontSize:8, fontWeight:'800', letterSpacing:1 },
-  authorTxt:    { color:'#00e5cc', fontSize:11, fontWeight:'700' },
+  authorTxt:    { color:colors.c1, fontSize:11, fontWeight:'700' },
   img:          { width:'100%', height:110 },
   cardBody:     { paddingHorizontal:10, paddingVertical:8, gap:3 },
   title:        { color:'#e8f4f8', fontSize:13, fontWeight:'700', lineHeight:18 },
@@ -557,7 +557,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       <View style={{ flex:1 }}>
         <FlatList
           ref={flatRef}
-          style={{ flex: 1, backgroundColor: '#020509' }}
+          style={{ flex: 1, backgroundColor: colors.black }}
           data={flatListData}
           keyExtractor={(m) => String(m._id)}
           renderItem={renderMessage}
@@ -589,7 +589,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             </View>
             {!reqSent && (
               <TouchableOpacity style={s.reqBannerBtn} onPress={handleSendRequest} disabled={sendingReq}>
-                <LinearGradient colors={['#006b63','#00e5cc']} style={s.reqBannerBtnInner} start={{x:0,y:0}} end={{x:1,y:0}}>
+                <LinearGradient colors={[colors.c1,colors.c1]} style={s.reqBannerBtnInner} start={{x:0,y:0}} end={{x:1,y:0}}>
                   <Text style={s.reqBannerBtnTxt}>{sendingReq ? '...' : 'Enviar'}</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -661,7 +661,7 @@ export default function ChatRoomScreen({ route, navigation }) {
               blurOnSubmit={false}
             />
             <TouchableOpacity onPress={handleSend} disabled={!text.trim()}>
-              <LinearGradient colors={text.trim() ? ['#006b63','#00e5cc'] : ['#1a2a2a','#1a2a2a']} style={s.sendBtn}>
+              <LinearGradient colors={text.trim() ? [colors.c1,colors.c1] : ['#1a2a2a','#1a2a2a']} style={s.sendBtn}>
                 <Ionicons name="send" size={18} color={colors.black} />
               </LinearGradient>
             </TouchableOpacity>

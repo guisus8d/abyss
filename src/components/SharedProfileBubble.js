@@ -80,7 +80,7 @@ const s = StyleSheet.create({
     paddingHorizontal:10, paddingVertical:9, gap:7,
     borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)',
   },
-  accentBar: { width:2, height:16, backgroundColor:'#00e5cc', borderRadius:1 },
+  accentBar: { width:2, height:16, backgroundColor:colors.c1, borderRadius:1 },
   headerTxt: { color:'rgba(0,229,204,0.7)', fontSize:10, fontWeight:'700', letterSpacing:0.5, flex:1 },
   body: {
     flexDirection:'row', alignItems:'center',

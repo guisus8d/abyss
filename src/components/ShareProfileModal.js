@@ -12,7 +12,7 @@ import api from '../services/api';
 const C = {
   bg:'#060e18', card:'#0b1521', surface:'#0d1d2e',
   border:'rgba(255,255,255,0.07)',
-  accent:'#00e5cc', accentDim:'rgba(0,229,204,0.10)', accentBorder:'rgba(0,229,204,0.25)',
+  accent:'#16B88A', accentDim:'rgba(22,184,138,0.10)', accentBorder:'rgba(22,184,138,0.25)',
   textHi:'#e8f4f8', textMid:'rgba(232,244,248,0.65)', textDim:'rgba(232,244,248,0.32)',
   success:'#22c55e', successDim:'rgba(34,197,94,0.12)',
 };

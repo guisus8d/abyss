@@ -410,5 +410,5 @@ const s = StyleSheet.create({
   sendBtnDisabled: { backgroundColor:'rgba(15,227,184,0.2)' },
   ctaWrap: { backgroundColor:C.card, borderTopWidth:1, borderTopColor:C.cardBorder, padding:16, alignItems:'center' },
   ctaBtn:  { backgroundColor:C.accent, paddingVertical:13, paddingHorizontal:32, borderRadius:14 },
-  ctaTxt:  { color:'#020509', fontWeight:'800', fontSize:14 },
+  ctaTxt:  { color:colors.black, fontWeight:'800', fontSize:14 },
 });

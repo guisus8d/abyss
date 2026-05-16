@@ -213,7 +213,7 @@ export default function PublicProfileScreen({ route, navigation }) {
   );
 
   if (blocked) return (
-    <View style={{ flex:1, backgroundColor:'#020509' }}>
+    <View style={{ flex:1, backgroundColor:colors.black }}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <SafeAreaView edges={['top']}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding:16 }}>
@@ -221,7 +221,7 @@ export default function PublicProfileScreen({ route, navigation }) {
         </TouchableOpacity>
       </SafeAreaView>
       <View style={{ flex:1, alignItems:'center', justifyContent:'center', padding:32 }}>
-        <View style={{ width:80, height:80, borderRadius:40, backgroundColor:'#091525', alignItems:'center', justifyContent:'center', marginBottom:20, borderWidth:1, borderColor:'#0d1520' }}>
+        <View style={{ width:80, height:80, borderRadius:40, backgroundColor:colors.surface, alignItems:'center', justifyContent:'center', marginBottom:20, borderWidth:1, borderColor:colors.border }}>
           <Ionicons name="person-outline" size={40} color="#3a5570" />
         </View>
         <Text style={{ color:'#e8f4f8', fontSize:20, fontWeight:'700', marginTop:16, textAlign:'center' }}>
@@ -232,9 +232,9 @@ export default function PublicProfileScreen({ route, navigation }) {
         </Text>
         <TouchableOpacity
           onPress={handleUnblock}
-          style={{ marginTop:32, paddingHorizontal:24, paddingVertical:12, borderRadius:20, borderWidth:1, borderColor:'#0d1520', backgroundColor:'#091525' }}
+          style={{ marginTop:32, paddingHorizontal:24, paddingVertical:12, borderRadius:20, borderWidth:1, borderColor:colors.border, backgroundColor:colors.surface }}
         >
-          <Text style={{ color:'#00e5cc', fontSize:14 }}>Desbloquear usuario</Text>
+          <Text style={{ color:colors.c1, fontSize:14 }}>Desbloquear usuario</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -423,7 +423,7 @@ export default function PublicProfileScreen({ route, navigation }) {
                     <Text style={s.btnUnfollowTxt}>{loadingBtn ? '...' : isMutual ? 'Amigos' : 'Siguiendo'}</Text>
                   </View>
                 ) : (
-                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.btnFollow} start={{x:0,y:0}} end={{x:1,y:0}}>
+                  <LinearGradient colors={[colors.c1,colors.c1]} style={s.btnFollow} start={{x:0,y:0}} end={{x:1,y:0}}>
                     <Text style={s.btnFollowTxt}>{loadingBtn ? '...' : 'Seguir'}</Text>
                   </LinearGradient>
                 )}

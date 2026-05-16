@@ -49,7 +49,7 @@ export default function AvatarWithFrame({
         }}>
           {avatarUrl
             ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
-            : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
+            : <Text style={{ color: '#16B88A', fontWeight: 'bold', fontSize: size * 0.38 }}>
                 {username?.[0]?.toUpperCase()}
               </Text>}
         </View>
@@ -90,7 +90,7 @@ export default function AvatarWithFrame({
       }}>
         {avatarUrl
           ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
-          : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
+          : <Text style={{ color: '#16B88A', fontWeight: 'bold', fontSize: size * 0.38 }}>
               {username?.[0]?.toUpperCase()}
             </Text>}
       </View>

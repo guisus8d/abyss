@@ -25,7 +25,7 @@ const REPORT_REASONS = {
 };
 
 const TYPE_COLORS = {
-  post:  { bg:'rgba(0,229,204,0.1)',   border:'rgba(0,229,204,0.3)',  text:'#00e5cc',          label:'POST'   },
+  post:  { bg:'rgba(0,229,204,0.1)',   border:'rgba(0,229,204,0.3)',  text:colors.c1,          label:'POST'   },
   user:  { bg:'rgba(251,191,36,0.1)',  border:'rgba(251,191,36,0.3)', text:'rgba(251,191,36,1)', label:'USUARIO' },
   group: { bg:'rgba(139,92,246,0.1)',  border:'rgba(139,92,246,0.3)', text:'rgba(167,139,250,1)', label:'GRUPO' },
 };

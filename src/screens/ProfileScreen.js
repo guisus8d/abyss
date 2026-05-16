@@ -274,7 +274,7 @@ export default function ProfileScreen({ navigation }) {
             {profile?.emailVerified && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)' }}>
                 <Ionicons name="checkmark-circle" size={12} color="#00e5cc" />
-                <Text style={{ color: '#00e5cc', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>Verificado</Text>
+                <Text style={{ color: colors.c1, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>Verificado</Text>
               </View>
             )}
           </View>

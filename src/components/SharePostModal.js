@@ -14,9 +14,9 @@ const C = {
   card:         '#0b1521',
   surface:      '#0d1d2e',
   border:       'rgba(255,255,255,0.07)',
-  accent:       '#00e5cc',
-  accentDim:    'rgba(0,229,204,0.10)',
-  accentBorder: 'rgba(0,229,204,0.25)',
+  accent:       '#16B88A',
+  accentDim:    'rgba(22,184,138,0.10)',
+  accentBorder: 'rgba(22,184,138,0.25)',
   textHi:       '#e8f4f8',
   textMid:      'rgba(232,244,248,0.65)',
   textDim:      'rgba(232,244,248,0.32)',
@@ -355,7 +355,7 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal:12, paddingTop:8, paddingBottom:8, alignItems:'flex-start', gap:4 }}
+              contentContainerStyle={{ paddingHorizontal:12, paddingTop:20, paddingBottom:20, alignItems:'flex-start', gap:4 }}
             >
               {friends.slice(0, 5).map((f, idx) => (
                 <FriendBubble
