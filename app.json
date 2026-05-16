@@ -21,6 +21,7 @@
       },
       "package": "com.abyss.app",
       "softwareKeyboardLayoutMode": "pan",
+      "userInterfaceStyle": "light",
       "edgeToEdgeEnabled": false,
       "navigationBarColor": "#020509",
       "navigationBarStyle": "light",
