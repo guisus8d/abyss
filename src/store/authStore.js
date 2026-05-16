@@ -19,6 +19,7 @@ export const useAuthStore = create((set) => ({
       const refresh = await api.get('/users/me');
       const freshUser = refresh.data.user;
       set({ user: freshUser, token, isRestoring: false });
+      api.patch('/users/me/active').catch(() => {});
       if (typeof window !== 'undefined' && window.localStorage) {
         try {
           const stored = JSON.parse(localStorage.getItem('auth-storage') || '{}');
@@ -42,6 +43,7 @@ export const useAuthStore = create((set) => ({
       const { data } = await api.post('/auth/login', { email, password });
       await AsyncStorage.setItem('token', data.token);
       set({ user: data.user, token: data.token, isLoading: false });
+      api.patch('/users/me/active').catch(() => {});
       return { success: true };
     } catch (err) {
       set({ isLoading: false });
