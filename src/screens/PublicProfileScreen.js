@@ -4,7 +4,7 @@ import {
   StyleSheet, StatusBar, ActivityIndicator,
   Alert, Dimensions, Clipboard, Modal, Pressable, Linking, Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,6 +65,7 @@ export default function PublicProfileScreen({ route, navigation }) {
       setPostsHasMore(postsRes.data.hasMore ?? false);
       setPostsPage(1);
       setFollowing(profileRes.data.user.followers?.some(f => f._id === me?._id || f === me?._id));
+      setBlocked(me?.blockedUsers?.some(id => (id?._id || id) === profileRes.data.user._id) ?? false);
       if (me) {
         try {
           const chatRes = await api.get(`/chats/check/${profileRes.data.user._id}`);
@@ -155,6 +156,15 @@ export default function PublicProfileScreen({ route, navigation }) {
     );
   }
 
+  async function handleUnblock() {
+    try {
+      await api.post(`/social/block/${username}`);
+      setBlocked(false);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Error al desbloquear');
+    }
+  }
+
   function handleReport() {
     setMenuVisible(false);
     setTimeout(() => setReportOpen(true), 300);
@@ -192,6 +202,35 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   if (loading) return (
     <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 80 }} /></View>
+  );
+
+  if (blocked) return (
+    <View style={{ flex:1, backgroundColor:'#020509' }}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <SafeAreaView edges={['top']}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding:16 }}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+      </SafeAreaView>
+      <View style={{ flex:1, alignItems:'center', justifyContent:'center', padding:32 }}>
+        <View style={{ width:80, height:80, borderRadius:40, backgroundColor:'#091525', alignItems:'center', justifyContent:'center', marginBottom:20, borderWidth:1, borderColor:'#0d1520' }}>
+          <Ionicons name="person-outline" size={40} color="#3a5570" />
+        </View>
+        <Ionicons name="ban-outline" size={48} color="#ff444480" />
+        <Text style={{ color:'#e8f4f8', fontSize:20, fontWeight:'700', marginTop:16, textAlign:'center' }}>
+          Contenido bloqueado
+        </Text>
+        <Text style={{ color:'#3a5570', fontSize:14, marginTop:8, textAlign:'center', lineHeight:22 }}>
+          Has bloqueado a este usuario.{'\n'}Su contenido no está disponible.
+        </Text>
+        <TouchableOpacity
+          onPress={handleUnblock}
+          style={{ marginTop:32, paddingHorizontal:24, paddingVertical:12, borderRadius:20, borderWidth:1, borderColor:'#0d1520', backgroundColor:'#091525' }}
+        >
+          <Text style={{ color:'#00e5cc', fontSize:14 }}>Desbloquear usuario</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   const theyFollowMe = profile?.following?.some(f => f._id === me?._id || f === me?._id);
