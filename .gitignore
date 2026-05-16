@@ -39,3 +39,5 @@ yarn-error.*
 /ios
 /android
 *.apk
+abyss-cb14f-firebase-adminsdk-fbsvc-019c4887af.json
+*-firebase-adminsdk-*.json
