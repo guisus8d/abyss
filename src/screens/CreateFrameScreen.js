@@ -36,7 +36,7 @@ const BG_GRADIENTS = [
 const SAMPLE_AVATARS = [
   { id: 0, letter: '?', bg: 'rgba(0,229,204,0.15)', color: colors.c1,              label: 'Tú' },
   { id: 1, letter: 'A', bg: '#1a0a2e',              color: '#d946ef',               label: 'Axel' },
-  { id: 2, letter: 'S', bg: '#0a1a2e',              color: colors.c1,               label: 'Sara' },
+  { id: 2, letter: 'S', bg: '#0a1a2e',              color: '#00e5cc',               label: 'Sara' },
   { id: 3, letter: 'M', bg: '#1a1a0a',              color: '#f97316',               label: 'Max' },
   { id: 4, letter: 'L', bg: '#0a2a1a',              color: '#22d3ee',               label: 'Luna' },
 ];

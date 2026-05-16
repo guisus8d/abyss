@@ -388,7 +388,7 @@ const CARD_BG = '#0b1521';
 
 const s = StyleSheet.create({
   root:     { flex: 1, backgroundColor: colors.black },
-  feed:     { flex: 1, backgroundColor: colors.black },
+  feed:     { flex: 1, backgroundColor: '#020509' },
   center:   { alignItems: 'center', justifyContent: 'center', paddingVertical: 50 },
   emptyTxt: { color: colors.textDim, fontSize: 14, textAlign: 'center', paddingHorizontal: 30, marginTop: 6 },
 

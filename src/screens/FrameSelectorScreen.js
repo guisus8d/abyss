@@ -205,7 +205,7 @@ export default function FrameSelectorScreen({ navigation }) {
             <LinearGradient
               colors={isSelectedEquipped
                 ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']
-                : [colors.c1, colors.c1]}
+                : ['#006b63', '#00e5cc']}
               style={s.equipBtnInner}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             >

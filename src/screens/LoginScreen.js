@@ -55,7 +55,7 @@ function Particle({ delay, x, size, duration }) {
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: colors.c1,
+        backgroundColor: '#00e5cc',
         opacity,
         transform: [{ translateY }],
       }}
@@ -265,7 +265,7 @@ export default function LoginScreen() {
 
             {/* Línea decorativa superior */}
             <LinearGradient
-              colors={['transparent', colors.c1, '#2979ff', 'transparent']}
+              colors={['transparent', '#00e5cc', '#2979ff', 'transparent']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={s.cardTopLine}
             />
@@ -434,7 +434,7 @@ export default function LoginScreen() {
             {/* Botón principal */}
             <TouchableOpacity onPress={handleSubmit} disabled={isLoading || !isFormValid} activeOpacity={0.85} style={{ marginTop: 4, opacity: isFormValid ? 1 : 0.4 }}>
               <LinearGradient
-                colors={['#005c55', '#00b4a0', colors.c1]}
+                colors={['#005c55', '#00b4a0', '#00e5cc']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={s.btnEnter}
               >
@@ -530,7 +530,7 @@ const s = StyleSheet.create({
   logoImg:  { width: 84, height: 84 },
   wordmark: {
     position: 'absolute', bottom: -28, fontSize: 28, fontWeight: '900',
-    letterSpacing: 12, color: colors.c1,
+    letterSpacing: 12, color: '#00e5cc',
     textShadowColor: 'rgba(0,229,204,0.4)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12,
   },
   tagline: {
@@ -572,7 +572,7 @@ const s = StyleSheet.create({
   genderBtn:       { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' },
   genderBtnActive: { borderColor: 'rgba(0,229,204,0.4)' },
   genderTxt:       { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
-  genderTxtActive: { color: colors.c1, fontWeight: '600' },
+  genderTxtActive: { color: '#00e5cc', fontWeight: '600' },
 
   // Field error
   fieldErr: { color: 'rgba(239,68,68,0.8)', fontSize: 10, marginTop: 5, marginLeft: 4, letterSpacing: 0.3 },
@@ -580,9 +580,9 @@ const s = StyleSheet.create({
   // Terms
   termsRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, marginTop: 4 },
   termsCbox:   { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  termsCboxOn: { backgroundColor: colors.c1, borderColor: colors.c1 },
+  termsCboxOn: { backgroundColor: '#00e5cc', borderColor: '#00e5cc' },
   termsTxt:    { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 18 },
-  termsLink:   { color: colors.c1, fontWeight: '700' },
+  termsLink:   { color: '#00e5cc', fontWeight: '700' },
 
   // Forgot
   forgotWrap: { alignItems: 'flex-end', marginBottom: 20, marginTop: -4 },
@@ -605,7 +605,7 @@ const s = StyleSheet.create({
   // Toggle
   toggle:     { marginTop: 24 },
   toggleTxt:  { color: 'rgba(255,255,255,0.35)', fontSize: 13, textAlign: 'center' },
-  toggleLink: { color: colors.c1, fontWeight: '700' },
+  toggleLink: { color: '#00e5cc', fontWeight: '700' },
 
   // Decoración
   depth: { marginTop: 20, color: 'rgba(0,229,204,0.2)', fontSize: 10, letterSpacing: 4 },

@@ -7,12 +7,12 @@ const AbyssTheme = {
   dark: false,
   colors: {
     ...DefaultTheme.colors,
-    primary:      '#16B88A',
-    background:   '#0A0614',
-    card:         '#1A1530',
-    text:         '#FFFFFF',
-    border:       '#2C2650',
-    notification: '#16B88A',
+    primary:      '#00e5cc',
+    background:   '#020509',
+    card:         '#050c14',
+    text:         '#e8f4f8',
+    border:       '#0d1520',
+    notification: '#00e5cc',
   },
 };
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -67,7 +67,7 @@ export default function AppNavigator() {
   if (isRestoring) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex:1, backgroundColor:'#0A0614' }} />
+        <View style={{ flex:1, backgroundColor:'#020509' }} />
       </SafeAreaProvider>
     );
   }
@@ -82,7 +82,7 @@ export default function AppNavigator() {
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#0A0614' },
+            contentStyle: { backgroundColor: '#020509' },
             animation: 'slide_from_right',
           }}
         >

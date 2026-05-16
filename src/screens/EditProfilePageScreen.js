@@ -239,7 +239,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
               <View style={s.textCardFooter}>
                 <Text style={s.charCount}>{(block.content||'').length}/400</Text>
                 <TouchableOpacity onPress={() => setEditingId(null)} style={s.doneBtn}>
-                  <LinearGradient colors={[colors.c1,colors.c1]} style={s.doneBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
+                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.doneBtnGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                     <Text style={s.doneBtnTxt}>Listo</Text>
                   </LinearGradient>
                 </TouchableOpacity>

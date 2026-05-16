@@ -234,7 +234,7 @@ const s = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.c1,
     borderWidth: 1.5,
-    borderColor: colors.black,
+    borderColor: '#020509',
   },
 
   // Texto

@@ -49,8 +49,8 @@ function renderRichText(text, navigation) {
     }
     if (/^https?:\/\//.test(part)) {
       const postId = part.match(/abyss\.social\/post\/([a-f0-9]{24})/i)?.[1];
-      if (postId) return <Text key={i} style={{ color:colors.c1, fontWeight:'600' }} onPress={() => navigation.navigate('PostDetail', { postId })}>Ver post en Abyss</Text>;
-      return <Text key={i} style={{ color:colors.c1, textDecorationLine:'underline' }} onPress={() => Linking.openURL(part).catch(() => {})}>{part}</Text>;
+      if (postId) return <Text key={i} style={{ color:'#00e5cc', fontWeight:'600' }} onPress={() => navigation.navigate('PostDetail', { postId })}>Ver post en Abyss</Text>;
+      return <Text key={i} style={{ color:'#00e5cc', textDecorationLine:'underline' }} onPress={() => Linking.openURL(part).catch(() => {})}>{part}</Text>;
     }
     return <Text key={i}>{part}</Text>;
   });
@@ -80,8 +80,8 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
       style={{ borderRadius:14, borderWidth:1, overflow:'hidden', width:224, marginBottom:4, backgroundColor:bgColor, borderColor:borderCol }}
     >
       <View style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:9, gap:7, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' }}>
-        <View style={{ width:2, height:16, backgroundColor:colors.c1, borderRadius:1 }} />
-        <Text style={{ color:colors.c1, fontSize:11, fontWeight:'700', flex:1 }}>{sharedPost.authorUsername}</Text>
+        <View style={{ width:2, height:16, backgroundColor:'#00e5cc', borderRadius:1 }} />
+        <Text style={{ color:'#00e5cc', fontSize:11, fontWeight:'700', flex:1 }}>{sharedPost.authorUsername}</Text>
         <Ionicons name="open-outline" size={13} color="rgba(0,229,204,0.5)" />
       </View>
       {hasImage && <Image source={{ uri: sharedPost.imageUrl }} style={{ width:'100%', height:110 }} resizeMode="cover" />}
@@ -729,7 +729,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 {/* Expulsar — solo admin, no es su propio mensaje */}
                 {isAdmin && !menuIsMe && menuSender?.username && (
                   <TouchableOpacity
-                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:colors.surface, marginTop:4 }]}
+                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'#091525', marginTop:4 }]}
                     onPress={() => setKickConfirm(true)}>
                     <Ionicons name="exit-outline" size={18} color="#3a5570" />
                     <Text style={[s.menuItemTxt, { color: colors.textDim }]}>Expulsar a {menuSender.username}</Text>
@@ -739,7 +739,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 {/* Banear — solo admin, no es su propio mensaje */}
                 {isAdmin && !menuIsMe && menuSender?.username && (
                   <TouchableOpacity
-                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:colors.surface, marginTop:4 }]}
+                    style={[s.menuItem, { borderTopWidth:1, borderTopColor:'#091525', marginTop:4 }]}
                     onPress={() => setBanConfirm(true)}>
                     <Ionicons name="ban-outline" size={18} color="#ff4444" />
                     <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>Banear a {menuSender.username}</Text>
