@@ -38,6 +38,9 @@ export default function GroupSettingsScreen({ route, navigation }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteText,     setDeleteText]     = useState('');
   const [deleting,       setDeleting]       = useState(false);
+  const [showBanned,     setShowBanned]     = useState(false);
+  const [bannedUsers,    setBannedUsers]    = useState([]);
+  const [loadingBanned,  setLoadingBanned]  = useState(false);
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user)?.toString() === user?._id?.toString() && m.role === 'admin'
@@ -178,6 +181,31 @@ export default function GroupSettingsScreen({ route, navigation }) {
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar la solicitud');
     } finally { setTransferring(false); }
+  }
+
+  // ── Miembros baneados ─────────────────────────────────────────────────────
+  async function openBanned() {
+    setShowBanned(true);
+    setLoadingBanned(true);
+    try {
+      const { data } = await api.get(`/groups/${group._id}/banned`);
+      setBannedUsers(data.bannedUsers || []);
+    } catch { setBannedUsers([]); }
+    finally { setLoadingBanned(false); }
+  }
+
+  async function unbanUser(userId, username) {
+    Alert.alert('Desbanear', `¿Desbanear a ${username}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Desbanear', onPress: async () => {
+        try {
+          await api.delete(`/groups/${group._id}/ban/${userId}`);
+          setBannedUsers(prev => prev.filter(u => u._id !== userId));
+        } catch (err) {
+          Alert.alert('Error', err.response?.data?.error || 'No se pudo desbanear');
+        }
+      }},
+    ]);
   }
 
   // ── Eliminar grupo ────────────────────────────────────────────────────────
@@ -404,6 +432,40 @@ export default function GroupSettingsScreen({ route, navigation }) {
         </View>
       </Modal>
 
+      {/* ── Modal miembros baneados ── */}
+      <Modal visible={showBanned} animationType="slide" onRequestClose={() => setShowBanned(false)}>
+        <View style={[s.root, { paddingTop: insets.top }]}>
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>MIEMBROS BANEADOS</Text>
+            <TouchableOpacity onPress={() => setShowBanned(false)} style={s.closeBtn}>
+              <Ionicons name="close" size={22} color={colors.textHi} />
+            </TouchableOpacity>
+          </View>
+          {loadingBanned
+            ? <ActivityIndicator color={colors.c1} style={{ marginTop: 40 }} />
+            : bannedUsers.length === 0
+              ? <Text style={s.emptyTxt}>No hay usuarios baneados</Text>
+              : <FlatList
+                  data={bannedUsers}
+                  keyExtractor={u => u._id}
+                  contentContainerStyle={{ padding: 16, gap: 12 }}
+                  renderItem={({ item: u }) => (
+                    <View style={s.memberRow}>
+                      <AvatarWithFrame size={40} avatarUrl={u.avatarUrl} username={u.username}
+                        profileFrame={u.profileFrame} frameUrl={u.profileFrameUrl} />
+                      <Text style={[s.memberName, { flex: 1, marginLeft: 12 }]}>{u.username}</Text>
+                      <TouchableOpacity
+                        onPress={() => unbanUser(u._id, u.username)}
+                        style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)' }}>
+                        <Text style={{ color: colors.c1, fontSize: 12, fontWeight: '700' }}>Desbanear</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                />
+          }
+        </View>
+      </Modal>
+
       {/* ── Header ── */}
       <SafeAreaView>
         <View style={s.header}>
@@ -413,7 +475,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
           <Text style={s.headerTitle}>AJUSTES DEL GRUPO</Text>
           {isAdmin && !editing && (
             <TouchableOpacity onPress={() => setEditing(true)} style={s.editHeaderBtn}>
-              <Ionicons name="pencil-outline" size={18} color={colors.c1} />
+              <Ionicons name="pencil" size={16} color={colors.c1} />
             </TouchableOpacity>
           )}
           {editing && (
@@ -541,8 +603,20 @@ export default function GroupSettingsScreen({ route, navigation }) {
         {/* ── Acciones de admin ── */}
         {isAdmin && (
           <>
+            <TouchableOpacity style={s.card} onPress={openBanned}>
+              <View style={[s.cardHeader, { paddingVertical: 14 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="ban-outline" size={16} color={colors.textDim} />
+                  <Text style={s.cardLabel}>MIEMBROS BANEADOS</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={s.cardAction}>{group.bannedUsers?.length || 0}</Text>
+                  <Ionicons name="chevron-forward" size={14} color={colors.c1} />
+                </View>
+              </View>
+            </TouchableOpacity>
+
             <TouchableOpacity style={s.transferBtn} onPress={() => { setTransferSent(false); setShowTransfer(true); }}>
-              <Ionicons name="shield-half-outline" size={18} color={colors.c1} />
               <Text style={s.transferBtnTxt}>Ceder administración</Text>
             </TouchableOpacity>
 
@@ -579,7 +653,7 @@ const s = StyleSheet.create({
   header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   backBtn:       { padding: 4, marginRight: 12 },
   headerTitle:   { flex: 1, color: colors.textHi, fontSize: 12, fontWeight: '800', letterSpacing: 2.5 },
-  editHeaderBtn: { padding: 6 },
+  editHeaderBtn: { padding: 7, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)' },
   saveHeaderTxt: { color: colors.c1, fontSize: 14, fontWeight: '700' },
 
   scroll: { paddingHorizontal: 16, paddingTop: 24, gap: 16 },
