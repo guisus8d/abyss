@@ -21,6 +21,7 @@
         "backgroundColor": "#0d1d2e"
       },
       "package": "com.abyss.app",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "userInterfaceStyle": "light",
       "edgeToEdgeEnabled": false,
@@ -44,7 +45,12 @@
     "newArchEnabled": true,
     "plugins": [
       "react-native-edge-to-edge",
-      "expo-audio"
+      "expo-audio",
+      ["expo-notifications", {
+        "icon": "./assets/icon.png",
+        "color": "#00e5cc",
+        "defaultChannel": "default"
+      }]
     ],
     "extra": {
       "eas": {

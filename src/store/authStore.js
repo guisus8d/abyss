@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { disconnectSocket } from '../services/socket';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abyss-production-7171.up.railway.app/api';
 
@@ -20,6 +21,7 @@ export const useAuthStore = create((set) => ({
       const freshUser = refresh.data.user;
       set({ user: freshUser, token, isRestoring: false });
       api.patch('/users/me/active').catch(() => {});
+      registerForPushNotifications().catch(() => {});
       if (typeof window !== 'undefined' && window.localStorage) {
         try {
           const stored = JSON.parse(localStorage.getItem('auth-storage') || '{}');
@@ -44,6 +46,7 @@ export const useAuthStore = create((set) => ({
       await AsyncStorage.setItem('token', data.token);
       set({ user: data.user, token: data.token, isLoading: false });
       api.patch('/users/me/active').catch(() => {});
+      registerForPushNotifications().catch(() => {});
       return { success: true };
     } catch (err) {
       set({ isLoading: false });
