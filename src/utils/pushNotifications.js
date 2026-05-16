@@ -15,7 +15,10 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerForPushNotifications() {
+  console.log('[Push] Iniciando registro...');
   console.log('[Push] isDevice:', Device.isDevice);
+  console.log('[Push] Android version:', Platform.Version);
+
   if (!Device.isDevice) {
     console.log('[Push] No es dispositivo físico, abortando');
     return null;
@@ -37,13 +40,8 @@ export async function registerForPushNotifications() {
   let finalStatus = existingStatus;
 
   if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync({
-      android: {
-        allowAlert: true,
-        allowBadge: true,
-        allowSound: true,
-      },
-    });
+    // Sin parámetros — las opciones android no son válidas y pueden silenciar el diálogo
+    const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
     console.log('[Push] Permiso tras solicitar:', finalStatus);
   }
