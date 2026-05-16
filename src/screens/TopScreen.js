@@ -105,7 +105,6 @@ export default function TopScreen({ navigation }) {
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
             <View style={s.headerCenter}>
-              <Ionicons name="trophy" size={22} color={GOLD} />
               <Text style={s.headerTitle}>Top Semanal</Text>
             </View>
             <View style={{ width: 40 }} />
