@@ -14,20 +14,13 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerForPushNotifications() {
-  if (!Device.isDevice) return null;
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  console.log('[Push] isDevice:', Device.isDevice);
+  if (!Device.isDevice) {
+    console.log('[Push] No es dispositivo físico, abortando');
+    return null;
   }
 
-  if (finalStatus !== 'granted') return null;
-
-  const token = (await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID })).data;
-
+  // Canal Android PRIMERO, antes de pedir el token
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -35,9 +28,35 @@ export async function registerForPushNotifications() {
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#00e5cc',
     });
+    console.log('[Push] Canal Android creado');
   }
 
-  await api.post('/users/push-token', { token }).catch(() => {});
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  console.log('[Push] Permiso actual:', existingStatus);
+  let finalStatus = existingStatus;
 
-  return token;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+    console.log('[Push] Permiso tras solicitar:', finalStatus);
+  }
+
+  if (finalStatus !== 'granted') {
+    console.log('[Push] Permiso denegado, abortando');
+    return null;
+  }
+
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
+    const token = tokenData.data;
+    console.log('[Push] Token obtenido:', token);
+
+    await api.post('/users/push-token', { token });
+    console.log('[Push] Token guardado en backend');
+
+    return token;
+  } catch (e) {
+    console.error('[Push] Error obteniendo token:', e.message);
+    return null;
+  }
 }
