@@ -18,7 +18,7 @@
       "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#0d1d2e"
+        "backgroundColor": "#0A0614"
       },
       "package": "com.abyss.app",
       "googleServicesFile": "./google-services.json",
