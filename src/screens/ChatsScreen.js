@@ -8,6 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { getActivityStatus } from '../utils/timeUtils';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
@@ -214,9 +215,10 @@ export default function ChatsScreen({ navigation }) {
       );
     }
 
-    const chat  = item.data;
-    const other = getOther(chat);
-    const unread = Number(chat.unread) || 0;
+    const chat     = item.data;
+    const other    = getOther(chat);
+    const unread   = Number(chat.unread) || 0;
+    const activity = getActivityStatus(other?.lastActive);
 
     return (
       <TouchableOpacity
@@ -228,9 +230,16 @@ export default function ChatsScreen({ navigation }) {
         </View>
         <View style={{ flex:1, minWidth:0 }}>
           <Text style={s.chatUser} numberOfLines={1}>{other?.username}</Text>
-          <Text style={unread > 0 ? [s.chatPreview, s.chatPreviewUnread] : s.chatPreview} numberOfLines={1}>
-            {chat.lastMessageText || 'Toca para chatear'}
-          </Text>
+          {activity.text ? (
+            <View style={{ flexDirection:'row', alignItems:'center', marginTop:2 }}>
+              <View style={{ width:6, height:6, borderRadius:3, backgroundColor: activity.isOnline ? '#16B88A' : '#6B6090', marginRight:4 }} />
+              <Text style={{ fontSize:12, color: activity.isOnline ? '#16B88A' : colors.textDim }}>{activity.text}</Text>
+            </View>
+          ) : (
+            <Text style={unread > 0 ? [s.chatPreview, s.chatPreviewUnread] : s.chatPreview} numberOfLines={1}>
+              {chat.lastMessageText || 'Toca para chatear'}
+            </Text>
+          )}
         </View>
         <View style={{ alignItems:'flex-end', gap:4, flexShrink:0 }}>
           <Text style={s.chatDate}>{chatDate(chat.lastMessage)}</Text>
