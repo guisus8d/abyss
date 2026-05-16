@@ -2,7 +2,7 @@ import { View, StatusBar, Appearance, Platform } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 
 if (Platform.OS !== 'web') {
-  Appearance.setColorScheme('dark');
+  Appearance.setColorScheme('light');
 }
 
 export default function App() {
