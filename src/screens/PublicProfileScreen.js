@@ -9,6 +9,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { getActivityStatus } from '../utils/timeUtils';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -47,12 +48,21 @@ export default function PublicProfileScreen({ route, navigation }) {
   const [menuVisible,      setMenuVisible]      = useState(false);
   const [reportOpen,       setReportOpen]       = useState(false);
   const [shareProfileOpen, setShareProfileOpen] = useState(false);
+  const [activityStatus,   setActivityStatus]   = useState({ text: '', isOnline: false });
 
   useEffect(() => {
     if (username === me?.username) navigation.replace('Profile');
   }, [username]);
 
   useFocusEffect(useCallback(() => { loadProfile(); }, []));
+
+  useEffect(() => {
+    setActivityStatus(getActivityStatus(profile?.lastActive));
+    const interval = setInterval(() => {
+      setActivityStatus(getActivityStatus(profile?.lastActive));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [profile?.lastActive]);
 
   async function loadProfile() {
     setLoading(true);
@@ -382,6 +392,14 @@ export default function PublicProfileScreen({ route, navigation }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Text style={s.username}>{profile?.username}</Text>
           </View>
+          {activityStatus.text ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 2 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: activityStatus.isOnline ? '#16B88A' : colors.textDim, marginRight: 6 }} />
+              <Text style={{ fontSize: 12, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>
+                {activityStatus.text}
+              </Text>
+            </View>
+          ) : null}
           {prefs.showXp && <Text style={s.xpTxt}>XP {profile?.xp || 0}</Text>}
 
           <View style={s.heroStats}>
