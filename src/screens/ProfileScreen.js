@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
+import { getActivityStatus } from '../utils/timeUtils';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
@@ -84,6 +85,16 @@ export default function ProfileScreen({ navigation }) {
   const [prefs, setPrefs] = useState({
     showXp: true, showFollowers: true, showFollowing: true, showPosts: true,
   });
+
+  const [activityStatus, setActivityStatus] = useState({ text: '', isOnline: false });
+
+  useEffect(() => {
+    setActivityStatus(getActivityStatus(user?.lastActive));
+    const interval = setInterval(() => {
+      setActivityStatus(getActivityStatus(user?.lastActive));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [user?.lastActive]);
 
   const tabIndicator = useRef(new Animated.Value(0)).current;
 
@@ -278,6 +289,14 @@ export default function ProfileScreen({ navigation }) {
               </View>
             )}
           </View>
+          {activityStatus.text ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 2 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: activityStatus.isOnline ? '#16B88A' : '#6B6090', marginRight: 6 }} />
+              <Text style={{ fontSize: 12, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>
+                {activityStatus.text}
+              </Text>
+            </View>
+          ) : null}
           {prefs.showXp && <Text style={s.xpSimple}>XP {profile?.xp || 0}</Text>}
 
           <View style={s.heroStats}>
