@@ -27,7 +27,7 @@ const PODIUM = [
 const PODIUM_ORDER = [1, 0, 2];
 
 function MedalIcon({ rank, size = 28 }) {
-  if (rank === 0) return <Text style={{ fontSize: size, lineHeight: size + 4 }}>👑</Text>;
+  if (rank === 0) return <Ionicons name="trophy" size={size} color={GOLD} />;
   if (rank === 1) return <Ionicons name="medal" size={size} color={SILVER} />;
   return <Ionicons name="medal" size={size} color={BRONZE} />;
 }
