@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, StatusBar, ActivityIndicator,
@@ -8,6 +8,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -51,9 +52,10 @@ export default function PublicProfileScreen({ route, navigation }) {
     if (username === me?.username) navigation.replace('Profile');
   }, [username]);
 
-  useEffect(() => { loadProfile(); }, []);
+  useFocusEffect(useCallback(() => { loadProfile(); }, []));
 
   async function loadProfile() {
+    setLoading(true);
     try {
       const [profileRes, postsRes] = await Promise.all([
         api.get(`/users/${username}`),
