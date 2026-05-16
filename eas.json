@@ -5,8 +5,7 @@
   "build": {
     "preview": {
       "android": {
-        "buildType": "apk",
-        "artifactPath": "abyss-beta-v1.apk"
+        "buildType": "apk"
       }
     },
     "production": {
