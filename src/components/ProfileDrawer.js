@@ -132,22 +132,22 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
           <View style={[s.section, { marginTop: 24 }]}>
             <Text style={s.sectionTitle}>MENÚ</Text>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Collection'); }}>
-              <Ionicons name='albums' size={18} color={colors.textMid} style={s.menuIconV} />
+              <View style={s.menuIconWrap}><Ionicons name='albums' size={18} color={colors.c1} /></View>
               <Text style={s.menuTxt}>Mi Colección</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Top'); }}>
-              <Ionicons name='trophy' size={18} color={colors.textMid} style={s.menuIconV} />
+              <View style={s.menuIconWrap}><Ionicons name='trophy' size={18} color={colors.c1} /></View>
               <Text style={s.menuTxt}>Top Semanal</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Chats'); }}>
-              <Ionicons name='create' size={18} color={colors.textMid} style={s.menuIconV} />
+              <View style={s.menuIconWrap}><Ionicons name='create' size={18} color={colors.c1} /></View>
               <Text style={s.menuTxt}>Crear</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Settings'); }}>
-              <Ionicons name='settings' size={18} color={colors.textMid} style={s.menuIconV} />
+              <View style={s.menuIconWrap}><Ionicons name='settings' size={18} color={colors.c1} /></View>
               <Text style={s.menuTxt}>Ajustes</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
@@ -209,8 +209,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10,
   },
-  menuIconV: { width: 22 },
-  menuTxt:   { flex: 1, color: colors.textMid, fontSize: 13 },
+  menuIconWrap: { backgroundColor: 'rgba(0,229,204,0.12)', borderRadius: 10, padding: 8, marginRight: 4 },
+  menuTxt:      { flex: 1, color: colors.textMid, fontSize: 13 },
   logoutBtn: {
     marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 10,
     borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center',
