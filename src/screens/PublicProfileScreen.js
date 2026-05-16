@@ -391,6 +391,11 @@ export default function PublicProfileScreen({ route, navigation }) {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Text style={s.username}>{profile?.username}</Text>
+            {profile?.banned && (
+              <View style={s.bannedBadge}>
+                <Text style={s.bannedBadgeTxt}>Suspendido</Text>
+              </View>
+            )}
           </View>
           {activityStatus.text ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 2 }}>
@@ -435,18 +440,25 @@ export default function PublicProfileScreen({ route, navigation }) {
 
           {me && !blocked && (
             <View style={s.actionRow}>
-              <TouchableOpacity onPress={handleFollow} disabled={loadingBtn} style={{ flex:1 }}>
-                {following ? (
-                  <View style={s.btnUnfollow}>
-                    <Text style={s.btnUnfollowTxt}>{loadingBtn ? '...' : isMutual ? 'Amigos' : 'Siguiendo'}</Text>
-                  </View>
-                ) : (
-                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.btnFollow} start={{x:0,y:0}} end={{x:1,y:0}}>
-                    <Text style={s.btnFollowTxt}>{loadingBtn ? '...' : 'Seguir'}</Text>
-                  </LinearGradient>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity style={s.btnChat} onPress={handleChat}>
+              {!profile?.banned && (
+                <TouchableOpacity onPress={handleFollow} disabled={loadingBtn} style={{ flex:1 }}>
+                  {following ? (
+                    <View style={s.btnUnfollow}>
+                      <Text style={s.btnUnfollowTxt}>{loadingBtn ? '...' : isMutual ? 'Amigos' : 'Siguiendo'}</Text>
+                    </View>
+                  ) : (
+                    <LinearGradient colors={['#006b63','#00e5cc']} style={s.btnFollow} start={{x:0,y:0}} end={{x:1,y:0}}>
+                      <Text style={s.btnFollowTxt}>{loadingBtn ? '...' : 'Seguir'}</Text>
+                    </LinearGradient>
+                  )}
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[s.btnChat, profile?.banned && { flex:1 }]}
+                onPress={profile?.banned
+                  ? () => Alert.alert('No disponible', 'No puedes contactar a este usuario.')
+                  : handleChat
+                }>
                 <Ionicons name={chatStatus==='active'?'chatbubble':chatStatus==='requested'?'time-outline':'chatbubble-outline'} size={15} color={chatStatus==='active'?colors.c1:colors.textMid} />
                 <Text style={[s.btnChatTxt, chatStatus==='active'&&{color:colors.c1}]}>
                   {chatStatus==='active'?'Chat':chatStatus==='requested'?'Pendiente':'Chatear'}
@@ -520,7 +532,11 @@ export default function PublicProfileScreen({ route, navigation }) {
         {/* ── Tab: Posts ── */}
         {tab==='posts' && prefs.showPosts && (
           <View>
-            {posts.length===0 ? (
+            {profile?.banned ? (
+              <View style={s.emptyTab}>
+                <Text style={s.emptyTxt}>Este usuario no tiene contenido disponible</Text>
+              </View>
+            ) : posts.length===0 ? (
               <View style={s.emptyTab}>
                 <Ionicons name="document-text-outline" size={40} color={colors.textDim} />
                 <Text style={s.emptyTxt}>Sin publicaciones aún</Text>
@@ -559,28 +575,6 @@ export default function PublicProfileScreen({ route, navigation }) {
         <View style={{ height:60 }} />
       </ScrollView>
 
-      {/* ── Overlay de ban ── */}
-      {profile?.banned && (
-        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
-          <View style={s.banOverlay}>
-            <Ionicons name="ban" size={72} color="#ff4444" />
-            <Text style={s.banTitle}>Usuario suspendido</Text>
-            <Text style={s.banSubtitle}>
-              Esta cuenta ha sido suspendida por violar{'\n'}
-              los términos de uso de Abyss.
-            </Text>
-            {profile?.bannedReason ? (
-              <View style={s.banReasonBox}>
-                <Text style={s.banReasonTxt}>Motivo: {profile.bannedReason}</Text>
-              </View>
-            ) : null}
-            <TouchableOpacity style={s.banBackBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-              <Ionicons name="arrow-back" size={16} color="#fff" />
-              <Text style={s.banBackTxt}>Volver</Text>
-            </TouchableOpacity>
-          </View>
-        </BlurView>
-      )}
     </View>
   );
 }
@@ -605,13 +599,8 @@ const s = StyleSheet.create({
   btnChatTxt:    { color:colors.textMid, fontSize:14 },
   blockedBanner: { borderRadius:10, paddingVertical:10, paddingHorizontal:20, borderWidth:1, borderColor:'rgba(239,68,68,0.3)', flexDirection:'row', gap:8, alignItems:'center' },
   blockedTxt:    { color:'rgba(239,68,68,0.7)', fontSize:13 },
-  banOverlay:    { flex:1, alignItems:'center', justifyContent:'center', paddingHorizontal:32, backgroundColor:'rgba(2,5,9,0.75)' },
-  banTitle:      { color:'#ffffff', fontSize:24, fontWeight:'800', marginTop:20, marginBottom:10, textAlign:'center' },
-  banSubtitle:   { color:'rgba(255,255,255,0.6)', fontSize:14, textAlign:'center', lineHeight:22 },
-  banReasonBox:  { marginTop:16, paddingHorizontal:16, paddingVertical:10, borderRadius:10, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)' },
-  banReasonTxt:  { color:'rgba(239,68,68,0.8)', fontSize:12, textAlign:'center' },
-  banBackBtn:    { flexDirection:'row', alignItems:'center', gap:8, marginTop:32, paddingHorizontal:24, paddingVertical:12, borderRadius:14, backgroundColor:'rgba(255,255,255,0.1)', borderWidth:1, borderColor:'rgba(255,255,255,0.15)' },
-  banBackTxt:    { color:'#ffffff', fontSize:14, fontWeight:'600' },
+  bannedBadge:    { backgroundColor:'rgba(255,107,107,0.15)', borderColor:'rgba(255,107,107,0.4)', borderWidth:1, borderRadius:10, paddingHorizontal:8, paddingVertical:2 },
+  bannedBadgeTxt: { color:'#FF6B6B', fontSize:10, fontWeight:'700' },
 
   // Menú bottom sheet
   menuOverlay:     { flex:1, backgroundColor:'rgba(0,0,0,0.55)', justifyContent:'flex-end' },
