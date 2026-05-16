@@ -420,12 +420,10 @@ export default function PublicProfileScreen({ route, navigation }) {
               <TouchableOpacity onPress={handleFollow} disabled={loadingBtn} style={{ flex:1 }}>
                 {following ? (
                   <View style={s.btnUnfollow}>
-                    <Ionicons name={isMutual ? 'people' : 'checkmark'} size={14} color={colors.c1} />
                     <Text style={s.btnUnfollowTxt}>{loadingBtn ? '...' : isMutual ? 'Amigos' : 'Siguiendo'}</Text>
                   </View>
                 ) : (
                   <LinearGradient colors={['#006b63','#00e5cc']} style={s.btnFollow} start={{x:0,y:0}} end={{x:1,y:0}}>
-                    <Ionicons name="person-add-outline" size={14} color="#001a18" />
                     <Text style={s.btnFollowTxt}>{loadingBtn ? '...' : 'Seguir'}</Text>
                   </LinearGradient>
                 )}
