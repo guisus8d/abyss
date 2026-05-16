@@ -99,29 +99,18 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
-  msg, index, reversedMessages, isMe, user, group, isAdmin, blockedIds,
+  msg, prevMsg, isMe, user, group, isAdmin, blockedIds,
   navigation, onOpenMenu, onReply, onFullImg,
 }) {
   const sender       = msg.sender;
-  const prevMsg      = reversedMessages[index + 1];
   const prevSenderId = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
   const thisSenderId = (sender?._id || sender)?.toString();
   const sameAsPrev   = prevMsg && prevMsg.type !== 'system' && prevSenderId === thisSenderId;
   const showAvatar   = !sameAsPrev && msg.type !== 'system';
-  const showDate     = !prevMsg || dateLabel(msg.createdAt) !== dateLabel(prevMsg.createdAt);
   const senderIsBlocked = !isMe && blockedIds?.includes((sender?._id || sender)?.toString());
 
   if (msg.type === 'system') {
-    return (
-      <>
-        {showDate && (
-          <View style={s.dateSep}>
-            <View style={s.dateLine} /><Text style={s.dateLabel}>{dateLabel(msg.createdAt)}</Text><View style={s.dateLine} />
-          </View>
-        )}
-        <SystemMessage msg={msg} />
-      </>
-    );
+    return <SystemMessage msg={msg} />;
   }
 
   const displayName        = isMe ? (user?.username || 'Tu') : (sender?.username || '');
@@ -134,11 +123,6 @@ const MessageBubble = memo(function MessageBubble({
 
   return (
     <>
-      {showDate && (
-        <View style={s.dateSep}>
-          <View style={s.dateLine} /><Text style={s.dateLabel}>{dateLabel(msg.createdAt)}</Text><View style={s.dateLine} />
-        </View>
-      )}
       <View style={{ marginBottom: 4 }}>
         {showAvatar && (
           <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
@@ -266,7 +250,18 @@ export default function GroupRoomScreen({ route, navigation }) {
     u => u?.toString() === user?._id?.toString()
   );
 
-  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
+  const flatListData = useMemo(() => {
+    const reversed = [...messages].reverse();
+    const result = [];
+    for (let i = 0; i < reversed.length; i++) {
+      result.push(reversed[i]);
+      const next = reversed[i + 1];
+      if (!next || dateLabel(reversed[i].createdAt) !== dateLabel(next.createdAt)) {
+        result.push({ _id: `sep_${dateLabel(reversed[i].createdAt)}_${i}`, type: 'date_separator', label: dateLabel(reversed[i].createdAt) });
+      }
+    }
+    return result;
+  }, [messages]);
 
   useFocusEffect(useCallback(() => {
     if (socketRef.current) {
@@ -621,14 +616,24 @@ export default function GroupRoomScreen({ route, navigation }) {
 
   const blockedIds = (user?.blocked || []).map(b => (b._id || b)?.toString());
 
-  const renderMessage = useCallback(({ item: msg, index }) => {
-    const isMe = (msg.sender?._id || msg.sender)?.toString() === user?._id?.toString();
+  const renderMessage = useCallback(({ item, index }) => {
+    if (item.type === 'date_separator') {
+      return (
+        <View style={s.dateSep}>
+          <View style={s.dateLine} />
+          <Text style={s.dateLabel}>{item.label}</Text>
+          <View style={s.dateLine} />
+        </View>
+      );
+    }
+    const isMe = (item.sender?._id || item.sender)?.toString() === user?._id?.toString();
+    const nextItem = flatListData[index + 1];
+    const prevMsg = nextItem?.type === 'date_separator' ? null : (nextItem ?? null);
     return (
       <MessageBubble
-        msg={msg}
-        index={index}
+        msg={item}
+        prevMsg={prevMsg}
         isMe={isMe}
-        reversedMessages={reversedMessages}
         user={user}
         group={group}
         isAdmin={isAdmin}
@@ -639,7 +644,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         onFullImg={setFullImg}
       />
     );
-  }, [reversedMessages, user, group, isAdmin]);
+  }, [flatListData, user, group, isAdmin]);
 
   const menuIsMe   = menuMsg && (menuMsg.sender?._id || menuMsg.sender)?.toString() === user?._id?.toString();
   const menuSender = menuMsg?.sender;
@@ -820,7 +825,7 @@ export default function GroupRoomScreen({ route, navigation }) {
           <FlatList
             ref={flatRef}
             style={{ flex: 1 }}
-            data={reversedMessages}
+            data={flatListData}
             keyExtractor={(m) => String(m._id)}
             renderItem={renderMessage}
             contentContainerStyle={s.messageList}

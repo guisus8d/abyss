@@ -307,15 +307,8 @@ export default function ChatRoomScreen({ route, navigation }) {
       s.on('chat:message', ({ chatId, message }) => {
         if (chatId.toString() !== chat._id.toString()) return;
         setMessages(prev => {
-          const msgId    = message._id?.toString();
+          const msgId = message._id?.toString();
           if (msgId && prev.some(m => m._id?.toString() === msgId)) return prev;
-          const senderId = getSenderId(message.sender);
-          const tempIdx  = prev.findIndex(m =>
-            typeof m._id === 'string' && m._id.startsWith('temp_') && getSenderId(m.sender) === senderId
-          );
-          if (tempIdx >= 0) {
-            const next = [...prev]; next[tempIdx] = message; return next;
-          }
           return [...prev, message];
         });
         s.emit('chat:read', { chatId: chat._id.toString() });
@@ -339,13 +332,6 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (!msgText || sendingRef.current) return;
     sendingRef.current = true;
     setText('');
-    const tempMsg = {
-      _id:       'temp_' + Date.now(),
-      sender:    { _id: myId, avatarUrl: user.avatarUrl, username: user.username, profileFrame: user.profileFrame, profileFrameUrl: user.profileFrameUrl },
-      text:      msgText, type: 'text', mediaUrl: null,
-      createdAt: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, tempMsg]);
     try {
       if (requestMode) {
         if (!reqSent) {
