@@ -29,7 +29,7 @@ const TABS_BASE = [
 export default function PublicProfileScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { username } = route.params;
-  const { user: me } = useAuthStore();
+  const { user: me, updateUser } = useAuthStore();
 
   const [profile,          setProfile]          = useState(null);
   const [posts,            setPosts]            = useState([]);
@@ -151,7 +151,12 @@ export default function PublicProfileScreen({ route, navigation }) {
           try {
             const { data } = await api.post(`/social/block/${username}`);
             setBlocked(data.blocked);
-            if (data.blocked) setFollowing(false);
+            if (data.blocked) {
+              setFollowing(false);
+              updateUser({ ...me, blockedUsers: [...(me.blockedUsers || []), profile._id] });
+            } else {
+              updateUser({ ...me, blockedUsers: (me.blockedUsers || []).filter(id => id.toString() !== profile._id.toString()) });
+            }
           } catch (err) { Alert.alert('Error', err.response?.data?.error); }
         }},
       ]
@@ -162,6 +167,7 @@ export default function PublicProfileScreen({ route, navigation }) {
     try {
       await api.post(`/social/block/${username}`);
       setBlocked(false);
+      updateUser({ ...me, blockedUsers: (me.blockedUsers || []).filter(id => id.toString() !== profile._id.toString()) });
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'Error al desbloquear');
     }
