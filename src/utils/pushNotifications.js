@@ -7,7 +7,8 @@ const PROJECT_ID = 'd78a617e-08c4-4798-ad2c-1a1bdff1a95a';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
