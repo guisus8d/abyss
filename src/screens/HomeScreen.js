@@ -511,6 +511,6 @@ const s = StyleSheet.create({
   epBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   epSheet:    { backgroundColor: '#0d1a24', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30, paddingHorizontal: 8 },
   epKnob:     { width: 40, height: 4, backgroundColor: colors.c1, borderRadius: 2, alignSelf: 'center', marginVertical: 10 },
-  epItem:     { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
-  epEmoji:    { fontSize: 28 },
+  epItem:     { width: '12.5%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
+  epEmoji:    { fontSize: 26, textAlign: 'center' },
 });

@@ -75,6 +75,9 @@ export default function AudioMessage({ uri, isMe, duration = 0 }) {
     if (playing) {
       player.pause();
     } else {
+      if (totalDur > 0 && elapsed >= totalDur - 0.5) {
+        player.seekTo(0);
+      }
       player.play();
     }
   }
