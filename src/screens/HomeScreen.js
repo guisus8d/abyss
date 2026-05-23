@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import { EmojiKeyboard } from 'rn-emoji-keyboard';
 import { colors } from '../theme/colors';
 import { getActivityStatus } from '../utils/timeUtils';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,7 +53,6 @@ export default function HomeScreen({ navigation }) {
   const { user, logout, updateUser } = useAuthStore();
 
   const [unreadNotifs,  setUnreadNotifs]  = useState(0);
-  const [openPickerId,  setOpenPickerId]  = useState(null);
   const [showCompose,   setShowCompose]   = useState(false);
   const [showMenu,      setShowMenu]      = useState(false);
   const [toastBadge,    setToastBadge]    = useState(null);
@@ -151,11 +149,7 @@ export default function HomeScreen({ navigation }) {
       if (p._id !== postId) return p;
       const myId   = user._id?.toString();
       const isSame = p.reactions.find(r => (r.user?._id || r.user)?.toString() === myId && r.type === type);
-      const reactions = p.reactions.filter(r => {
-        const uid = (r.user?._id || r.user)?.toString();
-        if (uid !== myId) return true;
-        return type === 'like' ? r.type !== 'like' : r.type === 'like';
-      });
+      const reactions = p.reactions.filter(r => (r.user?._id || r.user)?.toString() !== myId || r.type !== type);
       if (!isSame) reactions.push({ user: user._id, type });
       return { ...p, reactions };
     });
@@ -331,7 +325,7 @@ export default function HomeScreen({ navigation }) {
             <View key={`${activeTab}-${p._id}`} style={i > 0 ? s.postGap : null}>
               <PostCard post={p} currentUserId={user?._id} onReact={handleReact}
                 onComment={handleComment} onDelete={handleDelete}
-                openPickerId={openPickerId} setOpenPickerId={setOpenPickerId} navigation={navigation} />
+                navigation={navigation} />
             </View>
           ))}
           {currentTab.loading && currentTab.loaded && <View style={s.loadingMore}><ActivityIndicator color={colors.c1} size="small" /></View>}
@@ -343,18 +337,6 @@ export default function HomeScreen({ navigation }) {
           <View style={{ height: 100 }} />
         </View>
       </ScrollView>
-
-      {!!openPickerId && (
-        <EmojiKeyboard
-          onEmojiSelected={emojiObj => { if (openPickerId) { handleReact(openPickerId, emojiObj.emoji); setOpenPickerId(null); } }}
-          open onClose={() => setOpenPickerId(null)}
-          theme={{
-            backdrop: 'rgba(0,0,0,0.6)', knob: colors.c1, container: '#0d1a24', header: colors.textDim, skinTonesContainer: '#0d1a24',
-            category: { icon: colors.textDim, iconActive: colors.c1, container: '#0d1a24', containerActive: 'rgba(0,229,204,0.15)' },
-            search: { background: '#081420', placeholder: colors.textDim, placeholderTextColor: colors.textDim, text: colors.textHi },
-          }}
-        />
-      )}
 
       {/* Nav bar */}
       <View style={[s.bnav, { paddingBottom: insets.bottom + 10 }]}>
