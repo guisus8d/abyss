@@ -4,10 +4,10 @@ import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, RefreshControl,
   ActivityIndicator, Alert, Animated, Platform,
+  Modal, FlatList, Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import { EmojiKeyboard } from 'rn-emoji-keyboard';
 import { colors } from '../theme/colors';
 import { getActivityStatus } from '../utils/timeUtils';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,15 @@ import CreatePostMenu  from '../components/CreatePostMenu';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import PostCard        from '../components/PostCard';
 import OrbitUsers      from '../components/OrbitUsers';
+
+const EMOJI_LIST = [
+  '❤️','😂','😍','🔥','👏','😮','😢','😡',
+  '🎉','✨','💯','🙌','👍','👎','😎','🤔',
+  '😭','🥹','🤣','😅','😆','😊','🥰','😘',
+  '😏','🙄','😤','🤯','😱','🤩','🥳','😴',
+  '💀','👀','🫶','💪','🤝','✌️','🫠','🫡',
+  '🐐','🚀','💥','⚡','🌊','🍀','💎','🎯',
+];
 
 const TABS = [
   { key: 'todos',     label: 'Para Ti',   icon: 'planet-outline',      endpoint: '/posts' },
@@ -344,17 +353,31 @@ export default function HomeScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {!!openPickerId && (
-        <EmojiKeyboard
-          onEmojiSelected={emojiObj => { if (openPickerId) { handleReact(openPickerId, emojiObj.emoji); setOpenPickerId(null); } }}
-          open onClose={() => setOpenPickerId(null)}
-          theme={{
-            backdrop: 'rgba(0,0,0,0.6)', knob: colors.c1, container: '#0d1a24', header: colors.textDim, skinTonesContainer: '#0d1a24',
-            category: { icon: colors.textDim, iconActive: colors.c1, container: '#0d1a24', containerActive: 'rgba(0,229,204,0.15)' },
-            search: { background: '#081420', placeholder: colors.textDim, placeholderTextColor: colors.textDim, text: colors.textHi },
-          }}
-        />
-      )}
+      <Modal
+        visible={!!openPickerId}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpenPickerId(null)}
+      >
+        <Pressable style={s.epBackdrop} onPress={() => setOpenPickerId(null)}>
+          <Pressable style={s.epSheet} onPress={e => e.stopPropagation()}>
+            <View style={s.epKnob} />
+            <FlatList
+              data={EMOJI_LIST}
+              keyExtractor={item => item}
+              numColumns={8}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={s.epItem}
+                  onPress={() => { handleReact(openPickerId, item); setOpenPickerId(null); }}
+                >
+                  <Text style={s.epEmoji}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Nav bar */}
       <View style={[s.bnav, { paddingBottom: insets.bottom + 10 }]}>
@@ -485,4 +508,9 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
+  epBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  epSheet:    { backgroundColor: '#0d1a24', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30, paddingHorizontal: 8 },
+  epKnob:     { width: 40, height: 4, backgroundColor: colors.c1, borderRadius: 2, alignSelf: 'center', marginVertical: 10 },
+  epItem:     { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
+  epEmoji:    { fontSize: 28 },
 });
