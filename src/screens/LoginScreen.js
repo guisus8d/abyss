@@ -89,6 +89,10 @@ export default function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass,        setShowPass]        = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [passDisplay,        setPassDisplay]        = useState('');
+  const [confirmPassDisplay, setConfirmPassDisplay] = useState('');
+  const maskTimerPass    = useRef(null);
+  const maskTimerConfirm = useRef(null);
   const [isRegister,      setIsRegister]      = useState(false);
   const [username,        setUsername]        = useState('');
   const [gender,          setGender]          = useState('prefiero-no-decir');
@@ -96,6 +100,27 @@ export default function LoginScreen() {
   const [termsAccepted,   setTermsAccepted]   = useState(false);
   const [googleLoading,   setGoogleLoading]   = useState(false);
   const { login, register, setAuth, isLoading } = useAuthStore();
+
+  // ── Masking con delay ─────────────────────────────────────────────────────
+  function makePassHandler(realVal, setReal, setDisplay, timerRef) {
+    return (raw) => {
+      const prevLen = realVal.length;
+      const newLen  = raw.length;
+      const newReal = newLen >= prevLen
+        ? realVal + raw.slice(prevLen)
+        : realVal.slice(0, newLen);
+      setReal(newReal);
+      clearTimeout(timerRef.current);
+      if (newLen > prevLen && newReal.length > 0) {
+        setDisplay('•'.repeat(prevLen) + newReal.slice(prevLen));
+        timerRef.current = setTimeout(() => setDisplay('•'.repeat(newReal.length)), 350);
+      } else {
+        setDisplay('•'.repeat(newReal.length));
+      }
+    };
+  }
+  const handlePassChange    = makePassHandler(password,        setPassword,        setPassDisplay,        maskTimerPass);
+  const handleConfirmChange = makePassHandler(confirmPassword, setConfirmPassword, setConfirmPassDisplay, maskTimerConfirm);
 
   // ── Validadores ───────────────────────────────────────────────────────────
   const vUsername = (v) => /^[a-zA-Z0-9_]{3,20}$/.test(v);
@@ -374,11 +399,16 @@ export default function LoginScreen() {
                   style={[s.input, { paddingRight: 44 }]}
                   placeholder="••••••••••••"
                   placeholderTextColor="rgba(255,255,255,0.18)"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPass}
+                  value={showPass ? password : passDisplay}
+                  onChangeText={showPass ? setPassword : handlePassChange}
+                  secureTextEntry={false}
                 />
-                <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(v => !v)} activeOpacity={0.7}>
+                <TouchableOpacity style={s.eyeBtn} onPress={() => {
+                  setShowPass(v => {
+                    if (!v) setPassDisplay('•'.repeat(password.length));
+                    return !v;
+                  });
+                }} activeOpacity={0.7}>
                   <Ionicons name={showPass ? 'eye-outline' : 'eye-off-outline'} size={18} color="rgba(255,255,255,0.35)" />
                 </TouchableOpacity>
               </View>
@@ -395,11 +425,16 @@ export default function LoginScreen() {
                     style={[s.input, { paddingRight: 44 }]}
                     placeholder="••••••••••••"
                     placeholderTextColor="rgba(255,255,255,0.18)"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirmPass}
+                    value={showConfirmPass ? confirmPassword : confirmPassDisplay}
+                    onChangeText={showConfirmPass ? setConfirmPassword : handleConfirmChange}
+                    secureTextEntry={false}
                   />
-                  <TouchableOpacity style={s.eyeBtn} onPress={() => setShowConfirmPass(v => !v)} activeOpacity={0.7}>
+                  <TouchableOpacity style={s.eyeBtn} onPress={() => {
+                    setShowConfirmPass(v => {
+                      if (!v) setConfirmPassDisplay('•'.repeat(confirmPassword.length));
+                      return !v;
+                    });
+                  }} activeOpacity={0.7}>
                     <Ionicons name={showConfirmPass ? 'eye-outline' : 'eye-off-outline'} size={18} color="rgba(255,255,255,0.35)" />
                   </TouchableOpacity>
                 </View>
