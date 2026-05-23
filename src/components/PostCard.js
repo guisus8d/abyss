@@ -194,7 +194,7 @@ function CommentSection({
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 const PostCard = memo(function PostCard({
-  post, currentUserId, onReact, onComment, onDelete, navigation,
+  post, currentUserId, onReact, onComment, onDelete, navigation, openPickerId, setOpenPickerId,
 }) {
   const goToProfile = useCallback((username) => {
     navigation.navigate('PublicProfile', { username });
@@ -217,6 +217,15 @@ const PostCard = memo(function PostCard({
   const likeBlocked  = useRef(false);
   const sendingRef   = useRef(false);
   const heartScale  = useRef(new Animated.Value(1)).current;
+
+  const { emojiGroups, myEmoji } = useMemo(() => {
+    const emojiReactions = post.reactions.filter(r => r.type !== 'like');
+    const groups = Object.entries(
+      emojiReactions.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {})
+    ).map(([emoji, count]) => ({ emoji, count }));
+    const mine = emojiReactions.find(r => (r.user?._id || r.user)?.toString() === currentUserId?.toString());
+    return { emojiGroups: groups, myEmoji: mine };
+  }, [post.reactions, currentUserId]);
 
   const ago = useMemo(() => timeAgo(post.createdAt), [post.createdAt]);
 
@@ -366,6 +375,26 @@ const PostCard = memo(function PostCard({
           <Text style={[s.actCount, liked && { color: C.red }]}>{likeCount}</Text>
         </TouchableOpacity>
 
+        {emojiGroups.map(g => (
+          <TouchableOpacity
+            key={g.emoji}
+            style={[s.emojiPill, myEmoji?.type === g.emoji && s.emojiPillActive]}
+            onPress={() => onReact(post._id, g.emoji)}
+            activeOpacity={0.7}
+          >
+            <Text style={s.emojiTxt}>{g.emoji}</Text>
+            <Text style={[s.emojiCount, myEmoji?.type === g.emoji && s.emojiCountActive]}>{g.count}</Text>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity
+          style={s.emojiAddBtn}
+          onPress={() => setOpenPickerId(prev => prev === post._id ? null : post._id)}
+          activeOpacity={0.7}
+        >
+          <Text style={s.emojiAddTxt}>+</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={s.actBtn} onPress={() => setShowComments(v => !v)} activeOpacity={0.7}>
           <Ionicons
             name={showComments ? 'chatbubble' : 'chatbubble-outline'}
@@ -411,7 +440,8 @@ const PostCard = memo(function PostCard({
   prev.post.content   === next.post.content   &&
   prev.post.imageUrl  === next.post.imageUrl  &&
   prev.post.title     === next.post.title     &&
-  prev.post.postType  === next.post.postType
+  prev.post.postType  === next.post.postType  &&
+  prev.openPickerId   === next.openPickerId
 );
 
 export default PostCard;
@@ -447,6 +477,13 @@ const s = StyleSheet.create({
   actionsRow:      { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, rowGap: 6 },
   actBtn:          { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 2 },
   actCount:        { color: C.textDim, fontSize: 12, fontWeight: '500' },
+  emojiPill:       { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.surface, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: C.cardBorder },
+  emojiPillActive: { backgroundColor: C.accentDim, borderColor: C.accentBorder },
+  emojiTxt:        { fontSize: 14 },
+  emojiCount:      { color: C.textDim, fontSize: 11, fontWeight: '600' },
+  emojiCountActive:{ color: C.accent },
+  emojiAddBtn:     { alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: C.cardBorder },
+  emojiAddTxt:     { color: C.textDim, fontSize: 16, fontWeight: '400', lineHeight: 18 },
   commentsBox:         { marginTop: 14, borderTopWidth: 1, borderTopColor: C.divider, paddingTop: 14 },
   viewAllBtn:          { paddingVertical: 8, alignItems: 'center' },
   viewAllTxt:          { color: C.accent, fontSize: 12, fontWeight: '600' },

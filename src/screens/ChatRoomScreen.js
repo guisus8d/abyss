@@ -203,6 +203,11 @@ const MessageBubble = memo(function MessageBubble({
 
   {!isPostType && <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>}
 
+  {item.reactions?.length > 0 && (
+    <View style={s.msgReactions}>
+      {item.reactions.map((r, i) => <Text key={i} style={s.msgReactionEmoji}>{r.emoji}</Text>)}
+    </View>
+  )}
 
 </TouchableOpacity>
       </View>
@@ -455,6 +460,15 @@ export default function ChatRoomScreen({ route, navigation }) {
     flatRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 });
   }, [flatListData]);
 
+  async function reactToMsg(emoji) {
+    if (!menuMsg) return;
+    setMenuMsg(null);
+    try {
+      const { data } = await api.post(`/chats/${chat._id}/message/${menuMsg._id}/react`, { emoji });
+      setMessages(prev => prev.map(m => m._id === menuMsg._id ? { ...m, reactions: data.reactions } : m));
+    } catch(e) { console.log('react msg error:', e.message); }
+  }
+
   async function deleteForMe() {
     if (!menuMsg) return;
     const msgId = menuMsg._id;
@@ -668,6 +682,13 @@ export default function ChatRoomScreen({ route, navigation }) {
             <Text style={s.menuTitle} numberOfLines={1}>
               {menuMsg?.type === 'shared_post' ? 'Post compartido' : menuMsg?.text}
             </Text>
+            <View style={s.emojiRow}>
+              {['❤️','😂','😮','😢','🔥','👏'].map(e => (
+                <TouchableOpacity key={e} onPress={() => reactToMsg(e)} style={s.emojiBtn}>
+                  <Text style={{ fontSize:26 }}>{e}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             {menuMsg?.type !== 'shared_post' && (
               <TouchableOpacity style={s.menuItem} onPress={() => { setReplyTo(menuMsg); setMenuMsg(null); }}>
                 <Text style={s.menuItemTxt}>↩ Responder</Text>
@@ -725,6 +746,8 @@ const s = StyleSheet.create({
   modalOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'center', alignItems:'center' },
   menuBox:      { backgroundColor: colors.surface, borderRadius:16, padding:16, width:280, borderWidth:1, borderColor: colors.borderC },
   menuTitle:    { color: colors.textDim, fontSize:12, marginBottom:12, fontStyle:'italic' },
+  emojiRow:     { flexDirection:'row', justifyContent:'space-around', marginBottom:12 },
+  emojiBtn:     { padding:6 },
   menuItem:     { paddingVertical:12, borderTopWidth:1, borderTopColor: colors.border },
   menuItemTxt:  { color: colors.textHi, fontSize:15, textAlign:'center' },
   replyBar:     { flexDirection:'row', alignItems:'center', backgroundColor:'#1a1a1a', paddingHorizontal:12, paddingVertical:8, borderTopWidth:1, borderTopColor:'#333' },
@@ -733,6 +756,8 @@ const s = StyleSheet.create({
   replyPreview: { backgroundColor:'rgba(255,255,255,0.06)', borderLeftWidth:2, borderLeftColor:'#555', paddingLeft:8, paddingVertical:4, marginBottom:6, borderRadius:4 },
   replyUser:    { color:'#aaa', fontSize:10, fontWeight:'700' },
   replyText:    { color:'#666', fontSize:11 },
+  msgReactions:     { flexDirection:'row', gap:2, marginTop:4 },
+  msgReactionEmoji: { fontSize:16 },
   mentionDropdown:  { backgroundColor:'#1a1a1a', borderTopWidth:1, borderTopColor:'#333' },
   mentionItem:      { flexDirection:'row', alignItems:'center', paddingVertical:10, paddingHorizontal:16, gap:4, borderBottomWidth:1, borderBottomColor:'#222' },
   mentionAt:        { color:'#666', fontSize:14 },
