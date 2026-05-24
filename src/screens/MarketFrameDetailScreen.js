@@ -84,7 +84,28 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.headerBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.textHi} />
           </TouchableOpacity>
-          <Text style={s.headerTitle} numberOfLines={1}>{frame.name}</Text>
+
+          <View style={s.headerMeta}>
+            <Text style={s.headerTitle} numberOfLines={1}>{frame.name}</Text>
+            {creator && (
+              <TouchableOpacity
+                style={s.headerCreator}
+                onPress={() => navigation.navigate('PublicProfile', { username: creator.username })}
+                activeOpacity={0.7}
+              >
+                {creator.avatarUrl
+                  ? <Image source={{ uri: creator.avatarUrl }} style={s.headerAvatar} />
+                  : (
+                    <View style={s.headerAvatarPh}>
+                      <Text style={s.headerAvatarLetter}>{creator.username?.[0]?.toUpperCase()}</Text>
+                    </View>
+                  )
+                }
+                <Text style={s.headerCreatorName}>@{creator.username}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <TouchableOpacity style={s.headerBtn} onPress={() => setInfoModal(true)}>
             <Ionicons name="information-circle-outline" size={24} color={colors.textDim} />
           </TouchableOpacity>
@@ -251,7 +272,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, gap: 8,
   },
   headerBtn:   { padding: 4 },
-  headerTitle: { flex:1, color:'rgba(251,191,36,1)', fontSize:15, fontWeight:'800', textAlign:'center' },
+  headerMeta:  { flex: 1, paddingHorizontal: 8, gap: 4 },
+  headerTitle: { color: 'rgba(251,191,36,1)', fontSize: 15, fontWeight: '800' },
+  headerCreator:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerAvatar:      { width: 20, height: 20, borderRadius: 10 },
+  headerAvatarPh:    { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },
+  headerAvatarLetter:{ color: colors.c1, fontSize: 10, fontWeight: '800' },
+  headerCreatorName: { color: colors.textDim, fontSize: 12, fontWeight: '600' },
 
   // ── Main area ──
   main: {
