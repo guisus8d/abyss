@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from '
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, FlatList, StatusBar, ActivityIndicator,
-  Modal, Pressable, Linking, Alert,
+  Modal, Pressable, Linking, Alert, ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,10 +97,61 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
   );
 }
 
+// ─── GiftBubble ───────────────────────────────────────────────────────────────
+function GroupGiftBubble({ giftData, giftId, isMe, onGiftAction }) {
+  const { monedas = 0, items = [], mensaje = '', estado = 'pendiente' } = giftData || {};
+  const isPending  = estado === 'pendiente';
+  const isAccepted = estado === 'aceptado';
+  return (
+    <View style={gg.wrap}>
+      <View style={gg.header}>
+        <Text style={gg.emoji}>🎁</Text>
+        <Text style={gg.title}>REGALO</Text>
+      </View>
+      {monedas > 0 && (
+        <Text style={gg.coins}>✦ {monedas} monedas{!isMe && isPending ? ` (${Math.round(monedas * 0.85)} al aceptar)` : ''}</Text>
+      )}
+      {items.map((it, i) => (
+        <Text key={i} style={gg.frame}>🖼 {it.name || 'Marco'}{it.cantidad > 1 ? ` ×${it.cantidad}` : ''}</Text>
+      ))}
+      {!!mensaje && <Text style={gg.msg}>"{mensaje}"</Text>}
+      {!isMe && isPending && giftId && (
+        <View style={gg.actions}>
+          <TouchableOpacity style={gg.acceptBtn} onPress={() => onGiftAction?.(giftId, 'accept')}>
+            <Text style={gg.acceptTxt}>Aceptar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={gg.rejectBtn} onPress={() => onGiftAction?.(giftId, 'reject')}>
+            <Text style={gg.rejectTxt}>Rechazar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {isMe && isPending && <Text style={gg.status}>⏳ Pendiente</Text>}
+      {isAccepted && <Text style={[gg.status, { color: colors.c1 }]}>✓ Aceptado</Text>}
+      {estado === 'rechazado' && <Text style={[gg.status, { color: 'rgba(239,68,68,0.7)' }]}>✗ Rechazado</Text>}
+    </View>
+  );
+}
+
+const gg = StyleSheet.create({
+  wrap:      { minWidth: 190, maxWidth: 250 },
+  header:    { flexDirection:'row', alignItems:'center', gap:6, marginBottom:8, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.08)', paddingBottom:7 },
+  emoji:     { fontSize:16 },
+  title:     { color:colors.c3, fontSize:10, fontWeight:'900', letterSpacing:2 },
+  coins:     { color:'rgba(251,191,36,1)', fontSize:14, fontWeight:'800', marginBottom:3 },
+  frame:     { color:colors.textHi, fontSize:12, fontWeight:'600', marginBottom:3 },
+  msg:       { color:colors.textDim, fontSize:10, fontStyle:'italic', marginTop:4, marginBottom:6 },
+  actions:   { flexDirection:'row', gap:6, marginTop:8 },
+  acceptBtn: { flex:1, backgroundColor:colors.c1, borderRadius:9, paddingVertical:7, alignItems:'center' },
+  acceptTxt: { color:colors.black, fontSize:11, fontWeight:'800' },
+  rejectBtn: { flex:1, backgroundColor:'rgba(239,68,68,0.1)', borderRadius:9, paddingVertical:7, alignItems:'center', borderWidth:1, borderColor:'rgba(239,68,68,0.3)' },
+  rejectTxt: { color:'rgba(239,68,68,0.8)', fontSize:11, fontWeight:'700' },
+  status:    { color:colors.textDim, fontSize:10, marginTop:6, textAlign:'center' },
+});
+
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
   msg, prevMsg, isMe, user, group, isAdmin, blockedIds,
-  navigation, onOpenMenu, onReply, onFullImg,
+  navigation, onOpenMenu, onReply, onFullImg, onGiftAction,
 }) {
   const sender       = msg.sender;
   const prevSenderId = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
@@ -171,7 +222,9 @@ const MessageBubble = memo(function MessageBubble({
                     <Text style={s.replyText} numberOfLines={1}>{msg.replyTo.text}</Text>
                   </View>
                 )}
-                {msg.type === 'shared_profile' && msg.sharedProfile
+                {msg.type === 'gift'
+                  ? <GroupGiftBubble giftData={msg.giftData} giftId={msg.giftId} isMe={isMe} onGiftAction={onGiftAction} />
+                  : msg.type === 'shared_profile' && msg.sharedProfile
                   ? <SharedProfileBubble sharedProfile={msg.sharedProfile} navigation={navigation} isMe={isMe} onLongPress={() => onOpenMenu(msg)} />
                   : msg.type === 'shared_post' && msg.sharedPost
                   ? <SharedPostBubble sharedPost={msg.sharedPost} navigation={navigation} isMe={isMe} onPress={() => onOpenMenu(msg)} />
@@ -230,6 +283,18 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [isBanned,         setIsBanned]          = useState(false);
   const [showWelcomeBanner,setShowWelcomeBanner] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
+
+  // ── Regalo ─────────────────────────────────────────────────────────────────
+  const [giftModal,    setGiftModal]    = useState(false);
+  const [giftRecipient,setGiftRecipient]= useState(null); // { username, avatarUrl }
+  const [giftType,     setGiftType]     = useState('coins');
+  const [giftCoins,    setGiftCoins]    = useState('');
+  const [giftFrame,    setGiftFrame]    = useState(null);
+  const [giftMsg,      setGiftMsg]      = useState('');
+  const [giftInv,      setGiftInv]      = useState([]);
+  const [giftInvLoad,  setGiftInvLoad]  = useState(false);
+  const [sendingGift,  setSendingGift]  = useState(false);
+  const [giftErr,      setGiftErr]      = useState('');
 
   const flatRef      = useRef(null);
   const socketRef    = useRef(null);
@@ -511,6 +576,71 @@ export default function GroupRoomScreen({ route, navigation }) {
     } catch (e) { navigation.goBack(); }
   }
 
+  async function openGiftModal() {
+    setGiftModal(true);
+    setGiftRecipient(null);
+    setGiftType('coins');
+    setGiftCoins('');
+    setGiftFrame(null);
+    setGiftMsg('');
+    setGiftErr('');
+    setGiftInvLoad(true);
+    try {
+      const { data } = await api.get('/frames/me/inventory');
+      setGiftInv((data.inventory || []).filter(i => (i.unidadesEnMano || 0) > 0));
+    } catch {}
+    finally { setGiftInvLoad(false); }
+  }
+
+  async function sendGroupGift() {
+    if (!giftRecipient) { setGiftErr('Selecciona un destinatario'); return; }
+    if (giftType === 'coins' && (!giftCoins || parseInt(giftCoins) <= 0)) { setGiftErr('Ingresa un monto válido'); return; }
+    if (giftType === 'frame' && !giftFrame) { setGiftErr('Selecciona un marco'); return; }
+    setSendingGift(true); setGiftErr('');
+    try {
+      const { data } = await api.post('/gifts', {
+        receptorUsername: giftRecipient.username,
+        monedas: giftType === 'coins' ? parseInt(giftCoins) : 0,
+        items:   giftType === 'frame' ? [{ frameId: (giftFrame.frame || giftFrame)._id, cantidad: 1 }] : [],
+        mensaje: giftMsg.trim(),
+      });
+      const gift = data.gift;
+      socketRef.current?.emit('group:message', {
+        groupId: group._id,
+        type:    'gift',
+        text:    '',
+        giftId:  gift._id,
+        giftData: {
+          monedas:        gift.monedas || 0,
+          items:          (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad })),
+          mensaje:        gift.mensaje || '',
+          estado:         'pendiente',
+          emisorUsername: user.username,
+        },
+      });
+      setGiftModal(false);
+    } catch (e) {
+      setGiftErr(e.response?.data?.error || 'Error al enviar regalo');
+    } finally { setSendingGift(false); }
+  }
+
+  const handleGroupGiftAction = useCallback(async (giftId, action) => {
+    try {
+      await api.post(`/gifts/${giftId}/${action}`);
+      setMessages(prev => prev.map(m =>
+        (m.giftId?.toString?.() === giftId?.toString?.() || m.giftId === giftId)
+          ? { ...m, giftData: { ...(m.giftData || {}), estado: action === 'accept' ? 'aceptado' : 'rechazado' } }
+          : m
+      ));
+      Alert.alert(
+        action === 'accept' ? 'Regalo aceptado ✓' : 'Regalo rechazado',
+        action === 'accept' ? 'El regalo fue añadido a tu cuenta' : 'Las monedas/marcos fueron devueltos'
+      );
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo procesar el regalo');
+    }
+  }, []);
+
   function sendMessage() {
     if (!text.trim() || sendingRef.current) return;
     sendingRef.current = true;
@@ -650,9 +780,10 @@ export default function GroupRoomScreen({ route, navigation }) {
         onOpenMenu={openMenu}
         onReply={setReplyTo}
         onFullImg={setFullImg}
+        onGiftAction={handleGroupGiftAction}
       />
     );
-  }, [flatListData, user, group, isAdmin]);
+  }, [flatListData, user, group, isAdmin, handleGroupGiftAction]);
 
   const menuIsMe   = menuMsg && (menuMsg.sender?._id || menuMsg.sender)?.toString() === user?._id?.toString();
   const menuSender = menuMsg?.sender;
@@ -965,6 +1096,9 @@ export default function GroupRoomScreen({ route, navigation }) {
                 <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
                   {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
                 </TouchableOpacity>
+                <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
+                  <Ionicons name="gift-outline" size={20} color={colors.c3} />
+                </TouchableOpacity>
                 {isRecording ? (
                   <View style={s.recRow}>
                     <View style={s.recDot} />
@@ -1009,6 +1143,136 @@ export default function GroupRoomScreen({ route, navigation }) {
           <Ionicons name="chevron-down" size={20} color={colors.c1} />
         </TouchableOpacity>
       )}
+
+      {/* ── Modal Regalo ─────────────────────────────────────────────────── */}
+      <Modal visible={giftModal} transparent animationType="slide" onRequestClose={() => setGiftModal(false)}>
+        <Pressable style={s.giftOverlay} onPress={() => setGiftModal(false)}>
+          <Pressable style={s.giftSheet} onPress={() => {}}>
+            <View style={s.giftHandle} />
+            <View style={s.giftHead}>
+              <Text style={s.giftTitle}>🎁 Enviar regalo en el grupo</Text>
+              <TouchableOpacity onPress={() => setGiftModal(false)}>
+                <Ionicons name="close" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Destinatario */}
+            <Text style={s.giftFieldLbl}>Destinatario</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {(group?.members || [])
+                .filter(m => (m.user?._id || m.user)?.toString() !== user?._id?.toString())
+                .map((m, i) => {
+                  const u = m.user;
+                  const uId = (u?._id || u)?.toString();
+                  const selected = giftRecipient && (giftRecipient._id === uId || giftRecipient.username === u?.username);
+                  return (
+                    <TouchableOpacity
+                      key={uId || i}
+                      style={[s.giftMemberCard, selected && s.giftMemberSelected]}
+                      onPress={() => { setGiftRecipient(u); setGiftErr(''); }}
+                    >
+                      <AvatarWithFrame size={36} avatarUrl={u?.avatarUrl} username={u?.username} />
+                      <Text style={s.giftMemberName} numberOfLines={1}>{u?.username || '?'}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+
+            {/* Toggle tipo */}
+            <View style={s.giftToggle}>
+              <TouchableOpacity
+                style={[s.giftToggleBtn, giftType === 'coins' && s.giftToggleActive]}
+                onPress={() => { setGiftType('coins'); setGiftFrame(null); setGiftErr(''); }}
+              >
+                <Text style={[s.giftToggleTxt, giftType === 'coins' && s.giftToggleActiveTxt]}>✦ Monedas</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.giftToggleBtn, giftType === 'frame' && s.giftToggleActive]}
+                onPress={() => { setGiftType('frame'); setGiftErr(''); }}
+              >
+                <Text style={[s.giftToggleTxt, giftType === 'frame' && s.giftToggleActiveTxt]}>🖼 Marco</Text>
+              </TouchableOpacity>
+            </View>
+
+            {giftType === 'coins' && (
+              <>
+                <Text style={s.giftFieldLbl}>Cantidad de monedas</Text>
+                <TextInput
+                  style={s.giftInput}
+                  value={giftCoins}
+                  onChangeText={v => setGiftCoins(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="numeric"
+                  placeholder="Ej: 100"
+                  placeholderTextColor={colors.textDim}
+                />
+                {parseInt(giftCoins) > 0 && (
+                  <Text style={{ color: colors.textDim, fontSize: 10, marginBottom: 10 }}>
+                    Receptor recibe {Math.round(parseInt(giftCoins) * 0.85)} monedas (15% comisión)
+                  </Text>
+                )}
+              </>
+            )}
+
+            {giftType === 'frame' && (
+              <>
+                <Text style={s.giftFieldLbl}>Marco del inventario</Text>
+                {giftInvLoad
+                  ? <ActivityIndicator color={colors.c1} style={{ marginVertical: 16 }} />
+                  : giftInv.length === 0
+                  ? <Text style={{ color: colors.textDim, fontSize: 12, marginBottom: 10 }}>Sin marcos en inventario</Text>
+                  : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                      {giftInv.map(item => {
+                        const fr = item.frame || item;
+                        const sel = giftFrame && (giftFrame.frame || giftFrame)._id === fr._id;
+                        return (
+                          <TouchableOpacity
+                            key={fr._id}
+                            style={[s.giftFrameCard, sel && s.giftFrameCardSel]}
+                            onPress={() => { setGiftFrame(item); setGiftErr(''); }}
+                          >
+                            {fr.imageUrl
+                              ? <Image source={{ uri: fr.imageUrl }} style={{ width: 44, height: 44 }} resizeMode="contain" />
+                              : <Ionicons name="sparkles-outline" size={20} color={colors.c1} />}
+                            <Text style={{ color: colors.textHi, fontSize: 8, textAlign: 'center' }} numberOfLines={1}>{fr.name}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+              </>
+            )}
+
+            <Text style={s.giftFieldLbl}>Mensaje (opcional)</Text>
+            <TextInput
+              style={[s.giftInput, { height: 60, textAlignVertical: 'top', marginBottom: 14 }]}
+              value={giftMsg}
+              onChangeText={setGiftMsg}
+              placeholder="Escribe algo bonito..."
+              placeholderTextColor={colors.textDim}
+              multiline
+              maxLength={200}
+            />
+
+            {!!giftErr && (
+              <View style={{ flexDirection:'row', alignItems:'center', gap:6, backgroundColor:'rgba(249,115,22,0.1)', borderRadius:10, borderWidth:1, borderColor:'rgba(249,115,22,0.25)', padding:10, marginBottom:12 }}>
+                <Ionicons name="alert-circle-outline" size={14} color={colors.c4} />
+                <Text style={{ color: colors.c4, fontSize: 12, flex: 1 }}>{giftErr}</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[s.giftSendBtn, sendingGift && { opacity: 0.6 }]}
+              onPress={sendGroupGift}
+              disabled={sendingGift}
+            >
+              {sendingGift
+                ? <ActivityIndicator size={16} color={colors.black} />
+                : <Text style={s.giftSendTxt}>Enviar regalo 🎁</Text>}
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1125,4 +1389,25 @@ const s = StyleSheet.create({
   inviteBtnDeclineTxt: { color: colors.textDim, fontSize:13, fontWeight:'600' },
   inviteBtnAccept:  { paddingHorizontal:28, paddingVertical:9, borderRadius:20, backgroundColor:'rgba(0,229,204,0.15)', borderWidth:1, borderColor:'rgba(0,229,204,0.5)' },
   inviteBtnAcceptTxt:  { color: colors.c1, fontSize:13, fontWeight:'700' },
+
+  // Gift modal
+  giftOverlay:      { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },
+  giftSheet:        { backgroundColor:colors.surface, borderTopLeftRadius:28, borderTopRightRadius:28, borderWidth:1, borderColor:colors.border, borderBottomWidth:0, padding:20, paddingBottom:36, maxHeight:'90%' },
+  giftHandle:       { width:40, height:4, borderRadius:2, backgroundColor:colors.border, alignSelf:'center', marginBottom:16 },
+  giftHead:         { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:14 },
+  giftTitle:        { color:colors.textHi, fontSize:15, fontWeight:'700' },
+  giftFieldLbl:     { color:colors.textMid, fontSize:11, fontWeight:'700', marginBottom:8, letterSpacing:0.5 },
+  giftMemberCard:   { alignItems:'center', width:70, marginRight:10, padding:8, backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border },
+  giftMemberSelected: { borderColor:colors.c3, backgroundColor:'rgba(168,85,247,0.12)' },
+  giftMemberName:   { color:colors.textHi, fontSize:9, marginTop:4, textAlign:'center' },
+  giftToggle:       { flexDirection:'row', backgroundColor:colors.deep, borderRadius:12, padding:3, marginBottom:14, gap:3 },
+  giftToggleBtn:    { flex:1, paddingVertical:7, borderRadius:10, alignItems:'center' },
+  giftToggleActive: { backgroundColor:colors.c3 },
+  giftToggleTxt:    { color:colors.textDim, fontSize:12, fontWeight:'600' },
+  giftToggleActiveTxt: { color:'#fff', fontWeight:'800' },
+  giftInput:        { backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, color:colors.textHi, fontSize:14, paddingHorizontal:14, paddingVertical:10, marginBottom:10 },
+  giftFrameCard:    { width:80, height:90, backgroundColor:colors.deep, borderRadius:10, borderWidth:1, borderColor:colors.border, alignItems:'center', justifyContent:'center', marginRight:8, padding:6 },
+  giftFrameCardSel: { borderColor:colors.c3, backgroundColor:'rgba(168,85,247,0.1)' },
+  giftSendBtn:      { flexDirection:'row', alignItems:'center', justifyContent:'center', backgroundColor:colors.c3, borderRadius:16, paddingVertical:13 },
+  giftSendTxt:      { color:'#fff', fontSize:14, fontWeight:'800' },
 });

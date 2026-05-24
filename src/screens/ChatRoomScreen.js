@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from '
 import {
   View, ActivityIndicator, Text, TextInput, TouchableOpacity,
   FlatList, Image, Modal, Pressable, StyleSheet, StatusBar, Linking,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -137,6 +138,75 @@ const sp = StyleSheet.create({
 
 const AVATAR_SLOT = 36;
 
+// ─── GiftBubble ───────────────────────────────────────────────────────────────
+
+function GiftBubble({ giftData, giftId, isMe, onGiftAction }) {
+  const { monedas = 0, items = [], mensaje = '', estado = 'pendiente', emisorUsername = '' } = giftData || {};
+  const isPending  = estado === 'pendiente';
+  const isAccepted = estado === 'aceptado';
+
+  return (
+    <View style={gb.wrap}>
+      <View style={gb.header}>
+        <Text style={gb.giftEmoji}>🎁</Text>
+        <Text style={gb.giftTitle}>REGALO</Text>
+      </View>
+      {monedas > 0 && (
+        <View style={gb.row}>
+          <Text style={gb.coinsVal}>✦ {monedas} monedas</Text>
+          {!isMe && isPending && (
+            <Text style={gb.coinsNote}>({Math.round(monedas * 0.85)} al aceptar)</Text>
+          )}
+        </View>
+      )}
+      {items.map((it, i) => (
+        <View key={i} style={gb.row}>
+          <Text style={gb.frameName}>🖼 {it.name || 'Marco'}{it.cantidad > 1 ? ` ×${it.cantidad}` : ''}</Text>
+        </View>
+      ))}
+      {!!mensaje && <Text style={gb.mensaje}>"{mensaje}"</Text>}
+
+      {!isMe && isPending && giftId && (
+        <View style={gb.actions}>
+          <TouchableOpacity style={gb.acceptBtn} onPress={() => onGiftAction?.(giftId, 'accept')}>
+            <Text style={gb.acceptTxt}>Aceptar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={gb.rejectBtn} onPress={() => onGiftAction?.(giftId, 'reject')}>
+            <Text style={gb.rejectTxt}>Rechazar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {isMe && isPending && (
+        <Text style={gb.status}>⏳ Pendiente de aceptación</Text>
+      )}
+      {isAccepted && (
+        <Text style={[gb.status, { color: colors.c1 }]}>✓ Aceptado</Text>
+      )}
+      {estado === 'rechazado' && (
+        <Text style={[gb.status, { color: 'rgba(239,68,68,0.7)' }]}>✗ Rechazado</Text>
+      )}
+    </View>
+  );
+}
+
+const gb = StyleSheet.create({
+  wrap:       { minWidth: 200, maxWidth: 260 },
+  header:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', paddingBottom: 8 },
+  giftEmoji:  { fontSize: 18 },
+  giftTitle:  { color: colors.c3, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+  row:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  coinsVal:   { color: 'rgba(251,191,36,1)', fontSize: 15, fontWeight: '800' },
+  coinsNote:  { color: 'rgba(251,191,36,0.6)', fontSize: 10 },
+  frameName:  { color: colors.textHi, fontSize: 13, fontWeight: '600' },
+  mensaje:    { color: colors.textDim, fontSize: 11, fontStyle: 'italic', marginTop: 4, marginBottom: 8 },
+  actions:    { flexDirection: 'row', gap: 8, marginTop: 10 },
+  acceptBtn:  { flex: 1, backgroundColor: colors.c1, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
+  acceptTxt:  { color: colors.black, fontSize: 12, fontWeight: '800' },
+  rejectBtn:  { flex: 1, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 10, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
+  rejectTxt:  { color: 'rgba(239,68,68,0.8)', fontSize: 12, fontWeight: '700' },
+  status:     { color: colors.textDim, fontSize: 11, marginTop: 8, textAlign: 'center' },
+});
+
 // ─── MessageBubble — React.memo: solo re-renderiza si sus props cambian ───────
 // Esta es la clave del fix: antes, al llegar 1 mensaje nuevo, las 50 burbujas
 // se re-renderizaban. Ahora solo la nueva (o la que cambia sus props).
@@ -150,6 +220,7 @@ const MessageBubble = memo(function MessageBubble({
   onLongPress,
   onScrollToMsg,
   onFullImg,
+  onGiftAction,
   user,
   other,
 }) {
@@ -182,7 +253,9 @@ const MessageBubble = memo(function MessageBubble({
     </TouchableOpacity>
   )}
 
-  {item.type === 'shared_profile'
+  {item.type === 'gift'
+    ? <GiftBubble giftData={item.giftData} giftId={item.giftId} isMe={isMe} onGiftAction={onGiftAction} />
+    : item.type === 'shared_profile'
     ? <SharedProfileBubble sharedProfile={item.sharedProfile} navigation={navigation}
         isMe={isMe} onLongPress={onLongPress} />
     : item.type === 'shared_post'
@@ -244,6 +317,17 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [replyTo,            setReplyTo]            = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [isBlocked,          setIsBlocked]          = useState(other?.blocked ?? false);
+
+  // ── Regalo ────────────────────────────────────────────────────────────────
+  const [giftModal,     setGiftModal]     = useState(false);
+  const [giftType,      setGiftType]      = useState('coins');
+  const [giftCoins,     setGiftCoins]     = useState('');
+  const [giftFrame,     setGiftFrame]     = useState(null);
+  const [giftMsg,       setGiftMsg]       = useState('');
+  const [giftInv,       setGiftInv]       = useState([]);
+  const [giftInvLoad,   setGiftInvLoad]   = useState(false);
+  const [sendingGift,   setSendingGift]   = useState(false);
+  const [giftErr,       setGiftErr]       = useState('');
 
   const flatRef      = useRef(null);
   const socketRef    = useRef(null);
@@ -325,6 +409,74 @@ export default function ChatRoomScreen({ route, navigation }) {
       socketRef.current?.off('chat:typing');
       socketRef.current?.emit('chat:leave', { chatId: chat._id.toString() });
     };
+  }, []);
+
+  async function openGiftModal() {
+    setGiftModal(true);
+    setGiftType('coins');
+    setGiftCoins('');
+    setGiftFrame(null);
+    setGiftMsg('');
+    setGiftErr('');
+    setGiftInvLoad(true);
+    try {
+      const { data } = await api.get('/frames/me/inventory');
+      setGiftInv((data.inventory || []).filter(i => (i.unidadesEnMano || 0) > 0));
+    } catch {}
+    finally { setGiftInvLoad(false); }
+  }
+
+  async function sendGift() {
+    if (giftType === 'coins' && (!giftCoins || parseInt(giftCoins) <= 0)) {
+      setGiftErr('Ingresa un monto válido'); return;
+    }
+    if (giftType === 'frame' && !giftFrame) {
+      setGiftErr('Selecciona un marco'); return;
+    }
+    setSendingGift(true);
+    setGiftErr('');
+    try {
+      const { data } = await api.post('/gifts', {
+        receptorUsername: other.username,
+        monedas: giftType === 'coins' ? parseInt(giftCoins) : 0,
+        items:   giftType === 'frame' ? [{ frameId: (giftFrame.frame || giftFrame)._id, cantidad: 1 }] : [],
+        mensaje: giftMsg.trim(),
+      });
+      const gift = data.gift;
+      socketRef.current?.emit('chat:send', {
+        chatId:   chat._id.toString(),
+        type:     'gift',
+        text:     '',
+        giftId:   gift._id,
+        giftData: {
+          monedas:        gift.monedas || 0,
+          items:          (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad })),
+          mensaje:        gift.mensaje || '',
+          estado:         'pendiente',
+          emisorUsername: user.username,
+        },
+      });
+      setGiftModal(false);
+    } catch (e) {
+      setGiftErr(e.response?.data?.error || 'Error al enviar regalo');
+    } finally { setSendingGift(false); }
+  }
+
+  const handleGiftAction = useCallback(async (giftId, action) => {
+    try {
+      await api.post(`/gifts/${giftId}/${action}`);
+      setMessages(prev => prev.map(m =>
+        (m.giftId?.toString?.() === giftId?.toString?.() || m.giftId === giftId)
+          ? { ...m, giftData: { ...(m.giftData || {}), estado: action === 'accept' ? 'aceptado' : 'rechazado' } }
+          : m
+      ));
+      Alert.alert(
+        action === 'accept' ? 'Regalo aceptado ✓' : 'Regalo rechazado',
+        action === 'accept' ? 'El regalo fue añadido a tu cuenta' : 'Las monedas/marcos fueron devueltos'
+      );
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo procesar el regalo');
+    }
   }, []);
 
   async function handleSend() {
@@ -503,6 +655,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         onLongPress={() => setMenuMsg(item)}
         onScrollToMsg={scrollToMsg}
         onFullImg={setFullImg}
+        onGiftAction={handleGiftAction}
         user={user}
         other={other}
       />
@@ -636,6 +789,11 @@ export default function ChatRoomScreen({ route, navigation }) {
             <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
               {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
             </TouchableOpacity>
+            {!requestMode && (
+              <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
+                <Ionicons name="gift-outline" size={20} color={colors.c3} />
+              </TouchableOpacity>
+            )}
             {isRecording ? (
               <View style={s.recRow}>
                 <View style={s.recDot} />
@@ -698,6 +856,116 @@ export default function ChatRoomScreen({ route, navigation }) {
               <Text style={[s.menuItemTxt, { color:'#ff4444' }]}>🗑 Borrar para mí</Text>
             </TouchableOpacity>
           </View>
+        </Pressable>
+      </Modal>
+
+      {/* ── Modal Regalo ───────────────────────────────────────────────────── */}
+      <Modal visible={giftModal} transparent animationType="slide" onRequestClose={() => setGiftModal(false)}>
+        <Pressable style={s.giftOverlay} onPress={() => setGiftModal(false)}>
+          <Pressable style={s.giftSheet} onPress={() => {}}>
+            <View style={s.giftHandle} />
+            <View style={s.giftHead}>
+              <Text style={s.giftSheetTitle}>🎁 Enviar regalo a @{other?.username}</Text>
+              <TouchableOpacity onPress={() => setGiftModal(false)}>
+                <Ionicons name="close" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Toggle tipo */}
+            <View style={s.giftToggle}>
+              <TouchableOpacity
+                style={[s.giftToggleBtn, giftType === 'coins' && s.giftToggleBtnActive]}
+                onPress={() => { setGiftType('coins'); setGiftFrame(null); setGiftErr(''); }}
+              >
+                <Text style={[s.giftToggleTxt, giftType === 'coins' && s.giftToggleTxtActive]}>✦ Monedas</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.giftToggleBtn, giftType === 'frame' && s.giftToggleBtnActive]}
+                onPress={() => { setGiftType('frame'); setGiftErr(''); }}
+              >
+                <Text style={[s.giftToggleTxt, giftType === 'frame' && s.giftToggleTxtActive]}>🖼 Marco</Text>
+              </TouchableOpacity>
+            </View>
+
+            {giftType === 'coins' && (
+              <View style={s.giftField}>
+                <Text style={s.giftFieldLbl}>Cantidad de monedas</Text>
+                <TextInput
+                  style={s.giftInput}
+                  value={giftCoins}
+                  onChangeText={v => setGiftCoins(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="numeric"
+                  placeholder="Ej: 100"
+                  placeholderTextColor={colors.textDim}
+                />
+                {parseInt(giftCoins) > 0 && (
+                  <Text style={s.giftNote}>El receptor recibe {Math.round(parseInt(giftCoins) * 0.85)} monedas (15% comisión)</Text>
+                )}
+              </View>
+            )}
+
+            {giftType === 'frame' && (
+              <View style={s.giftField}>
+                <Text style={s.giftFieldLbl}>Selecciona un marco de tu inventario</Text>
+                {giftInvLoad ? (
+                  <ActivityIndicator color={colors.c1} style={{ marginVertical: 20 }} />
+                ) : giftInv.length === 0 ? (
+                  <Text style={s.giftEmptyInv}>No tienes marcos disponibles en tu inventario</Text>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                    {giftInv.map(item => {
+                      const fr = item.frame || item;
+                      const selected = giftFrame && (giftFrame.frame || giftFrame)._id === fr._id;
+                      return (
+                        <TouchableOpacity
+                          key={fr._id}
+                          style={[s.giftFrameCard, selected && s.giftFrameCardSelected]}
+                          onPress={() => { setGiftFrame(item); setGiftErr(''); }}
+                          activeOpacity={0.8}
+                        >
+                          {fr.imageUrl
+                            ? <Image source={{ uri: fr.imageUrl }} style={s.giftFrameImg} resizeMode="contain" />
+                            : <Ionicons name="sparkles-outline" size={24} color={colors.c1} />}
+                          <Text style={s.giftFrameName} numberOfLines={1}>{fr.name}</Text>
+                          <Text style={s.giftFrameUnits}>×{item.unidadesEnMano || 0}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
+            <View style={s.giftField}>
+              <Text style={s.giftFieldLbl}>Mensaje (opcional)</Text>
+              <TextInput
+                style={[s.giftInput, { height: 70, textAlignVertical: 'top' }]}
+                value={giftMsg}
+                onChangeText={setGiftMsg}
+                placeholder="Escribe algo bonito..."
+                placeholderTextColor={colors.textDim}
+                multiline
+                maxLength={200}
+              />
+            </View>
+
+            {!!giftErr && (
+              <View style={s.giftErrBox}>
+                <Ionicons name="alert-circle-outline" size={14} color={colors.c4} />
+                <Text style={s.giftErrTxt}>{giftErr}</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[s.giftSendBtn, sendingGift && { opacity: 0.6 }]}
+              onPress={sendGift}
+              disabled={sendingGift}
+            >
+              {sendingGift
+                ? <ActivityIndicator size={16} color={colors.black} />
+                : <><Text style={s.giftSendTxt}>Enviar regalo</Text><Text style={s.giftSendIcon}>🎁</Text></>}
+            </TouchableOpacity>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -763,4 +1031,31 @@ const s = StyleSheet.create({
   mentionAt:        { color:'#666', fontSize:14 },
   mentionName:      { color:'#eee', fontSize:14, fontWeight:'600' },
   scrollDownBtn:    { position:'absolute', bottom:130, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
+
+  // Gift modal
+  giftOverlay:      { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },
+  giftSheet:        { backgroundColor:colors.surface, borderTopLeftRadius:28, borderTopRightRadius:28, borderWidth:1, borderColor:colors.border, borderBottomWidth:0, padding:20, paddingBottom:36, maxHeight:'85%' },
+  giftHandle:       { width:40, height:4, borderRadius:2, backgroundColor:colors.border, alignSelf:'center', marginBottom:16 },
+  giftHead:         { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:16 },
+  giftSheetTitle:   { color:colors.textHi, fontSize:15, fontWeight:'700' },
+  giftToggle:       { flexDirection:'row', backgroundColor:colors.deep, borderRadius:14, padding:4, marginBottom:16, gap:4 },
+  giftToggleBtn:    { flex:1, paddingVertical:8, borderRadius:11, alignItems:'center' },
+  giftToggleBtnActive: { backgroundColor:colors.c3 },
+  giftToggleTxt:    { color:colors.textDim, fontSize:13, fontWeight:'600' },
+  giftToggleTxtActive: { color:'#fff', fontWeight:'800' },
+  giftField:        { marginBottom:14 },
+  giftFieldLbl:     { color:colors.textMid, fontSize:11, fontWeight:'700', marginBottom:8, letterSpacing:0.5 },
+  giftInput:        { backgroundColor:colors.deep, borderRadius:14, borderWidth:1, borderColor:colors.border, color:colors.textHi, fontSize:15, paddingHorizontal:14, paddingVertical:11 },
+  giftNote:         { color:colors.textDim, fontSize:10, marginTop:6 },
+  giftEmptyInv:     { color:colors.textDim, fontSize:13, textAlign:'center', paddingVertical:20 },
+  giftFrameCard:    { width:90, height:100, backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, alignItems:'center', justifyContent:'center', marginRight:10, padding:8 },
+  giftFrameCardSelected: { borderColor:colors.c3, backgroundColor:'rgba(168,85,247,0.1)' },
+  giftFrameImg:     { width:50, height:50, marginBottom:4 },
+  giftFrameName:    { color:colors.textHi, fontSize:9, fontWeight:'600', textAlign:'center' },
+  giftFrameUnits:   { color:colors.c1, fontSize:8 },
+  giftErrBox:       { flexDirection:'row', alignItems:'center', gap:8, backgroundColor:'rgba(249,115,22,0.1)', borderRadius:12, borderWidth:1, borderColor:'rgba(249,115,22,0.25)', padding:10, marginBottom:12 },
+  giftErrTxt:       { color:colors.c4, fontSize:12, flex:1 },
+  giftSendBtn:      { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:colors.c3, borderRadius:18, paddingVertical:14, marginTop:4 },
+  giftSendTxt:      { color:'#fff', fontSize:15, fontWeight:'800' },
+  giftSendIcon:     { fontSize:16 },
 });

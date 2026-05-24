@@ -379,6 +379,14 @@ export default function PublicProfileScreen({ route, navigation }) {
             <TouchableOpacity onPress={() => navigation.goBack()} style={s.heroBtn}>
               <Ionicons name="arrow-back" size={20} color="#ffffff" />
             </TouchableOpacity>
+            {userHasStore && (
+              <TouchableOpacity
+                style={s.heroBtn}
+                onPress={() => navigation.navigate('Store', { username })}
+              >
+                <Ionicons name="storefront-outline" size={20} color={colors.c1} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={() => setMenuVisible(true)} style={s.heroBtn}>
               <Ionicons name="ellipsis-vertical" size={18} color="#ffffff" />
             </TouchableOpacity>
@@ -477,27 +485,6 @@ export default function PublicProfileScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* Botones secundarios: Tienda y Enviar Regalo */}
-          {me && !blocked && !profile?.banned && (
-            <View style={s.secondaryRow}>
-              {userHasStore && (
-                <TouchableOpacity
-                  style={s.btnSecondary}
-                  onPress={() => navigation.navigate('Store', { username })}
-                >
-                  <Ionicons name="storefront-outline" size={15} color={colors.c1} />
-                  <Text style={[s.btnSecondaryTxt, { color: colors.c1 }]}>Tienda</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={s.btnSecondary}
-                onPress={() => navigation.navigate('Gift', { targetUsername: username })}
-              >
-                <Ionicons name="gift-outline" size={15} color={colors.c3} />
-                <Text style={[s.btnSecondaryTxt, { color: colors.c3 }]}>Enviar Regalo</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         {/* ── Tabs ── */}

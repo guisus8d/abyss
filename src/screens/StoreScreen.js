@@ -84,7 +84,6 @@ export default function StoreScreen({ navigation, route }) {
 
   const [store, setStore]     = useState(null);
   const [frames, setFrames]   = useState([]);
-  const [stats, setStats]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -107,7 +106,7 @@ export default function StoreScreen({ navigation, route }) {
           api.get('/store/me/stats').catch(() => ({ data: null })),
           api.get(`/store/${targetUsername}`).catch(() => ({ data: null })),
         ]);
-        if (statsRes.data) { setStore(statsRes.data.store); setStats(statsRes.data); }
+        if (statsRes.data) { setStore(statsRes.data.store); }
         if (pubRes.data)   { setFrames(pubRes.data.frames || []); if (!statsRes.data) setStore(pubRes.data.store); }
         if (!statsRes.data?.store && !pubRes.data?.store) setStore(null);
       } else {
@@ -247,30 +246,6 @@ export default function StoreScreen({ navigation, route }) {
           ) : <View style={{ width: 28 }} />}
         </View>
 
-        {/* Métricas — fijas, encima del contenido scrollable */}
-        {isOwn && (
-          <View style={s.metricsStrip}>
-            <View style={s.metricItem}>
-              <Text style={s.metricVal}>{store.ventasTotales || 0}</Text>
-              <Text style={s.metricLbl}>Ventas</Text>
-            </View>
-            <View style={s.metricDiv} />
-            <View style={s.metricItem}>
-              <Text style={[s.metricVal, { color: 'rgba(251,191,36,1)' }]}>✦{store.ingresosTotal || 0}</Text>
-              <Text style={s.metricLbl}>Ingresos</Text>
-            </View>
-            <View style={s.metricDiv} />
-            <View style={s.metricItem}>
-              <Text style={s.metricVal}>{store.marcosActivos || 0}</Text>
-              <Text style={s.metricLbl}>Activos</Text>
-            </View>
-            <View style={s.metricDiv} />
-            <View style={s.metricItem}>
-              <Text style={[s.metricVal, { color: nivelColor }]}>Nv.{nivel}</Text>
-              <Text style={s.metricLbl}>{NIVEL_LABELS[nivel]}</Text>
-            </View>
-          </View>
-        )}
       </SafeAreaView>
 
       <FlatList
@@ -455,17 +430,6 @@ const s = StyleSheet.create({
   backBtn:     { padding: 4 },
   headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
   editBtn:     { padding: 4 },
-
-  // Métricas fijas
-  metricsStrip: {
-    flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10,
-    borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  metricItem: { flex: 1, alignItems: 'center' },
-  metricVal:  { color: colors.textHi, fontSize: 16, fontWeight: '800' },
-  metricLbl:  { color: colors.textDim, fontSize: 9, marginTop: 1, letterSpacing: 0.5 },
-  metricDiv:  { width: 1, backgroundColor: colors.border, marginHorizontal: 4 },
 
   banner:        { height: 130, position: 'relative', backgroundColor: colors.deep },
   bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,9,0.4)' },
