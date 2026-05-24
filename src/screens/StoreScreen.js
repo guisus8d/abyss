@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  ActivityIndicator, StatusBar, Dimensions, RefreshControl, ScrollView,
+  ActivityIndicator, StatusBar, Dimensions, RefreshControl,
+  Modal, Pressable, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ const { width: W } = Dimensions.get('window');
 const COLS   = 3;
 const GAP    = 10;
 const CARD_W = (W - 32 - GAP * (COLS - 1)) / COLS;
+const XP_MINIMO = 100;
 
 const NIVEL_LABELS = { 1: 'Novato', 2: 'Aprendiz', 3: 'Artesano', 4: 'Experto', 5: 'Maestro' };
 const NIVEL_COLORS = { 1: colors.textDim, 2: colors.c5, 3: colors.c1, 4: colors.c2, 5: colors.c3 };
@@ -49,61 +51,126 @@ function FrameCard({ frame, onPress }) {
   );
 }
 
+// Tarjeta de inventario para el selector de publicación
+function InvCard({ item, onPress }) {
+  const frame   = item.frame || item;
+  const inHand  = item.unidadesEnMano ?? item.units ?? 0;
+  const canSell = inHand > 0;
+  return (
+    <TouchableOpacity
+      style={[s.invCard, !canSell && { opacity: 0.4 }]}
+      onPress={() => canSell && onPress(item)}
+      activeOpacity={0.8}
+      disabled={!canSell}
+    >
+      <View style={s.invPreview}>
+        <FrameCardBg frame={frame} />
+        {frame.imageUrl && (
+          <ExpoImage source={{ uri: frame.imageUrl }} style={{ width: '80%', height: '80%' }} contentFit="contain" autoplay />
+        )}
+      </View>
+      <Text style={s.invName} numberOfLines={1}>{frame.name}</Text>
+      <Text style={[s.invUnits, { color: canSell ? colors.c1 : colors.textDim }]}>
+        {canSell ? `×${inHand} disponibles` : 'Sin unidades'}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function StoreScreen({ navigation, route }) {
   const { user } = useAuthStore();
   const targetUsername = route.params?.username || user?.username;
   const isOwn = targetUsername === user?.username;
 
   const [store, setStore]     = useState(null);
-  const [owner, setOwner]     = useState(null);
   const [frames, setFrames]   = useState([]);
   const [stats, setStats]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [errMsg, setErrMsg]   = useState('');
+
+  // Publish flow
+  const [invSheet, setInvSheet]       = useState(false);
+  const [inventory, setInventory]     = useState([]);
+  const [invLoading, setInvLoading]   = useState(false);
+  const [publishTarget, setPublishTarget] = useState(null); // frame item
+  const [pubPrice, setPubPrice]       = useState('');
+  const [pubUnits, setPubUnits]       = useState('1');
+  const [publishing, setPublishing]   = useState(false);
+  const [pubErr, setPubErr]           = useState('');
 
   useEffect(() => { loadStore(); }, [targetUsername]);
 
   async function loadStore() {
-    setErrMsg('');
     try {
       if (isOwn) {
         const [statsRes, pubRes] = await Promise.all([
-          api.get('/store/me/stats').catch(e => ({ data: null, err: e })),
-          api.get(`/store/${targetUsername}`).catch(e => ({ data: null, err: e })),
+          api.get('/store/me/stats').catch(() => ({ data: null })),
+          api.get(`/store/${targetUsername}`).catch(() => ({ data: null })),
         ]);
-        if (statsRes.data) {
-          setStore(statsRes.data.store);
-          setStats(statsRes.data);
-        }
-        if (pubRes.data) {
-          setOwner(pubRes.data.user);
-          setFrames(pubRes.data.frames || []);
-          if (!statsRes.data) setStore(pubRes.data.store);
-        }
-        if (!statsRes.data?.store && !pubRes.data?.store) {
-          setStore(null);
-        }
+        if (statsRes.data) { setStore(statsRes.data.store); setStats(statsRes.data); }
+        if (pubRes.data)   { setFrames(pubRes.data.frames || []); if (!statsRes.data) setStore(pubRes.data.store); }
+        if (!statsRes.data?.store && !pubRes.data?.store) setStore(null);
       } else {
         const { data } = await api.get(`/store/${targetUsername}`);
         setStore(data.store);
-        setOwner(data.user);
         setFrames(data.frames || []);
       }
     } catch (e) {
-      const status = e.response?.status;
-      if (status === 404) {
-        setStore(null);
-      } else {
-        setErrMsg(e.response?.data?.error || 'Error al cargar tienda');
-      }
+      if (e.response?.status === 404) setStore(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }
 
+  async function openPublishSheet() {
+    setInvSheet(true);
+    if (inventory.length > 0) return;
+    setInvLoading(true);
+    try {
+      const { data } = await api.get('/frames/me/inventory');
+      setInventory(data.inventory || []);
+    } catch (e) { console.log(e); }
+    finally { setInvLoading(false); }
+  }
+
+  function selectForPublish(item) {
+    const frame = item.frame || item;
+    setPublishTarget(item);
+    setPubPrice(String(frame.price || 50));
+    setPubUnits('1');
+    setPubErr('');
+  }
+
+  async function confirmPublish() {
+    if (!publishTarget) return;
+    const frame   = publishTarget.frame || publishTarget;
+    const units   = parseInt(pubUnits) || 0;
+    const price   = parseInt(pubPrice) || 0;
+    const maxU    = publishTarget.unidadesEnMano ?? publishTarget.units ?? 0;
+
+    if (price <= 0) { setPubErr('El precio debe ser mayor a 0'); return; }
+    if (units <= 0) { setPubErr('Las unidades deben ser mayor a 0'); return; }
+    if (units > maxU) { setPubErr(`Solo tienes ${maxU} unidades disponibles`); return; }
+    if ((user?.xp || 0) < XP_MINIMO) { setPubErr(`Necesitas ${XP_MINIMO} XP para publicar marcos`); return; }
+
+    setPublishing(true);
+    setPubErr('');
+    try {
+      await api.patch(`/frames/${frame._id}/publish`, { units, price });
+      setPublishTarget(null);
+      setInvSheet(false);
+      setInventory([]);
+      loadStore();
+    } catch (e) {
+      setPubErr(e.response?.data?.error || 'Error al publicar');
+    } finally { setPublishing(false); }
+  }
+
   function onRefresh() { setRefreshing(true); loadStore(); }
+
+  const nivel      = store?.nivel || 1;
+  const nivelColor = NIVEL_COLORS[nivel] || colors.textDim;
 
   if (loading) {
     return (
@@ -123,7 +190,6 @@ export default function StoreScreen({ navigation, route }) {
     );
   }
 
-  // No store state
   if (!store) {
     return (
       <View style={s.root}>
@@ -161,13 +227,11 @@ export default function StoreScreen({ navigation, route }) {
     );
   }
 
-  const nivel     = store.nivel || 1;
-  const nivelColor = NIVEL_COLORS[nivel] || colors.textDim;
-
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <SafeAreaView>
+        {/* Nav header */}
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
@@ -182,6 +246,31 @@ export default function StoreScreen({ navigation, route }) {
             </TouchableOpacity>
           ) : <View style={{ width: 28 }} />}
         </View>
+
+        {/* Métricas — fijas, encima del contenido scrollable */}
+        {isOwn && (
+          <View style={s.metricsStrip}>
+            <View style={s.metricItem}>
+              <Text style={s.metricVal}>{store.ventasTotales || 0}</Text>
+              <Text style={s.metricLbl}>Ventas</Text>
+            </View>
+            <View style={s.metricDiv} />
+            <View style={s.metricItem}>
+              <Text style={[s.metricVal, { color: 'rgba(251,191,36,1)' }]}>✦{store.ingresosTotal || 0}</Text>
+              <Text style={s.metricLbl}>Ingresos</Text>
+            </View>
+            <View style={s.metricDiv} />
+            <View style={s.metricItem}>
+              <Text style={s.metricVal}>{store.marcosActivos || 0}</Text>
+              <Text style={s.metricLbl}>Activos</Text>
+            </View>
+            <View style={s.metricDiv} />
+            <View style={s.metricItem}>
+              <Text style={[s.metricVal, { color: nivelColor }]}>Nv.{nivel}</Text>
+              <Text style={s.metricLbl}>{NIVEL_LABELS[nivel]}</Text>
+            </View>
+          </View>
+        )}
       </SafeAreaView>
 
       <FlatList
@@ -197,15 +286,13 @@ export default function StoreScreen({ navigation, route }) {
           <>
             {/* Banner */}
             <View style={s.banner}>
-              {store.banner ? (
-                <ExpoImage source={{ uri: store.banner }} style={StyleSheet.absoluteFill} contentFit="cover" />
-              ) : (
-                <LinearGradient colors={['#091525', '#020509']} style={StyleSheet.absoluteFill} />
-              )}
+              {store.banner
+                ? <ExpoImage source={{ uri: store.banner }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                : <LinearGradient colors={['#091525', '#020509']} style={StyleSheet.absoluteFill} />}
               <View style={s.bannerOverlay} />
             </View>
 
-            {/* Store identity */}
+            {/* Identidad */}
             <View style={s.identity}>
               <View style={s.logoWrap}>
                 {store.logo
@@ -224,30 +311,15 @@ export default function StoreScreen({ navigation, route }) {
               <Text style={s.desc}>{store.descripcion}</Text>
             ) : null}
 
-            {/* Stats (own store only) */}
-            {isOwn && stats && (
-              <View style={s.statsRow}>
-                <View style={s.statItem}>
-                  <Text style={s.statVal}>{store.ventasTotales || 0}</Text>
-                  <Text style={s.statLbl}>Ventas</Text>
-                </View>
-                <View style={s.statDivider} />
-                <View style={s.statItem}>
-                  <Text style={[s.statVal, { color: 'rgba(251,191,36,1)' }]}>✦{store.ingresosTotal || 0}</Text>
-                  <Text style={s.statLbl}>Ingresos</Text>
-                </View>
-                <View style={s.statDivider} />
-                <View style={s.statItem}>
-                  <Text style={s.statVal}>{store.marcosActivos || 0}</Text>
-                  <Text style={s.statLbl}>Activos</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Divider */}
             <View style={s.sectionLabel}>
               <Ionicons name="sparkles-outline" size={13} color={colors.textDim} />
               <Text style={s.sectionLabelTxt}>MARCOS EN VENTA ({frames.length})</Text>
+              {isOwn && (
+                <TouchableOpacity style={s.publishBtn} onPress={openPublishSheet}>
+                  <Ionicons name="add-outline" size={14} color={colors.black} />
+                  <Text style={s.publishBtnTxt}>Publicar</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </>
         )}
@@ -258,19 +330,117 @@ export default function StoreScreen({ navigation, route }) {
               {isOwn ? 'Publica marcos desde tu inventario' : 'Sin marcos disponibles'}
             </Text>
             {isOwn && (
-              <TouchableOpacity onPress={() => navigation.navigate('Collection')}>
-                <Text style={s.emptyLink}>Ir a mi colección →</Text>
+              <TouchableOpacity style={s.publishBtnLarge} onPress={openPublishSheet}>
+                <Ionicons name="add-outline" size={16} color={colors.black} />
+                <Text style={s.publishBtnTxt}>Publicar un marco</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
         renderItem={({ item }) => (
-          <FrameCard
-            frame={item}
-            onPress={() => navigation.navigate('Market')}
-          />
+          <FrameCard frame={item} onPress={() => navigation.navigate('Market')} />
         )}
       />
+
+      {/* ── Inventory Sheet ── */}
+      <Modal
+        visible={invSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setInvSheet(false); setPublishTarget(null); }}
+      >
+        <Pressable style={s.sheetOverlay} onPress={() => { setInvSheet(false); setPublishTarget(null); }}>
+          <Pressable style={s.sheet} onPress={() => {}}>
+            <View style={s.sheetHandle} />
+
+            {publishTarget ? (
+              // ── Confirm modal ──
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <TouchableOpacity onPress={() => setPublishTarget(null)} style={s.sheetBack}>
+                  <Ionicons name="arrow-back" size={18} color={colors.textDim} />
+                  <Text style={s.sheetBackTxt}>Volver al inventario</Text>
+                </TouchableOpacity>
+
+                <Text style={s.sheetTitle}>Publicar marco</Text>
+                <Text style={s.sheetSub}>{(publishTarget.frame || publishTarget).name}</Text>
+
+                <View style={s.pubFields}>
+                  <View style={s.pubField}>
+                    <Text style={s.pubFieldLbl}>Precio (coins) ✦</Text>
+                    <TextInput
+                      style={s.pubInput}
+                      value={pubPrice}
+                      onChangeText={setPubPrice}
+                      keyboardType="numeric"
+                      placeholder="50"
+                      placeholderTextColor={colors.textDim}
+                    />
+                  </View>
+                  <View style={s.pubField}>
+                    <Text style={s.pubFieldLbl}>
+                      Unidades (máx. {publishTarget.unidadesEnMano ?? publishTarget.units ?? 0})
+                    </Text>
+                    <TextInput
+                      style={s.pubInput}
+                      value={pubUnits}
+                      onChangeText={setPubUnits}
+                      keyboardType="numeric"
+                      placeholder="1"
+                      placeholderTextColor={colors.textDim}
+                    />
+                  </View>
+                </View>
+
+                {pubErr ? (
+                  <View style={s.errBox}>
+                    <Ionicons name="alert-circle-outline" size={13} color={colors.c4} />
+                    <Text style={s.errTxt}>{pubErr}</Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[s.confirmBtn, publishing && { opacity: 0.6 }]}
+                  onPress={confirmPublish}
+                  disabled={publishing}
+                >
+                  {publishing
+                    ? <ActivityIndicator size={16} color={colors.black} />
+                    : <Text style={s.confirmBtnTxt}>Publicar en la tienda</Text>}
+                </TouchableOpacity>
+              </KeyboardAvoidingView>
+            ) : (
+              // ── Inventory list ──
+              <>
+                <Text style={s.sheetTitle}>Selecciona un marco</Text>
+                <Text style={s.sheetSub}>Elige qué marco quieres poner a la venta</Text>
+                {invLoading ? (
+                  <ActivityIndicator color={colors.c1} style={{ marginTop: 30 }} />
+                ) : inventory.length === 0 ? (
+                  <View style={s.noInv}>
+                    <Ionicons name="sparkles-outline" size={32} color={colors.textDim} />
+                    <Text style={s.noInvTxt}>No tienes marcos en tu inventario</Text>
+                    <TouchableOpacity onPress={() => { setInvSheet(false); navigation.navigate('CreateFrame'); }}>
+                      <Text style={s.noInvLink}>Crear un marco →</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={inventory}
+                    keyExtractor={item => (item.frame?._id || item._id)}
+                    numColumns={3}
+                    columnWrapperStyle={{ gap: 10 }}
+                    contentContainerStyle={{ gap: 10, paddingBottom: 20 }}
+                    showsVerticalScrollIndicator={false}
+                    renderItem={({ item }) => (
+                      <InvCard item={item} onPress={selectForPublish} />
+                    )}
+                  />
+                )}
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -286,31 +456,36 @@ const s = StyleSheet.create({
   headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
   editBtn:     { padding: 4 },
 
-  banner:        { height: 140, position: 'relative', backgroundColor: colors.deep },
-  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,9,0.45)' },
+  // Métricas fijas
+  metricsStrip: {
+    flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  metricItem: { flex: 1, alignItems: 'center' },
+  metricVal:  { color: colors.textHi, fontSize: 16, fontWeight: '800' },
+  metricLbl:  { color: colors.textDim, fontSize: 9, marginTop: 1, letterSpacing: 0.5 },
+  metricDiv:  { width: 1, backgroundColor: colors.border, marginHorizontal: 4 },
 
-  identity: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: -28, marginBottom: 12 },
+  banner:        { height: 130, position: 'relative', backgroundColor: colors.deep },
+  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,9,0.4)' },
+
+  identity: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: -26, marginBottom: 12 },
   logoWrap: { marginRight: 12 },
-  logo:     { width: 64, height: 64, borderRadius: 18, borderWidth: 2, borderColor: colors.border },
-  logoPlaceholder: { width: 64, height: 64, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  logo:     { width: 60, height: 60, borderRadius: 16, borderWidth: 2, borderColor: colors.border },
+  logoPlaceholder: { width: 60, height: 60, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   identityInfo: { flex: 1, paddingBottom: 4 },
   storeName:    { color: colors.textHi, fontSize: 18, fontWeight: '800', marginBottom: 4 },
   nivelBadge:   { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
   nivelTxt:     { fontSize: 11, fontWeight: '700' },
 
-  desc: { color: colors.textMid, fontSize: 13, lineHeight: 18, paddingHorizontal: 16, marginBottom: 16 },
+  desc: { color: colors.textMid, fontSize: 13, lineHeight: 18, paddingHorizontal: 16, marginBottom: 14 },
 
-  statsRow: {
-    flexDirection: 'row', marginHorizontal: 16, marginBottom: 16,
-    backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16,
-  },
-  statItem:    { flex: 1, alignItems: 'center' },
-  statVal:     { color: colors.textHi, fontSize: 18, fontWeight: '800', marginBottom: 2 },
-  statLbl:     { color: colors.textDim, fontSize: 11 },
-  statDivider: { width: 1, backgroundColor: colors.border, marginHorizontal: 8 },
-
-  sectionLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 10 },
-  sectionLabelTxt: { color: colors.textDim, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  sectionLabel:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 10 },
+  sectionLabelTxt: { flex: 1, color: colors.textDim, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  publishBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.c1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 },
+  publishBtnLarge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.c1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, marginTop: 8 },
+  publishBtnTxt:   { color: colors.black, fontSize: 11, fontWeight: '800' },
 
   grid: { paddingHorizontal: 16, paddingBottom: 40 },
   card: {
@@ -336,5 +511,39 @@ const s = StyleSheet.create({
 
   empty:    { alignItems: 'center', paddingTop: 40, gap: 8 },
   emptyTxt: { color: colors.textDim, fontSize: 13, textAlign: 'center' },
-  emptyLink:{ color: colors.c1, fontSize: 13, fontWeight: '600' },
+
+  // Inventory sheet
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderWidth: 1, borderColor: colors.border, borderBottomWidth: 0,
+    padding: 24, paddingBottom: 36, maxHeight: '80%',
+  },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 20 },
+  sheetTitle:  { color: colors.textHi, fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  sheetSub:    { color: colors.textDim, fontSize: 12, marginBottom: 18 },
+  sheetBack:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
+  sheetBackTxt:{ color: colors.textDim, fontSize: 13 },
+
+  // Inv cards
+  invCard:    { flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  invPreview: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  invName:    { color: colors.textHi, fontSize: 10, fontWeight: '600', paddingHorizontal: 6, paddingTop: 5, paddingBottom: 2 },
+  invUnits:   { color: colors.c1, fontSize: 9, paddingHorizontal: 6, paddingBottom: 8 },
+
+  noInv:    { alignItems: 'center', gap: 10, paddingVertical: 30 },
+  noInvTxt: { color: colors.textDim, fontSize: 13 },
+  noInvLink:{ color: colors.c1, fontSize: 13, fontWeight: '600' },
+
+  // Publish form
+  pubFields:    { gap: 14, marginBottom: 16 },
+  pubField:     {},
+  pubFieldLbl:  { color: colors.textMid, fontSize: 11, fontWeight: '700', marginBottom: 8 },
+  pubInput:     { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, color: colors.textHi, fontSize: 18, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 12 },
+
+  errBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(249,115,22,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.25)', padding: 12, marginBottom: 14 },
+  errTxt:  { color: colors.c4, fontSize: 12, flex: 1 },
+
+  confirmBtn:    { backgroundColor: colors.c1, borderRadius: 18, paddingVertical: 15, alignItems: 'center' },
+  confirmBtnTxt: { color: colors.black, fontSize: 15, fontWeight: '800' },
 });

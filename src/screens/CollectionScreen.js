@@ -202,6 +202,7 @@ export default function CollectionScreen({ navigation }) {
           ? renderEmpty('sparkles-outline', 'Colección vacía', 'Desbloquea marcos con XP o cómpralos en el catálogo')
           : (
             <FlatList
+              style={{ backgroundColor: colors.black }}
               data={owned}
               keyExtractor={(item, i) => item._id || String(i)}
               renderItem={renderFrameCard}
@@ -216,6 +217,7 @@ export default function CollectionScreen({ navigation }) {
           ? renderEmpty('storefront-outline', 'Sin marcos en el catálogo', 'Sé el primero en publicar un marco')
           : (
             <FlatList
+              style={{ backgroundColor: colors.black }}
               data={catalog}
               keyExtractor={(item) => item._id}
               renderItem={({ item, index }) => renderFrameCard({ item: { frame: item }, index })}

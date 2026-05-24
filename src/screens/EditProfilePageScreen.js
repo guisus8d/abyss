@@ -334,7 +334,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
         </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
+        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
 
           {/* Canvas */}
           <View style={s.canvas}>
@@ -438,7 +438,7 @@ export default function EditProfilePageScreen({ route, navigation }) {
               />
               {searchingMention && <ActivityIndicator size="small" color={colors.c1} />}
             </View>
-            <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ maxHeight: 240, backgroundColor: colors.black }} keyboardShouldPersistTaps="handled">
               {mentionResults.map(u => (
                 <TouchableOpacity key={u._id} style={s.mentionResultRow} onPress={() => addMentionBlock(u)}>
                   <View style={s.mentionResultAv}>

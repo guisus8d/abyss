@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   StatusBar, ActivityIndicator, Alert,
-  Dimensions, Modal, ScrollView,
+  Dimensions, Modal, ScrollView, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +23,10 @@ export default function FrameDetailScreen({ route, navigation }) {
   const [previewing, setPreviewing] = useState(false);
   const [infoModal, setInfoModal]   = useState(false);
   const [buying, setBuying]         = useState(false);
+  const [sellModal, setSellModal]   = useState(false);
+  const [sellPrice, setSellPrice]   = useState(String(frame.price || 50));
+  const [sellUnits, setSellUnits]   = useState('1');
+  const [selling, setSelling]       = useState(false);
 
   const isOwner    = mode === 'owner';
   const isEquipped = user?.profileFrame === frame._id;
@@ -54,8 +58,32 @@ export default function FrameDetailScreen({ route, navigation }) {
     } finally { setEquipping(false); }
   }
 
+  const XP_MINIMO = 100;
+
   function handleSell() {
-    Alert.alert('Proximamente', 'La tienda propia estara disponible en la siguiente actualizacion.');
+    if ((user?.xp || 0) < XP_MINIMO) {
+      Alert.alert('XP insuficiente', `Necesitas ${XP_MINIMO} XP para vender marcos.`);
+      return;
+    }
+    setSellModal(true);
+  }
+
+  async function handlePublish() {
+    const u = parseInt(sellUnits);
+    const p = parseInt(sellPrice);
+    if (!u || u < 1) { Alert.alert('Error', 'Ingresa un número de unidades válido'); return; }
+    if (!p || p < 1) { Alert.alert('Error', 'Ingresa un precio válido'); return; }
+    if (u > (units || 0)) { Alert.alert('Error', `Solo tienes ${units} unidad(es) disponibles`); return; }
+    setSelling(true);
+    try {
+      await api.patch(`/frames/${frame._id}/publish`, { units: u, price: p });
+      setSellModal(false);
+      Alert.alert('Publicado', `${u} unidad(es) puestas en venta a ${p} monedas c/u`, [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo publicar');
+    } finally { setSelling(false); }
   }
 
   async function handleBuy() {
@@ -175,8 +203,7 @@ export default function FrameDetailScreen({ route, navigation }) {
 
               <TouchableOpacity style={s.secBtn} onPress={handleSell} activeOpacity={0.8}>
                 <Ionicons name="storefront-outline" size={18} color="rgba(251,191,36,0.85)" />
-                <Text style={s.secBtnTxt}>Venderlo</Text>
-                <View style={s.soonTag}><Text style={s.soonTagTxt}>PRONTO</Text></View>
+                <Text style={s.secBtnTxt}>Poner en venta</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -212,6 +239,66 @@ export default function FrameDetailScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
+      {/* Modal Vender */}
+      <Modal visible={sellModal} transparent animationType="slide" onRequestClose={() => setSellModal(false)}>
+        <View style={s.overlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>PONER EN VENTA</Text>
+              <TouchableOpacity onPress={() => setSellModal(false)}>
+                <Ionicons name="close" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.infoRow}>
+              <Text style={s.infoLabel}>Disponibles</Text>
+              <Text style={s.infoValue}>{units} unidad(es)</Text>
+            </View>
+
+            <View style={[s.infoRow, s.infoRowBorder]}>
+              <Text style={s.infoLabel}>Precio (monedas)</Text>
+              <TextInput
+                style={s.sellInput}
+                value={sellPrice}
+                onChangeText={t => setSellPrice(t.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                placeholder="50"
+                placeholderTextColor={colors.textDim}
+              />
+            </View>
+
+            <View style={[s.infoRow, s.infoRowBorder]}>
+              <Text style={s.infoLabel}>Unidades a vender</Text>
+              <TextInput
+                style={s.sellInput}
+                value={sellUnits}
+                onChangeText={t => setSellUnits(t.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                placeholder="1"
+                placeholderTextColor={colors.textDim}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[s.mainBtn, { marginTop: 20 }]}
+              onPress={handlePublish}
+              disabled={selling}
+              activeOpacity={0.85}
+            >
+              <LinearGradient colors={['#7c4d00','#f97316']} style={s.btnInner} start={{ x:0,y:0 }} end={{ x:1,y:0 }}>
+                {selling
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <>
+                      <Ionicons name="storefront-outline" size={20} color="#fff" />
+                      <Text style={[s.mainBtnTxt, { color: '#fff' }]}>Confirmar publicación</Text>
+                    </>
+                }
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal Info */}
       <Modal visible={infoModal} transparent animationType="slide" onRequestClose={() => setInfoModal(false)}>
         <View style={s.overlay}>
@@ -222,7 +309,7 @@ export default function FrameDetailScreen({ route, navigation }) {
                 <Ionicons name="close" size={20} color={colors.textDim} />
               </TouchableOpacity>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false}>
               {[
                 { label: 'Nombre',      value: frame.name },
                 { label: 'Descripcion', value: frame.description || '—' },
@@ -280,8 +367,7 @@ const s = StyleSheet.create({
   secBtn: { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, paddingVertical:14, borderRadius:18, borderWidth:1, borderColor:'rgba(251,191,36,0.25)', backgroundColor:'rgba(251,191,36,0.06)' },
   secBtnActive: { borderColor:'rgba(251,191,36,0.5)', backgroundColor:'rgba(251,191,36,0.12)' },
   secBtnTxt: { color:'rgba(251,191,36,0.85)', fontWeight:'700', fontSize:14 },
-  soonTag: { backgroundColor:'rgba(251,191,36,0.12)', borderRadius:6, paddingHorizontal:6, paddingVertical:2, borderWidth:1, borderColor:'rgba(251,191,36,0.2)' },
-  soonTagTxt: { color:'rgba(251,191,36,0.6)', fontSize:8, fontWeight:'800', letterSpacing:1 },
+  sellInput: { flex:1, color:colors.textHi, fontSize:14, fontWeight:'600', textAlign:'right', backgroundColor:colors.surface, borderRadius:10, borderWidth:1, borderColor:colors.border, paddingHorizontal:10, paddingVertical:6 },
 
   overlay: { flex:1, backgroundColor:'rgba(0,0,0,0.75)', justifyContent:'flex-end' },
   modalBox: { backgroundColor:colors.surface, borderTopLeftRadius:24, borderTopRightRadius:24, borderWidth:1, borderColor:colors.border, padding:24, maxHeight:'72%' },

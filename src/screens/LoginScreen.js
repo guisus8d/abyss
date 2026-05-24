@@ -250,7 +250,7 @@ export default function LoginScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
 
       {/* ── Fondo oceánico ── */}
       <LinearGradient
@@ -267,6 +267,7 @@ export default function LoginScreen() {
       {PARTICLES.map(p => <Particle key={p.id} {...p} />)}
 
       <ScrollView
+        style={{ backgroundColor: 'transparent' }}
         contentContainerStyle={s.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

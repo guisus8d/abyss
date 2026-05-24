@@ -81,6 +81,7 @@ export default function FollowListScreen({ route, navigation }) {
         </View>
       ) : (
         <FlatList
+          style={{ backgroundColor: colors.black }}
           data={list}
           keyExtractor={u => u._id}
           renderItem={({ item }) => {

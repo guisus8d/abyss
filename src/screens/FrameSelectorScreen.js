@@ -183,6 +183,7 @@ export default function FrameSelectorScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
+          style={{ backgroundColor: colors.black }}
           data={owned}
           keyExtractor={(item, i) => (item.frame?._id || item._id || String(i))}
           renderItem={renderCard}

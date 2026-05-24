@@ -60,6 +60,7 @@ export default function BlockedUsersScreen({ navigation }) {
         <ActivityIndicator color={colors.c1} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
+          style={{ backgroundColor: colors.black }}
           data={blocked}
           keyExtractor={u => u._id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20 }}

@@ -129,6 +129,7 @@ export default function CreateGroupScreen({ navigation }) {
       </SafeAreaView>
 
       <ScrollView
+        style={{ backgroundColor: colors.black }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={400}
         onScroll={({ nativeEvent }) => {

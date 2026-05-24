@@ -1,14 +1,47 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, StatusBar, ScrollView, KeyboardAvoidingView, Platform,
+  ActivityIndicator, StatusBar, ScrollView, KeyboardAvoidingView,
+  Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 
-function Field({ label, value, onChangeText, placeholder, multiline, maxLength }) {
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abyss-production-7171.up.railway.app/api';
+
+async function uploadStoreImage(localUri, field) {
+  const token = await AsyncStorage.getItem('token');
+  const formData = new FormData();
+  formData.append(field, { uri: localUri, type: 'image/jpeg', name: `${field}.jpg` });
+  const res = await fetch(`${BASE_URL}/store/me/${field}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Error al subir ${field}`);
+  return data.url;
+}
+
+async function pickImage(aspect) {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') throw new Error('Permiso de galería requerido');
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect,
+    quality: 0.85,
+  });
+  if (result.canceled) return null;
+  return result.assets[0].uri;
+}
+
+function TextField({ label, value, onChangeText, placeholder, multiline, maxLength }) {
   return (
     <View style={s.fieldWrap}>
       <Text style={s.fieldLabel}>{label}</Text>
@@ -22,48 +55,109 @@ function Field({ label, value, onChangeText, placeholder, multiline, maxLength }
         maxLength={maxLength}
         textAlignVertical={multiline ? 'top' : 'center'}
       />
-      {maxLength && (
-        <Text style={s.charCount}>{value.length}/{maxLength}</Text>
-      )}
+      {maxLength && <Text style={s.charCount}>{value.length}/{maxLength}</Text>}
+    </View>
+  );
+}
+
+function ImageField({ label, uri, onPick, uploading, aspect, hint }) {
+  return (
+    <View style={s.fieldWrap}>
+      <Text style={s.fieldLabel}>{label}</Text>
+      <TouchableOpacity style={s.imagePicker} onPress={onPick} disabled={uploading} activeOpacity={0.8}>
+        {uri ? (
+          <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : (
+          <LinearGradient
+            colors={['rgba(0,229,204,0.06)', 'rgba(41,121,255,0.06)']}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', gap: 6 }]}>
+          {uploading
+            ? <ActivityIndicator color={colors.c1} />
+            : <>
+                <View style={s.imagePickerIcon}>
+                  <Ionicons name={uri ? 'pencil-outline' : 'camera-outline'} size={22} color={colors.c1} />
+                </View>
+                <Text style={s.imagePickerTxt}>{uri ? 'Cambiar imagen' : 'Subir imagen'}</Text>
+                {hint && !uri && <Text style={s.imagePickerHint}>{hint}</Text>}
+              </>}
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }
 
 export default function CreateStoreScreen({ navigation, route }) {
-  const existing = route.params?.store;
+  const existing  = route.params?.store;
   const onCreated = route.params?.onCreated;
-  const isEdit = !!existing;
+  const isEdit    = !!existing;
 
   const [nombre,      setNombre]      = useState(existing?.nombre      || '');
   const [descripcion, setDescripcion] = useState(existing?.descripcion || '');
-  const [banner,      setBanner]      = useState(existing?.banner      || '');
-  const [logo,        setLogo]        = useState(existing?.logo        || '');
+  const [bannerLocal, setBannerLocal] = useState(existing?.banner || null);
+  const [logoLocal,   setLogoLocal]   = useState(existing?.logo   || null);
   const [loading,     setLoading]     = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingLogo,   setUploadingLogo]   = useState(false);
   const [errMsg,      setErrMsg]      = useState('');
+
+  async function handlePickBanner() {
+    try {
+      const uri = await pickImage([16, 5]);
+      if (!uri) return;
+      setBannerLocal(uri);
+    } catch (e) { setErrMsg(e.message); }
+  }
+
+  async function handlePickLogo() {
+    try {
+      const uri = await pickImage([1, 1]);
+      if (!uri) return;
+      setLogoLocal(uri);
+    } catch (e) { setErrMsg(e.message); }
+  }
 
   async function submit() {
     if (!nombre.trim()) { setErrMsg('El nombre de la tienda es requerido'); return; }
     setLoading(true);
     setErrMsg('');
     try {
-      const payload = { nombre: nombre.trim(), descripcion: descripcion.trim(), banner: banner.trim(), logo: logo.trim() };
+      // 1. Crear o actualizar datos de texto
       if (isEdit) {
-        await api.patch('/store/me', payload);
+        await api.patch('/store/me', { nombre: nombre.trim(), descripcion: descripcion.trim() });
       } else {
         await api.post('/store', { nombre: nombre.trim(), descripcion: descripcion.trim() });
-        // Update banner/logo if provided
-        if (banner.trim() || logo.trim()) {
-          await api.patch('/store/me', { banner: banner.trim(), logo: logo.trim() });
-        }
       }
+
+      // 2. Subir banner si es una URI local (no URL remota)
+      if (bannerLocal && bannerLocal.startsWith('file')) {
+        setUploadingBanner(true);
+        await uploadStoreImage(bannerLocal, 'banner');
+        setUploadingBanner(false);
+      }
+
+      // 3. Subir logo si es una URI local
+      if (logoLocal && logoLocal.startsWith('file')) {
+        setUploadingLogo(true);
+        await uploadStoreImage(logoLocal, 'logo');
+        setUploadingLogo(false);
+      }
+
       onCreated?.();
       navigation.goBack();
     } catch (e) {
-      setErrMsg(e.response?.data?.error || 'Error al guardar');
+      setErrMsg(e.response?.data?.error || e.message || 'Error al guardar');
+      setUploadingBanner(false);
+      setUploadingLogo(false);
     } finally {
       setLoading(false);
     }
   }
+
+  const isUploading = loading || uploadingBanner || uploadingLogo;
+  const uploadLabel = uploadingBanner ? 'Subiendo banner...' : uploadingLogo ? 'Subiendo logo...' : 'Guardando...';
 
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -86,14 +180,14 @@ export default function CreateStoreScreen({ navigation, route }) {
           {isEdit ? 'Actualiza la información de tu tienda' : 'Crea tu tienda para vender marcos a la comunidad de Abyss'}
         </Text>
 
-        <Field
+        <TextField
           label="Nombre de la tienda *"
           value={nombre}
           onChangeText={setNombre}
           placeholder="Ej: Pixel Arts Studio"
           maxLength={50}
         />
-        <Field
+        <TextField
           label="Descripción"
           value={descripcion}
           onChangeText={setDescripcion}
@@ -103,23 +197,32 @@ export default function CreateStoreScreen({ navigation, route }) {
         />
 
         <View style={s.separator}>
-          <View style={s.separatorLine} />
-          <Text style={s.separatorTxt}>IMÁGENES (URL)</Text>
-          <View style={s.separatorLine} />
+          <View style={s.sepLine} />
+          <Text style={s.sepTxt}>IMÁGENES</Text>
+          <View style={s.sepLine} />
         </View>
 
-        <Field
-          label="Banner (URL de imagen)"
-          value={banner}
-          onChangeText={setBanner}
-          placeholder="https://..."
+        <ImageField
+          label="Banner"
+          uri={bannerLocal}
+          onPick={handlePickBanner}
+          uploading={uploadingBanner}
+          aspect={[16, 5]}
+          hint="Recomendado 1600×500 px"
         />
-        <Field
-          label="Logo (URL de imagen)"
-          value={logo}
-          onChangeText={setLogo}
-          placeholder="https://..."
+
+        <ImageField
+          label="Logo"
+          uri={logoLocal}
+          onPick={handlePickLogo}
+          uploading={uploadingLogo}
+          aspect={[1, 1]}
+          hint="Recomendado cuadrado"
         />
+
+        <Text style={s.fallbackNote}>
+          Si no subes banner o logo, se mostrará un fondo degradado automático.
+        </Text>
 
         {errMsg ? (
           <View style={s.errBox}>
@@ -128,9 +231,13 @@ export default function CreateStoreScreen({ navigation, route }) {
           </View>
         ) : null}
 
-        <TouchableOpacity style={[s.submitBtn, loading && { opacity: 0.6 }]} onPress={submit} disabled={loading}>
-          {loading
-            ? <ActivityIndicator size={18} color={colors.black} />
+        <TouchableOpacity
+          style={[s.submitBtn, isUploading && { opacity: 0.6 }]}
+          onPress={submit}
+          disabled={isUploading}
+        >
+          {isUploading
+            ? <><ActivityIndicator size={16} color={colors.black} /><Text style={s.submitTxt}>{uploadLabel}</Text></>
             : <Text style={s.submitTxt}>{isEdit ? 'Guardar cambios' : 'Crear tienda'}</Text>}
         </TouchableOpacity>
       </ScrollView>
@@ -158,13 +265,29 @@ const s = StyleSheet.create({
   inputMulti: { minHeight: 90, paddingTop: 12 },
   charCount:  { color: colors.textDim, fontSize: 10, textAlign: 'right', marginTop: 4 },
 
-  separator:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 8, marginBottom: 18 },
-  separatorLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  separatorTxt:  { color: colors.textDim, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  separator: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 8, marginBottom: 18 },
+  sepLine:   { flex: 1, height: 1, backgroundColor: colors.border },
+  sepTxt:    { color: colors.textDim, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+
+  imagePicker: {
+    height: 110, borderRadius: 16, overflow: 'hidden',
+    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    position: 'relative',
+  },
+  imagePickerIcon: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: 'rgba(0,229,204,0.15)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  imagePickerTxt:  { color: colors.textHi, fontSize: 13, fontWeight: '600' },
+  imagePickerHint: { color: colors.textDim, fontSize: 10 },
+
+  fallbackNote: { color: colors.textDim, fontSize: 11, textAlign: 'center', marginBottom: 20, lineHeight: 16 },
 
   errBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(249,115,22,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.25)', padding: 12, marginBottom: 16 },
   errTxt:  { color: colors.c4, fontSize: 13, flex: 1 },
 
-  submitBtn: { backgroundColor: colors.c1, borderRadius: 18, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.c1, borderRadius: 18, paddingVertical: 16, marginTop: 8 },
   submitTxt: { color: colors.black, fontSize: 15, fontWeight: '800' },
 });

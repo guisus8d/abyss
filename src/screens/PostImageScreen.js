@@ -75,7 +75,7 @@ export default function PostImageScreen({ navigation }) {
       </SafeAreaView>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
           <TouchableOpacity style={s.imagePicker} onPress={pickImage}>
             {image ? (

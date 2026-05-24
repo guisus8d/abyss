@@ -264,7 +264,7 @@ export default function ModPanelScreen({ navigation, route }) {
 
       {/* ══════════════ TAB: REPORTES ══════════════ */}
       {activeTab === 'reports' && (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false}>
           {/* Stats */}
           <View style={s.statsRow}>
             <TouchableOpacity style={[s.statCard, reportFilter==='pending'   && s.statCardActive]} onPress={() => setReportFilter('pending')}>
@@ -311,7 +311,7 @@ export default function ModPanelScreen({ navigation, route }) {
 
       {/* ══════════════ TAB: USUARIOS ══════════════ */}
       {activeTab === 'users' && (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false}>
           {/* Stats */}
           <View style={s.statsRow}>
             <View style={s.statCard}>

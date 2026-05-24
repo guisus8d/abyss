@@ -247,7 +247,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* ── Hero ── */}

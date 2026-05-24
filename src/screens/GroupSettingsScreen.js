@@ -242,6 +242,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
           <FlatList
+            style={{ backgroundColor: colors.black }}
             data={group.members}
             keyExtractor={(m, i) => String(m.user?._id || m.user || i)}
             contentContainerStyle={{ padding: 16, gap: 12 }}
@@ -301,6 +302,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
             </View>
           ) : (
             <FlatList
+              style={{ backgroundColor: colors.black }}
               data={group.members?.filter(m => {
                 const uid = (m.user?._id || m.user)?.toString();
                 return uid !== user?._id?.toString();
@@ -396,6 +398,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
             : contacts.length === 0
               ? <Text style={s.emptyTxt}>No hay contactos para agregar</Text>
               : <FlatList
+                  style={{ backgroundColor: colors.black }}
                   data={contacts}
                   keyExtractor={c => c._id}
                   contentContainerStyle={{ padding: 16, gap: 12 }}
@@ -446,6 +449,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
             : bannedUsers.length === 0
               ? <Text style={s.emptyTxt}>No hay usuarios baneados</Text>
               : <FlatList
+                  style={{ backgroundColor: colors.black }}
                   data={bannedUsers}
                   keyExtractor={u => u._id}
                   contentContainerStyle={{ padding: 16, gap: 12 }}
@@ -488,7 +492,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
         {/* ── Imagen y nombre ── */}
         <View style={s.heroSection}>

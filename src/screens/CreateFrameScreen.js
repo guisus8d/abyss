@@ -185,6 +185,7 @@ export default function CreateFrameScreen({ navigation }) {
           <View style={s.avatarSelector}>
             <Text style={s.avatarSelectorLabel}>PREVISUALIZAR CON</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={{ backgroundColor: colors.black }}
               contentContainerStyle={s.avatarSelectorRow}>
               {SAMPLE_AVATARS.map((a, i) => (
                 <TouchableOpacity key={i} style={[s.avatarSampleBtn, selectedAvatar===i && s.avatarSampleBtnActive]}
@@ -220,7 +221,7 @@ export default function CreateFrameScreen({ navigation }) {
 
       {/* ── TAB EDITOR ── */}
       {tab === 'editor' && (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
           {!canCreate && (
             <View style={s.reqBanner}>
@@ -350,7 +351,7 @@ export default function CreateFrameScreen({ navigation }) {
 
       {/* ── TAB INFO ── */}
       {tab === 'info' && (
-        <ScrollView contentContainerStyle={{padding:20,gap:16}} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ backgroundColor: colors.black }} contentContainerStyle={{padding:20,gap:16}} showsVerticalScrollIndicator={false}>
           <View style={s.infoCard}>
             <View style={s.infoIcon}><Ionicons name="sparkles" size={22} color="rgba(244,114,182,1)" /></View>
             <Text style={s.infoTitle}>¿Qué es un marco?</Text>

@@ -95,7 +95,7 @@ export default function TopScreen({ navigation }) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
 
       {/* ── Header ── */}
       <LinearGradient colors={['#1a1000', colors.black]} style={s.headerGrad}>
