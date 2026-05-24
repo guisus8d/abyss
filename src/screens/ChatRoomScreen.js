@@ -12,6 +12,7 @@ import AudioMessage    from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
+import GiftBubble from '../components/GiftBubble';
 import { Ionicons }    from '@expo/vector-icons';
 import { colors }      from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
@@ -139,78 +140,6 @@ const sp = StyleSheet.create({
 
 const AVATAR_SLOT = 36;
 
-// ─── GiftBubble ───────────────────────────────────────────────────────────────
-
-function GiftBubble({ giftData, giftId, isMe, onGiftAction }) {
-  const { monedas = 0, items = [], mensaje = '', estado = 'pendiente', emisorUsername = '' } = giftData || {};
-  const isPending  = estado === 'pendiente';
-  const isAccepted = estado === 'aceptado';
-
-  return (
-    <View style={gb.wrap}>
-      <View style={gb.header}>
-        <Text style={gb.giftEmoji}>🎁</Text>
-        <Text style={gb.giftTitle}>REGALO</Text>
-      </View>
-      {monedas > 0 && (
-        <View style={gb.row}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <CoinIcon size={14} />
-            <Text style={gb.coinsVal}>{monedas} monedas</Text>
-          </View>
-          {!isMe && isPending && (
-            <Text style={gb.coinsNote}>({Math.round(monedas * 0.85)} al aceptar)</Text>
-          )}
-        </View>
-      )}
-      {items.map((it, i) => (
-        <View key={i} style={gb.row}>
-          <Text style={gb.frameName}>🖼 {it.name || 'Marco'}{it.cantidad > 1 ? ` ×${it.cantidad}` : ''}</Text>
-        </View>
-      ))}
-      {!!mensaje && <Text style={gb.mensaje}>"{mensaje}"</Text>}
-
-      {!isMe && isPending && giftId && (
-        <View style={gb.actions}>
-          <TouchableOpacity style={gb.acceptBtn} onPress={() => onGiftAction?.(giftId, 'accept')}>
-            <Text style={gb.acceptTxt}>Aceptar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={gb.rejectBtn} onPress={() => onGiftAction?.(giftId, 'reject')}>
-            <Text style={gb.rejectTxt}>Rechazar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {isMe && isPending && (
-        <Text style={gb.status}>⏳ Pendiente de aceptación</Text>
-      )}
-      {isAccepted && (
-        <Text style={[gb.status, { color: colors.c1 }]}>✓ Aceptado</Text>
-      )}
-      {estado === 'rechazado' && (
-        <Text style={[gb.status, { color: 'rgba(239,68,68,0.7)' }]}>✗ Rechazado</Text>
-      )}
-    </View>
-  );
-}
-
-const gb = StyleSheet.create({
-  wrap:       { minWidth: 200, maxWidth: 260 },
-  header:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', paddingBottom: 8 },
-  giftEmoji:  { fontSize: 18 },
-  giftTitle:  { color: colors.c3, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
-  row:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  coinsVal:   { color: 'rgba(251,191,36,1)', fontSize: 15, fontWeight: '800' },
-  coinsNote:  { color: 'rgba(251,191,36,0.6)', fontSize: 10 },
-  frameName:  { color: colors.textHi, fontSize: 13, fontWeight: '600' },
-  mensaje:    { color: colors.textDim, fontSize: 11, fontStyle: 'italic', marginTop: 4, marginBottom: 8 },
-  actions:    { flexDirection: 'row', gap: 8, marginTop: 10 },
-  acceptBtn:  { flex: 1, backgroundColor: colors.c1, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
-  acceptTxt:  { color: colors.black, fontSize: 12, fontWeight: '800' },
-  rejectBtn:  { flex: 1, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 10, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
-  rejectTxt:  { color: 'rgba(239,68,68,0.8)', fontSize: 12, fontWeight: '700' },
-  status:     { color: colors.textDim, fontSize: 11, marginTop: 8, textAlign: 'center' },
-});
-
 // ─── MessageBubble — React.memo: solo re-renderiza si sus props cambian ───────
 // Esta es la clave del fix: antes, al llegar 1 mensaje nuevo, las 50 burbujas
 // se re-renderizaban. Ahora solo la nueva (o la que cambia sus props).
@@ -232,6 +161,7 @@ const MessageBubble = memo(function MessageBubble({
   const sameAsOlder = olderMsg && (isMe ? olderIsMe : !olderIsMe);
   const showAvatar  = !sameAsOlder;
   const isPostType  = item.type === 'shared_post' || item.type === 'shared_profile';
+  const isGiftType  = item.type === 'gift';
 
   const senderAvatar   = item.sender?.avatarUrl       ?? (isMe ? user.avatarUrl       : other.avatarUrl);
   const senderName     = item.sender?.username        ?? (isMe ? user.username        : other.username);
@@ -248,7 +178,7 @@ const MessageBubble = memo(function MessageBubble({
           )}
         </View>
   <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.8}
-  style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost]}>
+  style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost, isGiftType && s.bubbleGift]}>
 
   {item.replyTo?.text && (
     <TouchableOpacity style={s.replyPreview} onPress={() => onScrollToMsg(item.replyTo.messageId)}>
@@ -278,7 +208,7 @@ const MessageBubble = memo(function MessageBubble({
         textStyle={s.bubbleTxt} onLongPress={onLongPress} />
   }
 
-  {!isPostType && <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>}
+  {!isPostType && !isGiftType && <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>}
 
   {item.reactions?.length > 0 && (
     <View style={s.msgReactions}>
@@ -906,7 +836,10 @@ export default function ChatRoomScreen({ route, navigation }) {
                   placeholderTextColor={colors.textDim}
                 />
                 {parseInt(giftCoins) > 0 && (
-                  <Text style={s.giftNote}>El receptor recibe {Math.round(parseInt(giftCoins) * 0.85)} monedas (15% comisión)</Text>
+                  <View style={s.giftCommissionCard}>
+                    <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
+                    <Text style={s.giftNote}>El destinatario recibirá <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>{Math.round(parseInt(giftCoins) * 0.85)} coins</Text> (se aplica 15% de comisión)</Text>
+                  </View>
                 )}
               </View>
             )}
@@ -940,6 +873,12 @@ export default function ChatRoomScreen({ route, navigation }) {
                     })}
                   </ScrollView>
                 )}
+                {giftFrame && (
+                  <View style={[s.giftCommissionCard, { marginTop: 8 }]}>
+                    <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
+                    <Text style={s.giftNote}>Costo de transferencia: <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>5 coins por ítem</Text></Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -949,7 +888,7 @@ export default function ChatRoomScreen({ route, navigation }) {
                 style={[s.giftInput, { height: 70, textAlignVertical: 'top' }]}
                 value={giftMsg}
                 onChangeText={setGiftMsg}
-                placeholder="Escribe algo bonito..."
+                placeholder="Con mis mejores deseos! 🎁"
                 placeholderTextColor={colors.textDim}
                 multiline
                 maxLength={200}
@@ -994,6 +933,7 @@ const s = StyleSheet.create({
   bubbleMe:     { backgroundColor:'#00a896', borderColor:'rgba(0,229,204,0.4)', borderBottomRightRadius:4 },
   bubbleThem:   { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius:4 },
   bubblePost:   { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
+  bubbleGift:   { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
   bubbleTxt:    { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:   { color: colors.textDim, fontSize:9, marginTop:4, textAlign:'right' },
   mediaBtn:           { padding:8, justifyContent:'center', alignItems:'center' },
@@ -1053,7 +993,8 @@ const s = StyleSheet.create({
   giftField:        { marginBottom:14 },
   giftFieldLbl:     { color:colors.textMid, fontSize:11, fontWeight:'700', marginBottom:8, letterSpacing:0.5 },
   giftInput:        { backgroundColor:colors.deep, borderRadius:14, borderWidth:1, borderColor:colors.border, color:colors.textHi, fontSize:15, paddingHorizontal:14, paddingVertical:11 },
-  giftNote:         { color:colors.textDim, fontSize:10, marginTop:6 },
+  giftNote:         { color:colors.textDim, fontSize:11, flex:1 },
+  giftCommissionCard: { flexDirection:'row', alignItems:'flex-start', gap:6, backgroundColor:'rgba(255,255,255,0.04)', borderRadius:10, borderWidth:1, borderColor:colors.border, padding:10, marginTop:8 },
   giftEmptyInv:     { color:colors.textDim, fontSize:13, textAlign:'center', paddingVertical:20 },
   giftFrameCard:    { width:90, height:100, backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, alignItems:'center', justifyContent:'center', marginRight:10, padding:8 },
   giftFrameCardSelected: { borderColor:colors.c3, backgroundColor:'rgba(168,85,247,0.1)' },

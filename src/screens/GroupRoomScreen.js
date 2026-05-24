@@ -17,6 +17,7 @@ import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
 import AudioMessage from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
+import GiftBubble from '../components/GiftBubble';
 
 const AVATAR_SLOT = 38;
 
@@ -98,60 +99,6 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
   );
 }
 
-// ─── GiftBubble ───────────────────────────────────────────────────────────────
-function GroupGiftBubble({ giftData, giftId, isMe, onGiftAction }) {
-  const { monedas = 0, items = [], mensaje = '', estado = 'pendiente' } = giftData || {};
-  const isPending  = estado === 'pendiente';
-  const isAccepted = estado === 'aceptado';
-  return (
-    <View style={gg.wrap}>
-      <View style={gg.header}>
-        <Text style={gg.emoji}>🎁</Text>
-        <Text style={gg.title}>REGALO</Text>
-      </View>
-      {monedas > 0 && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-          <CoinIcon size={14} />
-          <Text style={gg.coins}>{monedas} monedas{!isMe && isPending ? ` (${Math.round(monedas * 0.85)} al aceptar)` : ''}</Text>
-        </View>
-      )}
-      {items.map((it, i) => (
-        <Text key={i} style={gg.frame}>🖼 {it.name || 'Marco'}{it.cantidad > 1 ? ` ×${it.cantidad}` : ''}</Text>
-      ))}
-      {!!mensaje && <Text style={gg.msg}>"{mensaje}"</Text>}
-      {!isMe && isPending && giftId && (
-        <View style={gg.actions}>
-          <TouchableOpacity style={gg.acceptBtn} onPress={() => onGiftAction?.(giftId, 'accept')}>
-            <Text style={gg.acceptTxt}>Aceptar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={gg.rejectBtn} onPress={() => onGiftAction?.(giftId, 'reject')}>
-            <Text style={gg.rejectTxt}>Rechazar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {isMe && isPending && <Text style={gg.status}>⏳ Pendiente</Text>}
-      {isAccepted && <Text style={[gg.status, { color: colors.c1 }]}>✓ Aceptado</Text>}
-      {estado === 'rechazado' && <Text style={[gg.status, { color: 'rgba(239,68,68,0.7)' }]}>✗ Rechazado</Text>}
-    </View>
-  );
-}
-
-const gg = StyleSheet.create({
-  wrap:      { minWidth: 190, maxWidth: 250 },
-  header:    { flexDirection:'row', alignItems:'center', gap:6, marginBottom:8, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.08)', paddingBottom:7 },
-  emoji:     { fontSize:16 },
-  title:     { color:colors.c3, fontSize:10, fontWeight:'900', letterSpacing:2 },
-  coins:     { color:'rgba(251,191,36,1)', fontSize:14, fontWeight:'800', marginBottom:3 },
-  frame:     { color:colors.textHi, fontSize:12, fontWeight:'600', marginBottom:3 },
-  msg:       { color:colors.textDim, fontSize:10, fontStyle:'italic', marginTop:4, marginBottom:6 },
-  actions:   { flexDirection:'row', gap:6, marginTop:8 },
-  acceptBtn: { flex:1, backgroundColor:colors.c1, borderRadius:9, paddingVertical:7, alignItems:'center' },
-  acceptTxt: { color:colors.black, fontSize:11, fontWeight:'800' },
-  rejectBtn: { flex:1, backgroundColor:'rgba(239,68,68,0.1)', borderRadius:9, paddingVertical:7, alignItems:'center', borderWidth:1, borderColor:'rgba(239,68,68,0.3)' },
-  rejectTxt: { color:'rgba(239,68,68,0.8)', fontSize:11, fontWeight:'700' },
-  status:    { color:colors.textDim, fontSize:10, marginTop:6, textAlign:'center' },
-});
-
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
   msg, prevMsg, isMe, user, group, isAdmin, blockedIds,
@@ -209,7 +156,7 @@ const MessageBubble = memo(function MessageBubble({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost]}
+            style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost, msg.type === 'gift' && s.bubbleGift]}
             delayLongPress={350}
             onLongPress={() => !isDeleted && onOpenMenu(msg)}
             activeOpacity={0.85}
@@ -227,7 +174,7 @@ const MessageBubble = memo(function MessageBubble({
                   </View>
                 )}
                 {msg.type === 'gift'
-                  ? <GroupGiftBubble giftData={msg.giftData} giftId={msg.giftId} isMe={isMe} onGiftAction={onGiftAction} />
+                  ? <GiftBubble giftData={msg.giftData} giftId={msg.giftId} isMe={isMe} onGiftAction={onGiftAction} />
                   : msg.type === 'shared_profile' && msg.sharedProfile
                   ? <SharedProfileBubble sharedProfile={msg.sharedProfile} navigation={navigation} isMe={isMe} onLongPress={() => onOpenMenu(msg)} />
                   : msg.type === 'shared_post' && msg.sharedPost
@@ -248,7 +195,7 @@ const MessageBubble = memo(function MessageBubble({
                 }
               </>
             )}
-            {!isPostType && !isDeleted && (
+            {!isPostType && msg.type !== 'gift' && !isDeleted && (
               <Text style={s.bubbleTime}>{timeStr(msg.createdAt)}</Text>
             )}
           </TouchableOpacity>
@@ -1213,9 +1160,10 @@ export default function GroupRoomScreen({ route, navigation }) {
                   placeholderTextColor={colors.textDim}
                 />
                 {parseInt(giftCoins) > 0 && (
-                  <Text style={{ color: colors.textDim, fontSize: 10, marginBottom: 10 }}>
-                    Receptor recibe {Math.round(parseInt(giftCoins) * 0.85)} monedas (15% comisión)
-                  </Text>
+                  <View style={s.giftCommissionCard}>
+                    <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
+                    <Text style={s.giftCommissionTxt}>El destinatario recibirá <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>{Math.round(parseInt(giftCoins) * 0.85)} coins</Text> (se aplica 15% de comisión)</Text>
+                  </View>
                 )}
               </>
             )}
@@ -1228,7 +1176,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                   : giftInv.length === 0
                   ? <Text style={{ color: colors.textDim, fontSize: 12, marginBottom: 10 }}>Sin marcos en inventario</Text>
                   : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                       {giftInv.map(item => {
                         const fr = item.frame || item;
                         const sel = giftFrame && (giftFrame.frame || giftFrame)._id === fr._id;
@@ -1247,6 +1195,12 @@ export default function GroupRoomScreen({ route, navigation }) {
                       })}
                     </ScrollView>
                   )}
+                {giftFrame && (
+                  <View style={[s.giftCommissionCard, { marginTop: 4, marginBottom: 8 }]}>
+                    <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
+                    <Text style={s.giftCommissionTxt}>Costo de transferencia: <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>5 coins por ítem</Text></Text>
+                  </View>
+                )}
               </>
             )}
 
@@ -1255,7 +1209,7 @@ export default function GroupRoomScreen({ route, navigation }) {
               style={[s.giftInput, { height: 60, textAlignVertical: 'top', marginBottom: 14 }]}
               value={giftMsg}
               onChangeText={setGiftMsg}
-              placeholder="Escribe algo bonito..."
+              placeholder="Con mis mejores deseos! 🎁"
               placeholderTextColor={colors.textDim}
               multiline
               maxLength={200}
@@ -1315,6 +1269,7 @@ const s = StyleSheet.create({
   bubbleMe:    { backgroundColor:'#00a896', borderBottomRightRadius:4 },
   bubbleThem:  { backgroundColor: colors.surface, borderBottomLeftRadius:4, borderWidth:1, borderColor: colors.border },
   bubblePost:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0 },
+  bubbleGift:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0 },
   bubbleText:  { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:  { color:'rgba(255,255,255,0.4)', fontSize:9, alignSelf:'flex-end' },
 
@@ -1417,4 +1372,6 @@ const s = StyleSheet.create({
   giftFrameCardSel: { borderColor:colors.c3, backgroundColor:'rgba(168,85,247,0.1)' },
   giftSendBtn:      { flexDirection:'row', alignItems:'center', justifyContent:'center', backgroundColor:colors.c3, borderRadius:16, paddingVertical:13 },
   giftSendTxt:      { color:'#fff', fontSize:14, fontWeight:'800' },
+  giftCommissionCard: { flexDirection:'row', alignItems:'flex-start', gap:6, backgroundColor:'rgba(255,255,255,0.04)', borderRadius:10, borderWidth:1, borderColor:colors.border, padding:10 },
+  giftCommissionTxt:  { color:colors.textDim, fontSize:11, flex:1 },
 });
