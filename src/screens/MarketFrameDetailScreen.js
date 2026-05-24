@@ -165,7 +165,6 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               onPress={() => navigation.navigate('FramePreview', { frame })}
               activeOpacity={0.8}
             >
-              <Ionicons name="eye-outline" size={18} color="rgba(251,191,36,0.65)" />
               <Text style={s.btnPreviewTxt}>Previsualizar</Text>
             </TouchableOpacity>
 
@@ -175,26 +174,23 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                 <Text style={s.btnDisabledTxt}>Tuyo</Text>
               </View>
             ) : canBuy ? (
-              <TouchableOpacity
-                style={[s.btnHalf, { overflow: 'hidden', borderRadius: 18 }]}
-                onPress={handleBuy}
-                disabled={buying}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={['#7c4d00','#f97316']}
-                  style={StyleSheet.absoluteFill}
-                  start={{ x:0,y:0 }}
-                  end={{ x:1,y:0 }}
-                />
-                {buying
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <>
-                      <CoinIcon size={16} />
-                      <Text style={s.btnBuyTxt}>{frame.price}  Comprar</Text>
-                    </>
-                }
-              </TouchableOpacity>
+              <View style={s.btnBuyWrap}>
+                <TouchableOpacity
+                  style={s.btnBuy}
+                  onPress={handleBuy}
+                  disabled={buying}
+                  activeOpacity={0.85}
+                >
+                  {buying
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <>
+                        <CoinIcon size={16} />
+                        <Text style={s.btnBuyTxt}>{frame.price}</Text>
+                      </>
+                  }
+                </TouchableOpacity>
+                <Text style={s.btnBuyUnits}>× {frame.units} disponibles</Text>
+              </View>
             ) : (
               <View style={[s.btnHalf, s.btnDisabled]}>
                 <Ionicons name="close-circle-outline" size={18} color={colors.textDim} />
@@ -330,12 +326,19 @@ const s = StyleSheet.create({
     paddingVertical: 15, borderRadius: 18,
   },
 
-  btnPreview: {
-    borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
-    backgroundColor: 'rgba(251,191,36,0.07)',
+  btnPreview:    { backgroundColor: colors.c1 },
+  btnPreviewTxt: { color: '#000', fontWeight: '800', fontSize: 13 },
+
+  btnBuyWrap:  { flex: 1, alignItems: 'center', gap: 6 },
+  btnBuy: {
+    width: '100%', flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 8,
+    paddingVertical: 15, borderRadius: 18,
+    backgroundColor: '#f97316',
   },
-  btnPreviewTxt:   { color: 'rgba(251,191,36,0.65)', fontWeight: '700', fontSize: 13 },
   btnBuyTxt:    { color: '#fff', fontWeight: '800', fontSize: 14 },
+  btnBuyUnits:  { color: colors.textDim, fontSize: 11 },
+
   btnDisabled:  {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',

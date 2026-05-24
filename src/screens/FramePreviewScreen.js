@@ -53,9 +53,6 @@ export default function FramePreviewScreen({ route, navigation }) {
             profileFrame={frame._id}
             frameUrl={frameUrl}
           />
-          {user?.username ? (
-            <Text style={s.username}>@{user.username}</Text>
-          ) : null}
         </View>
       </SafeAreaView>
     </View>
