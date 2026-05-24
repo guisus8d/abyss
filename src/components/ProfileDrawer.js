@@ -16,14 +16,15 @@ import CoinIcon from './CoinIcon';
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.72, 300);
 
-// MenuItem con ícono en contenedor coloreado (estilo Telegram/Discord)
-function MenuItem({ icon, label, color, onPress, badge }) {
-  const bg     = color + '1A'; // ~10% opacity
-  const border = color + '30'; // ~19% opacity
+const AVATAR_SIZE   = 80;
+const FRAME_SIZE    = AVATAR_SIZE * 1.42;
+const FRAME_OFFSET  = (FRAME_SIZE - AVATAR_SIZE) / 2;
+
+function MenuItem({ icon, label, onPress, badge }) {
   return (
     <TouchableOpacity style={s.menuItem} onPress={onPress} activeOpacity={0.7}>
-      <View style={[s.iconBox, { backgroundColor: bg, borderColor: border }]}>
-        <Ionicons name={icon} size={19} color={color} />
+      <View style={s.iconBox}>
+        <Ionicons name={icon} size={19} color={colors.textMid} />
       </View>
       <Text style={s.menuLabel}>{label}</Text>
       {badge != null && badge > 0 ? (
@@ -37,21 +38,11 @@ function MenuItem({ icon, label, color, onPress, badge }) {
   );
 }
 
-function SectionDivider({ label }) {
-  return (
-    <View style={s.dividerWrap}>
-      {label
-        ? <Text style={s.dividerLabel}>{label}</Text>
-        : <View style={s.dividerLine} />}
-    </View>
-  );
-}
-
 export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavigate, onAvatarUpdate }) {
   const insets     = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
-  const [rendered, setRendered]   = useState(false);
+  const [rendered,  setRendered]  = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || null);
 
@@ -107,8 +98,6 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
   if (!rendered) return null;
 
-  const daysSince = Math.floor((Date.now() - new Date(user?.createdAt)) / 86400000);
-
   return (
     <View style={s.root}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -119,24 +108,28 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
           {/* ── Perfil ── */}
-          <View style={[s.header, { paddingTop: insets.top + 32 }]}>
-            <TouchableOpacity
-              onPress={() => { onClose(); onNavigate('Profile'); }}
-              style={s.avatarWrap}
-              activeOpacity={0.85}
-            >
-              <AvatarWithFrame
-                size={68}
-                avatarUrl={avatarUrl}
-                username={user?.username}
-                profileFrame={user?.profileFrame}
-                frameUrl={user?.profileFrameUrl}
-                bgColor={colors.surface}
-              />
-              <View style={s.cameraBtn}>
+          <View style={[s.header, { paddingTop: insets.top + 28 }]}>
+
+            {/* Avatar + cámara */}
+            <View style={s.avatarArea}>
+              <TouchableOpacity
+                onPress={() => { onClose(); onNavigate('Profile'); }}
+                style={s.avatarTouch}
+                activeOpacity={0.85}
+              >
+                <AvatarWithFrame
+                  size={AVATAR_SIZE}
+                  avatarUrl={avatarUrl}
+                  username={user?.username}
+                  profileFrame={user?.profileFrame}
+                  frameUrl={user?.profileFrameUrl}
+                  bgColor={colors.surface}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity style={s.cameraBtn} onPress={handlePickAvatar} activeOpacity={0.8}>
                 <Ionicons name={uploading ? 'time-outline' : 'camera-outline'} size={13} color={colors.textMid} />
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
 
             <Text style={s.username}>{user?.username}</Text>
             <Text style={s.email}>{user?.email}</Text>
@@ -149,71 +142,44 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               </View>
               <View style={s.pillDot} />
               <View style={s.pill}>
-                <Ionicons name="calendar-outline" size={11} color={colors.textDim} />
-                <Text style={s.pillTxt}>{daysSince}d</Text>
-              </View>
-              <View style={s.pillDot} />
-              <View style={s.pill}>
                 <CoinIcon size={11} />
                 <Text style={[s.pillTxt, { color: 'rgba(251,191,36,1)' }]}>{user?.coins ?? 50}</Text>
               </View>
             </View>
           </View>
 
-          {/* ── Sección principal ── */}
+          {/* ── Menú ── */}
           <View style={s.section}>
-            <SectionDivider label="COMUNIDAD" />
             <MenuItem
               icon="albums-outline"
               label="Mi Colección"
-              color={colors.c5}
               onPress={() => { onClose(); onNavigate('Collection'); }}
             />
             <MenuItem
               icon="storefront-outline"
               label="Mi Tienda"
-              color={colors.c1}
               onPress={() => { onClose(); onNavigate('Store', { username: user?.username }); }}
             />
             <MenuItem
               icon="trophy-outline"
               label="Top Semanal"
-              color={colors.c4}
               onPress={() => { onClose(); onNavigate('Top'); }}
             />
-          </View>
-
-          {/* ── Sección finanzas ── */}
-          <View style={s.section}>
-            <SectionDivider label="FINANZAS" />
             <MenuItem
               icon="gift-outline"
               label="Regalos Recibidos"
-              color={colors.c3}
               onPress={() => { onClose(); onNavigate('GiftsReceived'); }}
             />
             <MenuItem
-              icon="receipt-outline"
-              label="Historial de Coins"
-              color="rgba(251,191,36,1)"
-              onPress={() => { onClose(); onNavigate('Transactions'); }}
-            />
-          </View>
-
-          {/* ── Sección cuenta ── */}
-          <View style={s.section}>
-            <SectionDivider label="CUENTA" />
-            <MenuItem
               icon="settings-outline"
               label="Ajustes"
-              color={colors.textMid}
               onPress={() => { onClose(); onNavigate('Settings'); }}
             />
           </View>
 
           {/* ── Cerrar sesión ── */}
           <View style={s.logoutWrap}>
-            <SectionDivider />
+            <View style={s.dividerLine} />
             <TouchableOpacity style={s.logoutBtn} onPress={onLogout} activeOpacity={0.8}>
               <View style={s.logoutIconBox}>
                 <Ionicons name="log-out-outline" size={19} color="#ef4444" />
@@ -242,41 +208,55 @@ const s = StyleSheet.create({
   header: {
     paddingHorizontal: 20, paddingBottom: 20,
     borderBottomWidth: 1, borderBottomColor: colors.border,
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  avatarWrap: { position: 'relative', alignSelf: 'flex-start', marginBottom: 14 },
+
+  // El avatarArea acomoda el frame (que se desborda por FRAME_OFFSET en cada lado)
+  // y posiciona el botón de cámara en la esquina inferior-derecha del avatar
+  avatarArea: {
+    alignSelf: 'flex-start',
+    marginBottom: 14,
+    // Compensar el desbordamiento superior e izquierdo del marco
+    marginTop: FRAME_OFFSET,
+    marginLeft: FRAME_OFFSET,
+    position: 'relative',
+  },
+  avatarTouch: {
+    overflow: 'visible',
+  },
   cameraBtn: {
-    position: 'absolute', bottom: 0, right: -4,
+    position: 'absolute',
+    // Situar el botón en la esquina inferior-derecha del avatar (no del marco)
+    bottom:  -FRAME_OFFSET + 2,
+    right:   -FRAME_OFFSET + 2,
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderC,
+    backgroundColor: colors.card,
+    borderWidth: 1, borderColor: colors.borderC,
     alignItems: 'center', justifyContent: 'center',
-    zIndex: 10,
+    zIndex: 20,
   },
+
   username: { color: colors.textHi, fontSize: 17, fontWeight: '700', marginBottom: 2 },
   email:    { color: colors.textDim, fontSize: 11, marginBottom: 14 },
 
   pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   pill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: colors.border },
   pillTxt: { color: colors.textMid, fontSize: 11, fontWeight: '600' },
-  pillCoin:{ color: 'rgba(251,191,36,1)', fontSize: 11, fontWeight: '800' },
   pillDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.border },
 
   // Secciones
-  section: { marginBottom: 4 },
+  section: { marginBottom: 4, paddingTop: 8 },
 
-  dividerWrap:  { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
-  dividerLabel: { fontSize: 9, letterSpacing: 2.5, color: colors.textDim, fontWeight: '700' },
-  dividerLine:  { height: 1, backgroundColor: colors.border, marginTop: 4 },
-
-  // Ítems de menú
+  // Ítems de menú — todos con el mismo estilo neutro
   menuItem: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 16, paddingVertical: 13,
   },
   iconBox: {
     width: 38, height: 38, borderRadius: 11,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1,
   },
   menuLabel: { flex: 1, color: colors.textHi, fontSize: 14, fontWeight: '500' },
   badge:     { backgroundColor: colors.c3, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
@@ -284,6 +264,7 @@ const s = StyleSheet.create({
 
   // Logout
   logoutWrap: { marginTop: 4 },
+  dividerLine: { height: 1, backgroundColor: colors.border, marginHorizontal: 16, marginBottom: 4 },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 16, paddingVertical: 13,
