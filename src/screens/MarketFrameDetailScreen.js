@@ -182,7 +182,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                   activeOpacity={0.85}
                 >
                   {buying
-                    ? <ActivityIndicator size="small" color="#fff" />
+                    ? <ActivityIndicator size="small" color="#000" />
                     : <>
                         <CoinIcon size={16} />
                         <Text style={s.btnBuyTxt}>{frame.price}</Text>
@@ -319,7 +319,7 @@ const s = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.06)',
   },
 
-  btnRow:  { flexDirection: 'row', gap: 12 },
+  btnRow:  { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   btnHalf: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8,
@@ -334,9 +334,9 @@ const s = StyleSheet.create({
     width: '100%', flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8,
     paddingVertical: 15, borderRadius: 18,
-    backgroundColor: 'rgba(0,229,204,0.12)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.4)',
+    backgroundColor: '#f5b800',
   },
-  btnBuyTxt:    { color: colors.c1, fontWeight: '700', fontSize: 14 },
+  btnBuyTxt:    { color: '#1a0e00', fontWeight: '800', fontSize: 14 },
   btnBuyUnits:  { color: colors.textDim, fontSize: 11 },
 
   btnDisabled:  {
