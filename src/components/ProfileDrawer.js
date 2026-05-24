@@ -154,17 +154,17 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             {/* ── Tarjeta cartera ── */}
             <View style={s.walletCard}>
               <View style={s.walletSection}>
-                <CoinIcon size={22} />
+                <CoinIcon size={17} />
                 <Text style={s.walletValue}>{user?.coins ?? 0}</Text>
                 <Text style={s.walletLabel}>COINS</Text>
               </View>
               <View style={s.walletDivider} />
               <View style={s.walletSection}>
-                <Ionicons name="cube-outline" size={22} color={colors.textMid} />
+                <Ionicons name="cube-outline" size={17} color={colors.textMid} />
                 <Text style={s.walletValue}>
                   {framesCount === null ? '–' : framesCount}
                 </Text>
-                <Text style={s.walletLabel}>MARCOS</Text>
+                <Text style={s.walletLabel}>COLECCIONABLES</Text>
               </View>
             </View>
           </View>
@@ -285,7 +285,7 @@ const s = StyleSheet.create({
   },
   walletValue: {
     color: colors.textHi,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '800',
   },
   walletLabel: {
