@@ -226,7 +226,7 @@ export default function HomeScreen({ navigation }) {
       <ProfileDrawer
         visible={drawerOpen} onClose={() => setDrawerOpen(false)}
         user={user} onLogout={logout}
-        onNavigate={screen => navigation.navigate(screen)}
+        onNavigate={(screen, params) => navigation.navigate(screen, params)}
       />
 
       {/* Header */}
@@ -380,7 +380,7 @@ export default function HomeScreen({ navigation }) {
           <View style={s.niBox}><Ionicons name="game-controller" size={20} color={colors.c1} /></View>
           <Text style={[s.niLbl, { color: colors.c1 }]}>Game</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Home')}>
+        <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Market')}>
           <View style={s.niBox}><Ionicons name="storefront" size={20} color={colors.textDim} /></View>
           <Text style={s.niLbl}>Tienda</Text>
         </TouchableOpacity>

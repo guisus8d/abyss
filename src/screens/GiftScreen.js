@@ -27,10 +27,11 @@ function FrameCardBg({ frame }) {
 
 const STEPS = ['recipient', 'content', 'confirm'];
 
-export default function GiftScreen({ navigation }) {
+export default function GiftScreen({ navigation, route }) {
   const { user, updateUser } = useAuthStore();
-  const [step, setStep]       = useState('recipient');
-  const [recipient,setRecipient] = useState('');
+  const prefilledUsername = route.params?.targetUsername || '';
+  const [step, setStep]       = useState(prefilledUsername ? 'content' : 'recipient');
+  const [recipient,setRecipient] = useState(prefilledUsername);
   const [recipientData, setRecipientData] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchErr, setSearchErr] = useState('');
@@ -45,6 +46,17 @@ export default function GiftScreen({ navigation }) {
   const [sending, setSending] = useState(false);
   const [errMsg, setErrMsg]   = useState('');
   const [successModal, setSuccessModal] = useState(false);
+
+  useEffect(() => {
+    if (prefilledUsername) {
+      api.get('/users/search', { params: { q: prefilledUsername, limit: 1 } })
+        .then(({ data }) => {
+          const found = (data.users || [])[0];
+          if (found) setRecipientData(found);
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   async function searchRecipient() {
     if (!recipient.trim()) return;

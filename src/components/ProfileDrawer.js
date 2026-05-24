@@ -132,14 +132,24 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               <Text style={s.menuTxt}>Mi Colección</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Store', { username: user?.username }); }}>
+              <Ionicons name='storefront' size={18} color={colors.c1} style={s.menuIconV} />
+              <Text style={[s.menuTxt, { color: colors.c1 }]}>Mi Tienda</Text>
+              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('GiftsReceived'); }}>
+              <Ionicons name='gift' size={18} color={colors.c3} style={s.menuIconV} />
+              <Text style={[s.menuTxt, { color: colors.c3 }]}>Regalos Recibidos</Text>
+              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Transactions'); }}>
+              <Ionicons name='receipt' size={18} color='rgba(251,191,36,1)' style={s.menuIconV} />
+              <Text style={[s.menuTxt, { color: 'rgba(251,191,36,1)' }]}>Historial de Coins</Text>
+              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
+            </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Top'); }}>
               <Ionicons name='trophy' size={18} color={colors.textMid} style={s.menuIconV} />
               <Text style={s.menuTxt}>Top Semanal</Text>
-              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Chats'); }}>
-              <Ionicons name='create' size={18} color={colors.textMid} style={s.menuIconV} />
-              <Text style={s.menuTxt}>Crear</Text>
               <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Settings'); }}>

@@ -49,6 +49,7 @@ export default function PublicProfileScreen({ route, navigation }) {
   const [reportOpen,       setReportOpen]       = useState(false);
   const [shareProfileOpen, setShareProfileOpen] = useState(false);
   const [activityStatus,   setActivityStatus]   = useState({ text: '', isOnline: false });
+  const [userHasStore,     setUserHasStore]     = useState(false);
 
   useEffect(() => {
     if (username === me?.username) navigation.replace('Profile');
@@ -67,11 +68,13 @@ export default function PublicProfileScreen({ route, navigation }) {
   async function loadProfile() {
     setLoading(true);
     try {
-      const [profileRes, postsRes] = await Promise.all([
+      const [profileRes, postsRes, storeRes] = await Promise.all([
         api.get(`/users/${username}`),
         api.get(`/posts/user/${username}?page=1&limit=10`).catch(() => ({ data: { posts: [], total: 0, hasMore: false } })),
+        api.get(`/store/${username}`).catch(() => null),
       ]);
       setProfile(profileRes.data.user);
+      setUserHasStore(!!(storeRes?.data?.store));
       setPosts(postsRes.data.posts || []);
       setTotalPosts(postsRes.data.total || 0);
       setPostsHasMore(postsRes.data.hasMore ?? false);
@@ -224,7 +227,7 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   if (blocked) return (
     <View style={{ flex:1, backgroundColor:'#020509' }}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <SafeAreaView edges={['top']}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding:16 }}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -258,7 +261,7 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
 
       {/* ── Menú bottom sheet ── */}
       <Modal
@@ -473,6 +476,28 @@ export default function PublicProfileScreen({ route, navigation }) {
               <Text style={s.blockedTxt}>Usuario bloqueado</Text>
             </View>
           )}
+
+          {/* Botones secundarios: Tienda y Enviar Regalo */}
+          {me && !blocked && !profile?.banned && (
+            <View style={s.secondaryRow}>
+              {userHasStore && (
+                <TouchableOpacity
+                  style={s.btnSecondary}
+                  onPress={() => navigation.navigate('Store', { username })}
+                >
+                  <Ionicons name="storefront-outline" size={15} color={colors.c1} />
+                  <Text style={[s.btnSecondaryTxt, { color: colors.c1 }]}>Tienda</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={s.btnSecondary}
+                onPress={() => navigation.navigate('Gift', { targetUsername: username })}
+              >
+                <Ionicons name="gift-outline" size={15} color={colors.c3} />
+                <Text style={[s.btnSecondaryTxt, { color: colors.c3 }]}>Enviar Regalo</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* ── Tabs ── */}
@@ -639,4 +664,7 @@ const s = StyleSheet.create({
   badgeDesc:       { color:colors.textDim, fontSize:9, textAlign:'center', marginTop:2 },
   ctaBtn: { backgroundColor:colors.c1, paddingVertical:13, paddingHorizontal:32, borderRadius:12, marginTop:20, alignItems:'center' },
   ctaTxt: { color:'#001a18', fontWeight:'800', fontSize:14 },
+  secondaryRow:     { flexDirection:'row', gap:10, marginTop:12, width:'100%' },
+  btnSecondary:     { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6, paddingVertical:10, borderRadius:12, backgroundColor:'rgba(255,255,255,0.07)', borderWidth:1, borderColor:'rgba(255,255,255,0.12)' },
+  btnSecondaryTxt:  { fontSize:13, fontWeight:'600' },
 });
