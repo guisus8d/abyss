@@ -8,9 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
-import api from '../services/api';
+import api, { postFormData } from '../services/api';
 
 const { width: W } = Dimensions.get('window');
 const PREVIEW_SIZE = W - 64;
@@ -91,18 +92,15 @@ export default function CreateFrameScreen({ navigation }) {
       formData.append('bgGradient', JSON.stringify(bgGradient));
       formData.append('units', String(selectedPkg.units));
       formData.append('cost', String(selectedPkg.cost));
-      const blob = await fetch(frameImage.uri).then(r => r.blob());
-      // Usar mimeType guardado por ImagePicker — la fuente más confiable
-      const mime = frameImage.mimeType || blob.type || 'image/png';
-      const ext  = mime.includes('webp') ? 'webp'
-                 : mime.includes('png')  ? 'png'
-                 : mime.includes('gif')  ? 'gif'
-                 : 'jpg';
-      const namedBlob = new Blob([blob], { type: mime });
-      formData.append('image', namedBlob, `frame.${ext}`);
-      const { data } = await api.post('/frames', formData, {
-        headers: { 'Content-Type':'multipart/form-data' },
-      });
+      const mime = frameImage.mimeType || 'image/png';
+      const ext  = mime.includes('webp') ? 'webp' : mime.includes('png') ? 'png' : 'jpg';
+      if (frameImage.uri.startsWith('blob:') || frameImage.uri.startsWith('data:') || frameImage.uri.startsWith('http')) {
+        const blob = await fetch(frameImage.uri).then(r => r.blob());
+        formData.append('image', blob, `frame.${ext}`);
+      } else {
+        formData.append('image', { uri: frameImage.uri, type: mime, name: `frame.${ext}` });
+      }
+      const data = await postFormData('/frames', formData);
       updateUser({ ...user, coins: data.newCoins });
       Alert.alert(
         '✦ Marco creado',
@@ -173,7 +171,7 @@ export default function CreateFrameScreen({ navigation }) {
                     </Text>}
               </View>
               {frameImage?.uri && (
-                <Image source={{uri:frameImage.uri}} resizeMode="contain" pointerEvents="none"
+                <ExpoImage source={{uri:frameImage.uri}} contentFit="contain" autoplay pointerEvents="none"
                   style={s.previewFrameOverlay} />
               )}
             </View>
@@ -242,7 +240,7 @@ export default function CreateFrameScreen({ navigation }) {
             <Text style={s.sectionHint}>PNG o WebP con fondo transparente · 600×600px recomendado</Text>
             <TouchableOpacity style={s.uploadBtn} onPress={pickFrame}>
               {frameImage
-                ? <Image source={{uri:frameImage.uri}} style={s.uploadPreview} resizeMode="contain" />
+                ? <ExpoImage source={{uri:frameImage.uri}} style={s.uploadPreview} contentFit="contain" autoplay />
                 : <View style={s.uploadEmpty}>
                     <Ionicons name="cloud-upload-outline" size={32} color={colors.c1} />
                     <Text style={s.uploadTxt}>Toca para subir</Text>

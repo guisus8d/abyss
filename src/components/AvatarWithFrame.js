@@ -107,6 +107,7 @@ export default function AvatarWithFrame({
             zIndex: 10,
           }}
           contentFit="contain"
+          autoplay
         />
       )}
 

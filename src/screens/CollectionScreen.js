@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -42,7 +43,7 @@ function FrameCard({ frame, units, index, onPress }) {
         <View style={s.cardPreview}>
           <CardBg />
           {frame.imageUrl
-            ? <Image source={{ uri: frame.imageUrl }} style={s.cardFrame} resizeMode="contain" />
+            ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardFrame} contentFit="contain" autoplay />
             : <View style={s.cardFramePlaceholder}><Ionicons name="sparkles-outline" size={28} color={colors.c1} /></View>}
           {units !== null && <View style={s.unitsBadge}><Text style={s.unitsTxt}>×{units}</Text></View>}
           {units === null && frame.price && <View style={s.priceBadge}><Text style={s.priceTxt}>✦{frame.price}</Text></View>}
@@ -244,7 +245,7 @@ export default function CollectionScreen({ navigation }) {
                       profileFrame={frame._id === 'frame_001' ? 'frame_001' : null}
                     />
                     {frame.imageUrl && (
-                      <Image source={{ uri: frame.imageUrl }} style={s.modalFrameImg} resizeMode="contain" />
+                      <ExpoImage source={{ uri: frame.imageUrl }} style={s.modalFrameImg} contentFit="contain" autoplay />
                     )}
                   </View>
 
