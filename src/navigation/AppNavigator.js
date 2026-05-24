@@ -43,6 +43,7 @@ import SearchScreen          from '../screens/SearchScreen';
 import BlockedUsersScreen    from '../screens/BlockedUsersScreen';
 import MarketScreen               from '../screens/MarketScreen';
 import MarketFrameDetailScreen    from '../screens/MarketFrameDetailScreen';
+import FramePreviewScreen         from '../screens/FramePreviewScreen';
 import StoreScreen           from '../screens/StoreScreen';
 import CreateStoreScreen     from '../screens/CreateStoreScreen';
 import GiftScreen            from '../screens/GiftScreen';
@@ -119,6 +120,7 @@ export default function AppNavigator() {
               <Stack.Screen name="BlockedUsers"    component={BlockedUsersScreen} />
               <Stack.Screen name="Market"            component={MarketScreen} />
               <Stack.Screen name="MarketFrameDetail" component={MarketFrameDetailScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="FramePreview"      component={FramePreviewScreen}      options={{ headerShown: false }} />
               <Stack.Screen name="Store"           component={StoreScreen} />
               <Stack.Screen name="CreateStore"     component={CreateStoreScreen} />
               <Stack.Screen name="Gift"            component={GiftScreen} />

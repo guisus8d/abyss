@@ -21,7 +21,6 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
   const { frame } = route.params;
   const { user, updateUser } = useAuthStore();
 
-  const [previewing,   setPreviewing]   = useState(false);
   const [buying,       setBuying]       = useState(false);
   const [liked,        setLiked]        = useState(frame.likedByMe || false);
   const [likesCount,   setLikesCount]   = useState(frame.likesCount  || 0);
@@ -36,8 +35,8 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
   const isOwn  = String(creator?._id) === String(user?._id);
   const canBuy = !isOwn && frame.status === 'active' && frame.units > 0;
 
-  const displayAvatarUrl = previewing ? user?.avatarUrl : creator?.avatarUrl;
-  const displayUsername  = previewing ? user?.username  : creator?.username;
+  const displayAvatarUrl = creator?.avatarUrl;
+  const displayUsername  = creator?.username;
 
   async function handleBuy() {
     if (buying) return;
@@ -114,14 +113,9 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
             </TouchableOpacity>
 
             <View style={s.nameWrap}>
-              {previewing ? (
-                <View style={s.previewBadge}>
-                  <Ionicons name="eye-outline" size={13} color="rgba(251,191,36,1)" />
-                  <Text style={s.previewBadgeTxt}>Previsualizando</Text>
-                </View>
-              ) : creator?.username ? (
-                <Text style={s.creatorName}>@{creator.username}</Text>
-              ) : null}
+              {creator?.username
+                ? <Text style={s.creatorName}>@{creator.username}</Text>
+                : null}
             </View>
           </View>
 
@@ -146,35 +140,16 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
         {/* ── Sección inferior ── */}
         <View style={s.bottom}>
 
-          {/* Precio */}
-          <View style={s.priceRow}>
-            <CoinIcon size={22} />
-            <Text style={s.priceAmt}>{frame.price}</Text>
-            <Text style={s.priceLabel}>monedas</Text>
-            {frame.units > 0 && (
-              <View style={s.unitsBadge}>
-                <Ionicons name="layers-outline" size={10} color={colors.c1} />
-                <Text style={s.unitsTxt}>{frame.units} disp.</Text>
-              </View>
-            )}
-          </View>
-
           {/* Botones: Previsualizar | Comprar */}
           <View style={s.btnRow}>
 
             <TouchableOpacity
-              style={[s.btnHalf, s.btnPreview, previewing && s.btnPreviewOn]}
-              onPress={() => setPreviewing(v => !v)}
+              style={[s.btnHalf, s.btnPreview]}
+              onPress={() => navigation.navigate('FramePreview', { frame })}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name={previewing ? 'eye-off-outline' : 'eye-outline'}
-                size={18}
-                color={previewing ? 'rgba(251,191,36,1)' : 'rgba(251,191,36,0.65)'}
-              />
-              <Text style={[s.btnPreviewTxt, previewing && s.btnPreviewTxtOn]}>
-                {previewing ? 'Quitar' : 'Previsualizar'}
-              </Text>
+              <Ionicons name="eye-outline" size={18} color="rgba(251,191,36,0.65)" />
+              <Text style={s.btnPreviewTxt}>Previsualizar</Text>
             </TouchableOpacity>
 
             {isOwn ? (
@@ -198,8 +173,8 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                 {buying
                   ? <ActivityIndicator size="small" color="#fff" />
                   : <>
-                      <Ionicons name="bag-outline" size={18} color="#fff" />
-                      <Text style={s.btnBuyTxt}>Comprar</Text>
+                      <CoinIcon size={16} />
+                      <Text style={s.btnBuyTxt}>{frame.price}  Comprar</Text>
                     </>
                 }
               </TouchableOpacity>
@@ -306,14 +281,6 @@ const s = StyleSheet.create({
   nameWrap: { alignItems: 'center', minHeight: 28 },
   creatorName: { color: colors.textDim, fontSize: 14, fontWeight: '600' },
 
-  previewBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(251,191,36,0.1)', borderRadius: 10,
-    borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)',
-    paddingHorizontal: 10, paddingVertical: 4,
-  },
-  previewBadgeTxt: { color: 'rgba(251,191,36,1)', fontSize: 11, fontWeight: '700' },
-
   rightCol: {
     width: SIDE_W,
     alignItems: 'center',
@@ -333,20 +300,6 @@ const s = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.06)',
   },
 
-  priceRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', gap: 8,
-  },
-  priceAmt:    { color: 'rgba(251,191,36,1)', fontSize: 26, fontWeight: '900' },
-  priceLabel:  { color: 'rgba(251,191,36,0.55)', fontSize: 13 },
-  unitsBadge:  {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 8,
-    borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)',
-    paddingHorizontal: 7, paddingVertical: 3,
-  },
-  unitsTxt: { color: colors.c1, fontSize: 10, fontWeight: '700' },
-
   btnRow:  { flexDirection: 'row', gap: 12 },
   btnHalf: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
@@ -358,13 +311,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
     backgroundColor: 'rgba(251,191,36,0.07)',
   },
-  btnPreviewOn: {
-    borderColor: 'rgba(251,191,36,0.6)',
-    backgroundColor: 'rgba(251,191,36,0.14)',
-  },
   btnPreviewTxt:   { color: 'rgba(251,191,36,0.65)', fontWeight: '700', fontSize: 13 },
-  btnPreviewTxtOn: { color: 'rgba(251,191,36,1)' },
-
   btnBuyTxt:    { color: '#fff', fontWeight: '800', fontSize: 14 },
   btnDisabled:  {
     backgroundColor: 'rgba(255,255,255,0.04)',
