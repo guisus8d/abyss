@@ -87,10 +87,6 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
           <View style={[s.drawerHeader, { paddingTop: insets.top + 44 }]}>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
-              <Text style={s.closeTxt}>✕</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity onPress={() => { onClose(); onNavigate('Profile'); }} style={s.avatarArea}>
               <AvatarWithFrame
                 size={64}
@@ -172,8 +168,7 @@ const s = StyleSheet.create({
     width: DRAWER_WIDTH, backgroundColor: colors.deep,
   },
   drawerHeader: { paddingHorizontal: 18, paddingBottom: 18, alignItems: 'center', backgroundColor: colors.deep },
-  closeBtn:     { position: 'absolute', top: 52, right: 12, padding: 6 },
-  closeTxt:     { color: colors.textDim, fontSize: 14 },
+
   avatarArea:   { position: 'relative', marginBottom: 10 },
   photoBtn: {
     position: 'absolute', bottom: 0, right: -2,
@@ -207,8 +202,7 @@ const s = StyleSheet.create({
   menuTxt:   { flex: 1, color: colors.textMid, fontSize: 13 },
   logoutBtn: {
     marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
-    backgroundColor: 'rgba(239,68,68,0.07)', alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,1)', alignItems: 'center',
   },
-  logoutTxt: { color: 'rgba(239,68,68,0.8)', fontSize: 12, letterSpacing: 1 },
+  logoutTxt: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 1 },
 });
