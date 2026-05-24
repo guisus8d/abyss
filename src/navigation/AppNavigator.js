@@ -41,6 +41,12 @@ import GroupRoomScreen       from '../screens/GroupRoomScreen';
 import GroupSettingsScreen   from '../screens/GroupSettingsScreen';
 import SearchScreen          from '../screens/SearchScreen';
 import BlockedUsersScreen    from '../screens/BlockedUsersScreen';
+import MarketScreen          from '../screens/MarketScreen';
+import StoreScreen           from '../screens/StoreScreen';
+import CreateStoreScreen     from '../screens/CreateStoreScreen';
+import GiftScreen            from '../screens/GiftScreen';
+import GiftsReceivedScreen   from '../screens/GiftsReceivedScreen';
+import TransactionsScreen    from '../screens/TransactionsScreen';
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
 // El panel de moderación solo es accesible desde abyss.social/mod
@@ -110,6 +116,12 @@ export default function AppNavigator() {
               <Stack.Screen name="GroupSettings"   component={GroupSettingsScreen} />
               <Stack.Screen name="Search"          component={SearchScreen} />
               <Stack.Screen name="BlockedUsers"    component={BlockedUsersScreen} />
+              <Stack.Screen name="Market"          component={MarketScreen} />
+              <Stack.Screen name="Store"           component={StoreScreen} />
+              <Stack.Screen name="CreateStore"     component={CreateStoreScreen} />
+              <Stack.Screen name="Gift"            component={GiftScreen} />
+              <Stack.Screen name="GiftsReceived"   component={GiftsReceivedScreen} />
+              <Stack.Screen name="Transactions"    component={TransactionsScreen} />
             </>
           ) : (
             <>
