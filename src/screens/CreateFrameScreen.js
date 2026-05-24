@@ -12,6 +12,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api, { postFormData } from '../services/api';
+import CoinIcon from '../components/CoinIcon';
 
 const { width: W } = Dimensions.get('window');
 const PREVIEW_SIZE = W - 64;
@@ -323,8 +324,9 @@ export default function CreateFrameScreen({ navigation }) {
                   )}
                   <Text style={[s.pkgUnits, pkg===i && {color:colors.c1}]}>{p.label}</Text>
                   <Text style={s.pkgUnitsLabel}>unidades</Text>
-                  <View style={s.pkgPrice}>
-                    <Text style={s.pkgPriceTxt}>✦{p.cost}</Text>
+                  <View style={[s.pkgPrice, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                    <CoinIcon size={12} />
+                    <Text style={s.pkgPriceTxt}>{p.cost}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -344,7 +346,11 @@ export default function CreateFrameScreen({ navigation }) {
             {publishing
               ? <ActivityIndicator color="#000" size={18} />
               : <><Ionicons name="sparkles" size={18} color="#000" />
-                  <Text style={s.createBtnTxt}>Crear marco · ✦{selectedPkg.cost}</Text></>}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={s.createBtnTxt}>Crear marco · </Text>
+                    <CoinIcon size={14} />
+                    <Text style={s.createBtnTxt}>{selectedPkg.cost}</Text>
+                  </View></>}
           </TouchableOpacity>
         </ScrollView>
       )}

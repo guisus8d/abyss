@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, ActivityIndicator, Modal, Pressable,
+  TextInput, ActivityIndicator,
   StatusBar, Dimensions, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
+import CoinIcon from '../components/CoinIcon';
 
 const { width: W } = Dimensions.get('window');
 const COLS   = 3;
@@ -39,8 +40,9 @@ function FrameCard({ frame, onPress }) {
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}
-        <View style={s.priceBadge}>
-          <Text style={s.priceTxt}>✦{frame.price}</Text>
+        <View style={[s.priceBadge, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
+          <CoinIcon size={9} />
+          <Text style={s.priceTxt}>{frame.price}</Text>
         </View>
         {frame.units <= 3 && frame.units > 0 && (
           <View style={s.urgentBadge}>
@@ -55,18 +57,15 @@ function FrameCard({ frame, onPress }) {
 }
 
 export default function MarketScreen({ navigation }) {
-  const { user, updateUser } = useAuthStore();
-  const [frames, setFrames]       = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const { user } = useAuthStore();
+  const [frames, setFrames]         = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage]           = useState(1);
+  const [page, setPage]             = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [sort, setSort]           = useState('reciente');
-  const [query, setQuery]         = useState('');
-  const [selected, setSelected]   = useState(null);
-  const [buying, setBuying]       = useState(false);
-  const [errMsg, setErrMsg]       = useState('');
+  const [sort, setSort]             = useState('reciente');
+  const [query, setQuery]           = useState('');
   const searchTimer = useRef(null);
 
   useEffect(() => { load(1, sort, query, true); }, []);
@@ -112,25 +111,13 @@ export default function MarketScreen({ navigation }) {
     }
   }
 
-  async function handleBuy() {
-    if (buying || !selected) return;
-    setBuying(true);
-    setErrMsg('');
-    try {
-      const { data } = await api.post(`/market/frames/${selected._id}/buy`);
-      updateUser({ ...user, coins: data.newCoins });
-      setSelected(null);
-      load(1, sort, query, true);
-      alert(`Marco adquirido ✦ te quedan ${data.newCoins} monedas`);
-    } catch (e) {
-      setErrMsg(e.response?.data?.error || 'Error al comprar');
-    } finally {
-      setBuying(false);
-    }
-  }
-
   function renderItem({ item }) {
-    return <FrameCard frame={item} onPress={() => { setErrMsg(''); setSelected(item); }} />;
+    return (
+      <FrameCard
+        frame={item}
+        onPress={() => navigation.navigate('MarketFrameDetail', { frame: item })}
+      />
+    );
   }
 
   function renderSeparator() { return <View style={{ width: GAP }} />; }
@@ -150,10 +137,6 @@ export default function MarketScreen({ navigation }) {
     );
   }
 
-  const canBuy = selected
-    && selected.units > 0
-    && String(selected.creator?._id) !== String(user?._id);
-
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
@@ -164,7 +147,7 @@ export default function MarketScreen({ navigation }) {
           </TouchableOpacity>
           <Text style={s.headerTitle}>MERCADO</Text>
           <View style={s.coinsBadge}>
-            <Text style={s.coinsIcon}>✦</Text>
+            <CoinIcon size={14} />
             <Text style={s.coinsVal}>{user?.coins ?? 0}</Text>
           </View>
         </View>
@@ -223,83 +206,6 @@ export default function MarketScreen({ navigation }) {
         />
       )}
 
-      {/* Detail modal */}
-      <Modal
-        visible={!!selected}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelected(null)}
-      >
-        <Pressable style={s.overlay} onPress={() => setSelected(null)}>
-          <Pressable style={s.modalCard} onPress={() => {}}>
-            {selected && (
-              <>
-                <View style={s.modalPreview}>
-                  <FrameCardBg frame={selected} />
-                  {selected.imageUrl && (
-                    <ExpoImage
-                      source={{ uri: selected.imageUrl }}
-                      style={StyleSheet.absoluteFill}
-                      contentFit="contain"
-                      autoplay
-                    />
-                  )}
-                </View>
-
-                <Text style={s.modalName}>{selected.name}</Text>
-                {selected.description ? (
-                  <Text style={s.modalDesc}>{selected.description}</Text>
-                ) : null}
-
-                <View style={s.modalMeta}>
-                  <View style={s.metaItem}>
-                    <Ionicons name="person-outline" size={12} color={colors.textDim} />
-                    <Text style={s.metaTxt}>@{selected.creator?.username}</Text>
-                  </View>
-                  <View style={s.metaItem}>
-                    <Ionicons name="cube-outline" size={12} color={colors.textDim} />
-                    <Text style={s.metaTxt}>{selected.units} disponibles</Text>
-                  </View>
-                  {selected.totalSold > 0 && (
-                    <View style={s.metaItem}>
-                      <Ionicons name="bag-outline" size={12} color={colors.textDim} />
-                      <Text style={s.metaTxt}>{selected.totalSold} vendidos</Text>
-                    </View>
-                  )}
-                </View>
-
-                {errMsg ? (
-                  <View style={s.errBox}>
-                    <Ionicons name="alert-circle-outline" size={14} color={colors.c4} />
-                    <Text style={s.errTxt}>{errMsg}</Text>
-                  </View>
-                ) : null}
-
-                <View style={s.modalBtns}>
-                  <TouchableOpacity style={s.btnClose} onPress={() => setSelected(null)}>
-                    <Text style={s.btnCloseTxt}>Cerrar</Text>
-                  </TouchableOpacity>
-                  {canBuy ? (
-                    <TouchableOpacity style={s.btnBuy} onPress={handleBuy} disabled={buying}>
-                      {buying
-                        ? <ActivityIndicator size={16} color="#000" />
-                        : <Text style={s.btnBuyTxt}>✦{selected.price} · Comprar</Text>}
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={[s.btnBuy, { opacity: 0.4 }]}>
-                      <Text style={s.btnBuyTxt}>
-                        {String(selected.creator?._id) === String(user?._id)
-                          ? 'Tuyo'
-                          : 'Agotado'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -349,24 +255,4 @@ const s = StyleSheet.create({
   emptyTitle: { color: colors.textHi, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   emptySub:   { color: colors.textDim, fontSize: 13, textAlign: 'center', lineHeight: 18 },
 
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.82)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  modalCard: { width: '100%', backgroundColor: colors.surface, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: colors.border },
-
-  modalPreview: { width: 130, height: 130, borderRadius: 20, overflow: 'hidden', alignSelf: 'center', marginBottom: 16, position: 'relative', borderWidth: 1, borderColor: colors.border },
-
-  modalName: { color: colors.textHi, fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
-  modalDesc: { color: colors.textDim, fontSize: 13, textAlign: 'center', marginBottom: 14, lineHeight: 19 },
-
-  modalMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 16 },
-  metaItem:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  metaTxt:   { color: colors.textDim, fontSize: 11 },
-
-  errBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(249,115,22,0.1)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.25)', paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14 },
-  errTxt:  { color: colors.c4, fontSize: 12, flex: 1 },
-
-  modalBtns:  { flexDirection: 'row', gap: 12 },
-  btnClose:   { flex: 1, paddingVertical: 13, borderRadius: 16, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  btnCloseTxt:{ color: colors.textDim, fontSize: 14, fontWeight: '600' },
-  btnBuy:     { flex: 1, paddingVertical: 13, borderRadius: 16, backgroundColor: 'rgba(251,191,36,0.9)', alignItems: 'center' },
-  btnBuyTxt:  { color: '#000', fontSize: 14, fontWeight: '800' },
 });

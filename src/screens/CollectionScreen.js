@@ -12,6 +12,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import CoinIcon from '../components/CoinIcon';
 
 const { width: W } = Dimensions.get('window');
 const COLS     = 3;
@@ -46,7 +47,12 @@ function FrameCard({ frame, units, index, onPress }) {
             ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardFrame} contentFit="contain" autoplay />
             : <View style={s.cardFramePlaceholder}><Ionicons name="sparkles-outline" size={28} color={colors.c1} /></View>}
           {units !== null && <View style={s.unitsBadge}><Text style={s.unitsTxt}>×{units}</Text></View>}
-          {units === null && frame.price && <View style={s.priceBadge}><Text style={s.priceTxt}>✦{frame.price}</Text></View>}
+          {units === null && frame.price && (
+            <View style={[s.priceBadge, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
+              <CoinIcon size={9} />
+              <Text style={s.priceTxt}>{frame.price}</Text>
+            </View>
+          )}
         </View>
         <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
         {frame.creator?.username && <Text style={s.cardCreator} numberOfLines={1}>{frame.creator.username}</Text>}
@@ -175,7 +181,7 @@ export default function CollectionScreen({ navigation }) {
           )}
         </View>
         <View style={s.infoItem}>
-          <Text style={s.coinIcon}>✦</Text>
+          <CoinIcon size={13} />
           <Text style={s.coinsVal}>{user?.coins ?? 50}</Text>
         </View>
       </View>
@@ -295,7 +301,12 @@ export default function CollectionScreen({ navigation }) {
                       >
                         {buying
                           ? <ActivityIndicator size={16} color="#000" />
-                          : <Text style={s.modalBuyTxt}>✦{frame.price} · Comprar</Text>}
+                          : (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <CoinIcon size={13} />
+                              <Text style={s.modalBuyTxt}>{frame.price} · Comprar</Text>
+                            </View>
+                          )}
                       </TouchableOpacity>
                     )}
                   </View>

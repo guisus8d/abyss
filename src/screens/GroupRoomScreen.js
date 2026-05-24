@@ -14,6 +14,7 @@ import api from '../services/api';
 import { connectSocket } from '../services/socket';
 import { useFocusEffect } from '@react-navigation/native';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import CoinIcon from '../components/CoinIcon';
 import AudioMessage from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
 
@@ -109,7 +110,10 @@ function GroupGiftBubble({ giftData, giftId, isMe, onGiftAction }) {
         <Text style={gg.title}>REGALO</Text>
       </View>
       {monedas > 0 && (
-        <Text style={gg.coins}>✦ {monedas} monedas{!isMe && isPending ? ` (${Math.round(monedas * 0.85)} al aceptar)` : ''}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+          <CoinIcon size={14} />
+          <Text style={gg.coins}>{monedas} monedas{!isMe && isPending ? ` (${Math.round(monedas * 0.85)} al aceptar)` : ''}</Text>
+        </View>
       )}
       {items.map((it, i) => (
         <Text key={i} style={gg.frame}>🖼 {it.name || 'Marco'}{it.cantidad > 1 ? ` ×${it.cantidad}` : ''}</Text>
@@ -1184,7 +1188,10 @@ export default function GroupRoomScreen({ route, navigation }) {
                 style={[s.giftToggleBtn, giftType === 'coins' && s.giftToggleActive]}
                 onPress={() => { setGiftType('coins'); setGiftFrame(null); setGiftErr(''); }}
               >
-                <Text style={[s.giftToggleTxt, giftType === 'coins' && s.giftToggleActiveTxt]}>✦ Monedas</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <CoinIcon size={12} />
+                  <Text style={[s.giftToggleTxt, giftType === 'coins' && s.giftToggleActiveTxt]}>Monedas</Text>
+                </View>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.giftToggleBtn, giftType === 'frame' && s.giftToggleActive]}

@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
+import CoinIcon from '../components/CoinIcon';
 
 const { width: W } = Dimensions.get('window');
 const COLS   = 3;
@@ -215,7 +216,7 @@ export default function GiftScreen({ navigation, route }) {
               style={[s.typeTab, giftType === 'coins' && s.typeTabActive]}
               onPress={() => setGiftType('coins')}
             >
-              <Text style={s.typeTabIcon}>✦</Text>
+              <CoinIcon size={14} />
               <Text style={[s.typeTabTxt, giftType === 'coins' && s.typeTabTxtActive]}>Monedas</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -230,7 +231,7 @@ export default function GiftScreen({ navigation, route }) {
           {giftType === 'coins' ? (
             <>
               <View style={s.coinsWrap}>
-                <Text style={s.coinsSymbol}>✦</Text>
+                <CoinIcon size={36} />
                 <TextInput
                   style={s.coinsInput}
                   keyboardType="numeric"
@@ -240,21 +241,35 @@ export default function GiftScreen({ navigation, route }) {
                   onChangeText={setCoinsAmt}
                 />
               </View>
-              <Text style={s.coinsBalance}>Tu saldo: ✦{user?.coins ?? 0}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Text style={[s.coinsBalance, { marginBottom: 0 }]}>Tu saldo: </Text>
+                <CoinIcon size={12} style={{ marginHorizontal: 2 }} />
+                <Text style={[s.coinsBalance, { marginBottom: 0 }]}>{user?.coins ?? 0}</Text>
+              </View>
 
               {coinsNum > 0 && (
                 <View style={s.commissionBox}>
                   <View style={s.commRow}>
                     <Text style={s.commLbl}>Enviado</Text>
-                    <Text style={s.commVal}>✦{coinsNum}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <CoinIcon size={13} />
+                      <Text style={s.commVal}>{coinsNum}</Text>
+                    </View>
                   </View>
                   <View style={s.commRow}>
                     <Text style={s.commLbl}>Comisión plataforma (15%)</Text>
-                    <Text style={[s.commVal, { color: colors.c4 }]}>-✦{comision}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Text style={[s.commVal, { color: colors.c4 }]}>-</Text>
+                      <CoinIcon size={13} />
+                      <Text style={[s.commVal, { color: colors.c4 }]}>{comision}</Text>
+                    </View>
                   </View>
                   <View style={[s.commRow, s.commRowTotal]}>
                     <Text style={s.commLblBold}>Recibirá</Text>
-                    <Text style={[s.commVal, { color: colors.c1, fontWeight: '800' }]}>✦{montoNeto}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <CoinIcon size={13} />
+                      <Text style={[s.commVal, { color: colors.c1, fontWeight: '800' }]}>{montoNeto}</Text>
+                    </View>
                   </View>
                 </View>
               )}
@@ -345,15 +360,25 @@ export default function GiftScreen({ navigation, route }) {
             <>
               <View style={s.confirmRow}>
                 <Text style={s.confirmLbl}>Monedas enviadas</Text>
-                <Text style={s.confirmVal}>✦{coinsN}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <CoinIcon size={13} />
+                  <Text style={s.confirmVal}>{coinsN}</Text>
+                </View>
               </View>
               <View style={s.confirmRow}>
                 <Text style={s.confirmLbl}>Comisión (15%)</Text>
-                <Text style={[s.confirmVal, { color: colors.c4 }]}>-✦{com}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Text style={[s.confirmVal, { color: colors.c4 }]}>-</Text>
+                  <CoinIcon size={13} />
+                  <Text style={[s.confirmVal, { color: colors.c4 }]}>{com}</Text>
+                </View>
               </View>
               <View style={[s.confirmRow, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4, paddingTop: 12 }]}>
                 <Text style={[s.confirmLbl, { fontWeight: '700', color: colors.textHi }]}>Recibirá</Text>
-                <Text style={[s.confirmVal, { color: colors.c1, fontWeight: '800' }]}>✦{net}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <CoinIcon size={13} />
+                  <Text style={[s.confirmVal, { color: colors.c1, fontWeight: '800' }]}>{net}</Text>
+                </View>
               </View>
             </>
           )}

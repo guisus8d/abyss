@@ -11,6 +11,7 @@ import { Audio } from 'expo-av';
 import AudioMessage    from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
 import AvatarWithFrame from '../components/AvatarWithFrame';
+import CoinIcon from '../components/CoinIcon';
 import { Ionicons }    from '@expo/vector-icons';
 import { colors }      from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
@@ -153,7 +154,10 @@ function GiftBubble({ giftData, giftId, isMe, onGiftAction }) {
       </View>
       {monedas > 0 && (
         <View style={gb.row}>
-          <Text style={gb.coinsVal}>✦ {monedas} monedas</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <CoinIcon size={14} />
+            <Text style={gb.coinsVal}>{monedas} monedas</Text>
+          </View>
           {!isMe && isPending && (
             <Text style={gb.coinsNote}>({Math.round(monedas * 0.85)} al aceptar)</Text>
           )}
@@ -877,7 +881,10 @@ export default function ChatRoomScreen({ route, navigation }) {
                 style={[s.giftToggleBtn, giftType === 'coins' && s.giftToggleBtnActive]}
                 onPress={() => { setGiftType('coins'); setGiftFrame(null); setGiftErr(''); }}
               >
-                <Text style={[s.giftToggleTxt, giftType === 'coins' && s.giftToggleTxtActive]}>✦ Monedas</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <CoinIcon size={12} />
+                  <Text style={[s.giftToggleTxt, giftType === 'coins' && s.giftToggleTxtActive]}>Monedas</Text>
+                </View>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.giftToggleBtn, giftType === 'frame' && s.giftToggleBtnActive]}

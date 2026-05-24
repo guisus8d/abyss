@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
+import CoinIcon from '../components/CoinIcon';
 
 const { width: W } = Dimensions.get('window');
 const COLS   = 3;
@@ -36,8 +37,9 @@ function FrameCard({ frame, onPress }) {
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}
-        <View style={s.priceBadge}>
-          <Text style={s.priceTxt}>✦{frame.price}</Text>
+        <View style={[s.priceBadge, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
+          <CoinIcon size={9} />
+          <Text style={s.priceTxt}>{frame.price}</Text>
         </View>
         <View style={s.unitsBadge}>
           <Text style={s.unitsTxt}>{frame.units} u.</Text>
@@ -341,7 +343,10 @@ export default function StoreScreen({ navigation, route }) {
 
                 <View style={s.pubFields}>
                   <View style={s.pubField}>
-                    <Text style={s.pubFieldLbl}>Precio (coins) ✦</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={s.pubFieldLbl}>Precio (coins)</Text>
+                      <CoinIcon size={11} />
+                    </View>
                     <TextInput
                       style={s.pubInput}
                       value={pubPrice}

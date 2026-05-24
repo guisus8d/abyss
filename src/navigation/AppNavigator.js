@@ -41,7 +41,8 @@ import GroupRoomScreen       from '../screens/GroupRoomScreen';
 import GroupSettingsScreen   from '../screens/GroupSettingsScreen';
 import SearchScreen          from '../screens/SearchScreen';
 import BlockedUsersScreen    from '../screens/BlockedUsersScreen';
-import MarketScreen          from '../screens/MarketScreen';
+import MarketScreen               from '../screens/MarketScreen';
+import MarketFrameDetailScreen    from '../screens/MarketFrameDetailScreen';
 import StoreScreen           from '../screens/StoreScreen';
 import CreateStoreScreen     from '../screens/CreateStoreScreen';
 import GiftScreen            from '../screens/GiftScreen';
@@ -116,7 +117,8 @@ export default function AppNavigator() {
               <Stack.Screen name="GroupSettings"   component={GroupSettingsScreen} />
               <Stack.Screen name="Search"          component={SearchScreen} />
               <Stack.Screen name="BlockedUsers"    component={BlockedUsersScreen} />
-              <Stack.Screen name="Market"          component={MarketScreen} />
+              <Stack.Screen name="Market"            component={MarketScreen} />
+              <Stack.Screen name="MarketFrameDetail" component={MarketFrameDetailScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Store"           component={StoreScreen} />
               <Stack.Screen name="CreateStore"     component={CreateStoreScreen} />
               <Stack.Screen name="Gift"            component={GiftScreen} />

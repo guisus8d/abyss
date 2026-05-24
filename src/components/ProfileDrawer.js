@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import AvatarWithFrame from './AvatarWithFrame';
+import CoinIcon from './CoinIcon';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.72, 300);
@@ -153,7 +154,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               </View>
               <View style={s.pillDot} />
               <View style={s.pill}>
-                <Text style={s.pillCoin}>✦</Text>
+                <CoinIcon size={11} />
                 <Text style={[s.pillTxt, { color: 'rgba(251,191,36,1)' }]}>{user?.coins ?? 50}</Text>
               </View>
             </View>

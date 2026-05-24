@@ -9,6 +9,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
+import CoinIcon from '../components/CoinIcon';
 
 const FILTERS = [
   { key: '',              label: 'Todas' },
@@ -65,11 +66,17 @@ function TxCard({ tx, userId }) {
       </View>
 
       <View style={s.txAmtWrap}>
-        <Text style={[s.txAmt, { color: isEmit ? colors.c4 : colors.c1 }]}>
-          {sign}✦{amt}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Text style={[s.txAmt, { color: isEmit ? colors.c4 : colors.c1 }]}>{sign}</Text>
+          <CoinIcon size={13} />
+          <Text style={[s.txAmt, { color: isEmit ? colors.c4 : colors.c1 }]}>{amt}</Text>
+        </View>
         {!isEmit && tx.comision > 0 && (
-          <Text style={s.txComision}>com. ✦{tx.comision}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <Text style={s.txComision}>com. </Text>
+            <CoinIcon size={10} />
+            <Text style={s.txComision}>{tx.comision}</Text>
+          </View>
         )}
       </View>
     </View>
@@ -138,14 +145,20 @@ export default function TransactionsScreen({ navigation }) {
           <View style={s.balanceCard}>
             <View style={s.balanceItem}>
               <Text style={s.balanceLbl}>Disponible</Text>
-              <Text style={s.balanceVal}>✦{balance.coins}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <CoinIcon size={20} />
+                <Text style={s.balanceVal}>{balance.coins}</Text>
+              </View>
             </View>
             {balance.coinsReservadas > 0 && (
               <>
                 <View style={s.balanceDivider} />
                 <View style={s.balanceItem}>
                   <Text style={s.balanceLbl}>En espera</Text>
-                  <Text style={[s.balanceVal, { color: colors.textMid }]}>✦{balance.coinsReservadas}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <CoinIcon size={20} />
+                    <Text style={[s.balanceVal, { color: colors.textMid }]}>{balance.coinsReservadas}</Text>
+                  </View>
                 </View>
               </>
             )}
