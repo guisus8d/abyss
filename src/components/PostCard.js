@@ -10,23 +10,23 @@ import SharePostModal  from './SharePostModal';
 import api from '../services/api';
 
 const C = {
-  card:         '#0b1521',
+  card:         colors.card,
   cardBorder:   'rgba(255,255,255,0.07)',
-  surface:      '#0d1d2e',
-  accent:       '#0fe3b8',
-  accentDim:    'rgba(15,227,184,0.10)',
-  accentBorder: 'rgba(15,227,184,0.28)',
-  textHi:       '#e6f0ff',
-  textMid:      'rgba(230,240,255,0.65)',
-  textDim:      'rgba(230,240,255,0.35)',
-  red:          '#ef4444',
+  surface:      colors.surface,
+  accent:       colors.c1,
+  accentDim:    'rgba(0,229,204,0.10)',
+  accentBorder: 'rgba(0,229,204,0.28)',
+  textHi:       colors.textHi,
+  textMid:      colors.textMid,
+  textDim:      colors.textDim,
+  red:          colors.danger,
   redDim:       'rgba(239,68,68,0.12)',
   redBorder:    'rgba(239,68,68,0.35)',
-  gold:         'rgba(251,191,36,1)',
+  gold:         colors.warning,
   goldDim:      'rgba(251,191,36,0.12)',
   goldBorder:   'rgba(251,191,36,0.35)',
   divider:      'rgba(255,255,255,0.06)',
-  inputBg:      'rgba(6,14,24,0.9)',
+  inputBg:      colors.deep,
 };
 
 function timeAgo(date) {
