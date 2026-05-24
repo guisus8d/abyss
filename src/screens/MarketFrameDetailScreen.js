@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   StatusBar, ActivityIndicator, Alert,
-  Dimensions, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform,
+  Dimensions, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -197,7 +197,16 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               <Text style={s.btnPreviewTxt}>Previsualizar</Text>
             </TouchableOpacity>
 
-            {isOwn ? (
+            {Platform.OS === 'web' && !isOwn ? (
+              <TouchableOpacity
+                style={[s.btnHalf, s.btnAppOnly]}
+                onPress={() => Linking.openURL('https://abyss.social/download')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="phone-portrait-outline" size={16} color={colors.textDim} />
+                <Text style={s.btnAppOnlyTxt}>Solo en la app</Text>
+              </TouchableOpacity>
+            ) : isOwn ? (
               <View style={[s.btnHalf, s.btnDisabled]}>
                 <Ionicons name="person-outline" size={18} color={colors.textDim} />
                 <Text style={s.btnDisabledTxt}>Tuyo</Text>
@@ -433,6 +442,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   btnDisabledTxt: { color: colors.textDim, fontWeight: '700', fontSize: 13 },
+
+  btnAppOnly:    { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  btnAppOnlyTxt: { color: colors.textDim, fontWeight: '700', fontSize: 13 },
 
   // ── Avatar modal ──
   avatarOverlay: {

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, ScrollView, StatusBar,
-  ActivityIndicator, Alert, Dimensions,
+  ActivityIndicator, Alert, Dimensions, Platform,
 } from 'react-native';
+import AppOnlyScreen from '../components/AppOnlyScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,6 +45,8 @@ const SAMPLE_AVATARS = [
 ];
 
 export default function CreateFrameScreen({ navigation }) {
+  if (Platform.OS === 'web') return <AppOnlyScreen navigation={navigation} />;
+
   const { user, updateUser } = useAuthStore();
   const [tab, setTab]         = useState('preview');  // 'preview' | 'editor' | 'info'
   const [name, setName]       = useState('');

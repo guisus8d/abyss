@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator, Modal, Pressable,
   StatusBar, Dimensions, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import AppOnlyScreen from '../components/AppOnlyScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -29,6 +30,8 @@ function FrameCardBg({ frame }) {
 const STEPS = ['recipient', 'content', 'confirm'];
 
 export default function GiftScreen({ navigation, route }) {
+  if (Platform.OS === 'web') return <AppOnlyScreen navigation={navigation} />;
+
   const { user, updateUser } = useAuthStore();
   const prefilledUsername = route.params?.targetUsername || '';
   const [step, setStep]       = useState(prefilledUsername ? 'content' : 'recipient');

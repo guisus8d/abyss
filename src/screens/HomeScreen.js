@@ -3,7 +3,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, RefreshControl,
-  ActivityIndicator, Alert, Animated, Platform,
+  ActivityIndicator, Alert, Animated, Platform, Linking,
   Modal, FlatList, Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -247,6 +247,16 @@ export default function HomeScreen({ navigation }) {
               </View>
             </TouchableOpacity>
             <View style={s.headerRight}>
+              {Platform.OS === 'web' && (
+                <TouchableOpacity
+                  style={s.downloadBtn}
+                  onPress={() => Linking.openURL('https://abyss.social/download')}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="download-outline" size={14} color={colors.c1} />
+                  <Text style={s.downloadBtnTxt}>Descargar</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={s.iconBtnBox}
                 onPress={() => navigation.navigate('Search')}>
                 <Ionicons name="search" size={18} color={colors.textHi} />
@@ -442,6 +452,8 @@ const s = StyleSheet.create({
   headerUsername: { color: colors.textHi, fontWeight: '700', fontSize: 13 },
   headerRight:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtnBox:     { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 },
+  downloadBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.35)', marginHorizontal: 2 },
+  downloadBtnTxt: { color: colors.c1, fontSize: 12, fontWeight: '700' },
   notifBadge:     { position: 'absolute', top: -2, right: -2, backgroundColor: colors.c1, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
   notifBadgeTxt:  { color: colors.black, fontSize: 9, fontWeight: '900', paddingHorizontal: 3 },
 
