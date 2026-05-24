@@ -217,7 +217,10 @@ export default function PublicProfileScreen({ route, navigation }) {
     if (!frameId || frameId === 'default' || frameId === 'frame_001') return;
     try {
       const { data } = await api.get(`/frames/${frameId}`);
-      navigation.navigate('FrameDetail', { frame: data.frame, units: null, mode: 'viewer' });
+      const frame = data.frame;
+      if (frame.status === 'active' && frame.units > 0) {
+        navigation.navigate('MarketFrameDetail', { frame });
+      }
     } catch {}
   }
 
