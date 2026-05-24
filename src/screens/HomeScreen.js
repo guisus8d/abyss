@@ -447,7 +447,7 @@ const s = StyleSheet.create({
   headerUsername: { color: colors.textHi, fontWeight: '700', fontSize: 13 },
   headerRight:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtnBox:     { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 },
-  notifBadge:     { position: 'absolute', top: -2, right: -2, backgroundColor: colors.c1, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
+  notifBadge:     { position: 'absolute', top: -2, right: -2, backgroundColor: colors.c2, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
   notifBadgeTxt:  { color: colors.black, fontSize: 9, fontWeight: '900', paddingHorizontal: 3 },
 
   searchBar:      { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC },

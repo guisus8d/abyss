@@ -12,7 +12,7 @@ const AbyssTheme = {
     card:         '#050c14',
     text:         '#e8f4f8',
     border:       '#0d1520',
-    notification: '#00e5cc',
+    notification: '#2979ff',
   },
 };
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
