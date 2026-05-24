@@ -188,7 +188,7 @@ const MessageBubble = memo(function MessageBubble({
   )}
 
   {item.type === 'gift'
-    ? <GiftBubble giftData={item.giftData} giftId={item.giftId} isMe={isMe} onGiftAction={onGiftAction} />
+    ? <GiftBubble giftData={item.giftData} giftId={item.giftId} isMe={isMe} myId={myId} onGiftAction={onGiftAction} />
     : item.type === 'shared_profile'
     ? <SharedProfileBubble sharedProfile={item.sharedProfile} navigation={navigation}
         isMe={isMe} onLongPress={onLongPress} />
@@ -257,6 +257,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [giftType,      setGiftType]      = useState('coins');
   const [giftCoins,     setGiftCoins]     = useState('');
   const [giftFrame,     setGiftFrame]     = useState(null);
+  const [giftCantidad,  setGiftCantidad]  = useState('1');
   const [giftMsg,       setGiftMsg]       = useState('');
   const [giftInv,       setGiftInv]       = useState([]);
   const [giftInvLoad,   setGiftInvLoad]   = useState(false);
@@ -336,12 +337,15 @@ export default function ChatRoomScreen({ route, navigation }) {
         if (userId !== myId) setTyping(isTyping);
       });
 
-      s.on('gift:update', ({ giftId, estado }) => {
-        setMessages(prev => prev.map(m =>
-          m.giftId?.toString() === giftId?.toString()
-            ? { ...m, giftData: { ...(m.giftData || {}), estado } }
-            : m
-        ));
+      s.on('gift:update', ({ giftId, estado, slotsReclamados, reclamadoPor }) => {
+        setMessages(prev => prev.map(m => {
+          if (m.giftId?.toString() !== giftId?.toString()) return m;
+          const patch = {};
+          if (estado          !== undefined) patch.estado          = estado;
+          if (slotsReclamados !== undefined) patch.slotsReclamados = slotsReclamados;
+          if (reclamadoPor    !== undefined) patch.reclamadoPor    = reclamadoPor;
+          return { ...m, giftData: { ...(m.giftData || {}), ...patch } };
+        }));
       });
     });
 
@@ -359,6 +363,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     setGiftType('coins');
     setGiftCoins('');
     setGiftFrame(null);
+    setGiftCantidad('1');
     setGiftMsg('');
     setGiftErr('');
     setGiftInvLoad(true);
@@ -376,13 +381,14 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (giftType === 'frame' && !giftFrame) {
       setGiftErr('Selecciona un marco'); return;
     }
+    const cant = Math.max(1, parseInt(giftCantidad) || 1);
     setSendingGift(true);
     setGiftErr('');
     try {
       const { data } = await api.post('/gifts', {
         receptorUsername: other.username,
         monedas: giftType === 'coins' ? parseInt(giftCoins) : 0,
-        items:   giftType === 'frame' ? [{ frameId: (giftFrame.frame || giftFrame)._id, cantidad: 1 }] : [],
+        items:   giftType === 'frame' ? [{ frameId: (giftFrame.frame || giftFrame)._id, cantidad: cant }] : [],
         mensaje: giftMsg.trim(),
       });
       const gift = data.gift;
@@ -392,11 +398,15 @@ export default function ChatRoomScreen({ route, navigation }) {
         text:     '',
         giftId:   gift._id,
         giftData: {
-          monedas:        gift.monedas || 0,
-          items:          (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad })),
-          mensaje:        gift.mensaje || '',
-          estado:         'pendiente',
-          emisorUsername: user.username,
+          monedas:         gift.monedas || 0,
+          items:           (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad })),
+          mensaje:         gift.mensaje || '',
+          estado:          'pendiente',
+          emisorUsername:  user.username,
+          tipo:            'privado',
+          slots:           1,
+          slotsReclamados: 0,
+          reclamadoPor:    [],
         },
       });
       setGiftModal(false);
@@ -883,10 +893,27 @@ export default function ChatRoomScreen({ route, navigation }) {
                   </ScrollView>
                 )}
                 {giftFrame && (
-                  <View style={[s.giftCommissionCard, { marginTop: 8 }]}>
-                    <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
-                    <Text style={s.giftNote}>Costo de transferencia: <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>5 coins por ítem</Text></Text>
-                  </View>
+                  <>
+                    <Text style={[s.giftFieldLbl, { marginTop: 12 }]}>Unidades a enviar</Text>
+                    <TextInput
+                      style={s.giftInput}
+                      value={giftCantidad}
+                      onChangeText={v => setGiftCantidad(v.replace(/[^0-9]/g, '') || '1')}
+                      keyboardType="numeric"
+                      placeholder="1"
+                      placeholderTextColor={colors.textDim}
+                    />
+                    <View style={[s.giftCommissionCard, { marginTop: 4 }]}>
+                      <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
+                      <Text style={s.giftNote}>
+                        Costo de transferencia:{' '}
+                        <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>
+                          {(parseInt(giftCantidad) || 1) * 5} coins
+                        </Text>
+                        {' '}({parseInt(giftCantidad) || 1} unidad{(parseInt(giftCantidad) || 1) > 1 ? 'es' : ''} × 5)
+                      </Text>
+                    </View>
+                  </>
                 )}
               </View>
             )}

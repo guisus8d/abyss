@@ -102,7 +102,7 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
   msg, prevMsg, isMe, user, group, isAdmin, blockedIds,
-  navigation, onOpenMenu, onReply, onFullImg, onGiftAction,
+  navigation, onOpenMenu, onReply, onFullImg, onGiftAction, onGiftClaim,
 }) {
   const sender       = msg.sender;
   const prevSenderId = (prevMsg?.sender?._id || prevMsg?.sender)?.toString();
@@ -174,7 +174,7 @@ const MessageBubble = memo(function MessageBubble({
                   </View>
                 )}
                 {msg.type === 'gift'
-                  ? <GiftBubble giftData={msg.giftData} giftId={msg.giftId} isMe={isMe} onGiftAction={onGiftAction} />
+                  ? <GiftBubble giftData={msg.giftData} giftId={msg.giftId} isMe={isMe} myId={user?._id} onGiftAction={onGiftAction} onGiftClaim={onGiftClaim} />
                   : msg.type === 'shared_profile' && msg.sharedProfile
                   ? <SharedProfileBubble sharedProfile={msg.sharedProfile} navigation={navigation} isMe={isMe} onLongPress={() => onOpenMenu(msg)} />
                   : msg.type === 'shared_post' && msg.sharedPost
@@ -236,16 +236,17 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
 
   // ── Regalo ─────────────────────────────────────────────────────────────────
-  const [giftModal,    setGiftModal]    = useState(false);
-  const [giftRecipient,setGiftRecipient]= useState(null); // { username, avatarUrl }
-  const [giftType,     setGiftType]     = useState('coins');
-  const [giftCoins,    setGiftCoins]    = useState('');
-  const [giftFrame,    setGiftFrame]    = useState(null);
-  const [giftMsg,      setGiftMsg]      = useState('');
-  const [giftInv,      setGiftInv]      = useState([]);
-  const [giftInvLoad,  setGiftInvLoad]  = useState(false);
-  const [sendingGift,  setSendingGift]  = useState(false);
-  const [giftErr,      setGiftErr]      = useState('');
+  const [giftModal,   setGiftModal]   = useState(false);
+  const [giftType,    setGiftType]    = useState('coins');
+  const [giftCoins,   setGiftCoins]   = useState('');
+  const [giftSlots,   setGiftSlots]   = useState('5');
+  const [giftFrame,   setGiftFrame]   = useState(null);
+  const [giftCantidad,setGiftCantidad]= useState('5');
+  const [giftMsg,     setGiftMsg]     = useState('');
+  const [giftInv,     setGiftInv]     = useState([]);
+  const [giftInvLoad, setGiftInvLoad] = useState(false);
+  const [sendingGift, setSendingGift] = useState(false);
+  const [giftErr,     setGiftErr]     = useState('');
 
   const flatRef      = useRef(null);
   const socketRef    = useRef(null);
@@ -397,12 +398,15 @@ export default function GroupRoomScreen({ route, navigation }) {
       ]);
     });
 
-    socket.on('gift:update', ({ giftId, estado }) => {
-      setMessages(prev => prev.map(m =>
-        m.giftId?.toString() === giftId?.toString()
-          ? { ...m, giftData: { ...(m.giftData || {}), estado } }
-          : m
-      ));
+    socket.on('gift:update', ({ giftId, estado, slotsReclamados, reclamadoPor }) => {
+      setMessages(prev => prev.map(m => {
+        if (m.giftId?.toString() !== giftId?.toString()) return m;
+        const patch = {};
+        if (estado          !== undefined) patch.estado          = estado;
+        if (slotsReclamados !== undefined) patch.slotsReclamados = slotsReclamados;
+        if (reclamadoPor    !== undefined) patch.reclamadoPor    = reclamadoPor;
+        return { ...m, giftData: { ...(m.giftData || {}), ...patch } };
+      }));
     });
   }
 
@@ -538,30 +542,37 @@ export default function GroupRoomScreen({ route, navigation }) {
 
   async function openGiftModal() {
     setGiftModal(true);
-    setGiftRecipient(null);
     setGiftType('coins');
     setGiftCoins('');
+    setGiftSlots('5');
     setGiftFrame(null);
+    setGiftCantidad('5');
     setGiftMsg('');
     setGiftErr('');
     setGiftInvLoad(true);
     try {
       const { data } = await api.get('/frames/me/inventory');
-      setGiftInv((data.inventory || []).filter(i => (i.unidadesEnMano || 0) > 0));
+      setGiftInv((data.inventory || []).filter(i => (i.unidadesEnMano || 0) >= 2));
     } catch {}
     finally { setGiftInvLoad(false); }
   }
 
   async function sendGroupGift() {
-    if (!giftRecipient) { setGiftErr('Selecciona un destinatario'); return; }
-    if (giftType === 'coins' && (!giftCoins || parseInt(giftCoins) <= 0)) { setGiftErr('Ingresa un monto válido'); return; }
-    if (giftType === 'frame' && !giftFrame) { setGiftErr('Selecciona un marco'); return; }
+    if (giftType === 'coins') {
+      if (!giftCoins || parseInt(giftCoins) <= 0) { setGiftErr('Ingresa un monto válido'); return; }
+      if (!giftSlots || parseInt(giftSlots) < 2) { setGiftErr('Mínimo 2 usuarios'); return; }
+    } else {
+      if (!giftFrame) { setGiftErr('Selecciona un marco'); return; }
+      if (!giftCantidad || parseInt(giftCantidad) < 2) { setGiftErr('Mínimo 2 unidades'); return; }
+    }
     setSendingGift(true); setGiftErr('');
     try {
-      const { data } = await api.post('/gifts', {
-        receptorUsername: giftRecipient.username,
+      const slots = parseInt(giftSlots) || 5;
+      const cant  = parseInt(giftCantidad) || 5;
+      const { data } = await api.post('/gifts/group', {
         monedas: giftType === 'coins' ? parseInt(giftCoins) : 0,
-        items:   giftType === 'frame' ? [{ frameId: (giftFrame.frame || giftFrame)._id, cantidad: 1 }] : [],
+        slots:   giftType === 'coins' ? slots : cant,
+        items:   giftType === 'frame' ? [{ frameId: (giftFrame.frame || giftFrame)._id, cantidad: cant }] : [],
         mensaje: giftMsg.trim(),
       });
       const gift = data.gift;
@@ -571,11 +582,15 @@ export default function GroupRoomScreen({ route, navigation }) {
         text:    '',
         giftId:  gift._id,
         giftData: {
-          monedas:        gift.monedas || 0,
-          items:          (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad })),
-          mensaje:        gift.mensaje || '',
-          estado:         'pendiente',
-          emisorUsername: user.username,
+          monedas:         gift.monedas || 0,
+          items:           (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad })),
+          mensaje:         gift.mensaje || '',
+          estado:          'pendiente',
+          emisorUsername:  user.username,
+          tipo:            'grupal',
+          slots:           gift.slots,
+          slotsReclamados: 0,
+          reclamadoPor:    [],
         },
       });
       setGiftModal(false);
@@ -584,22 +599,32 @@ export default function GroupRoomScreen({ route, navigation }) {
     } finally { setSendingGift(false); }
   }
 
-  const handleGroupGiftAction = useCallback(async (giftId, action) => {
+  const handleGroupGiftClaim = useCallback(async (giftId) => {
     try {
-      await api.post(`/gifts/${giftId}/${action}`);
-      setMessages(prev => prev.map(m =>
-        (m.giftId?.toString?.() === giftId?.toString?.() || m.giftId === giftId)
-          ? { ...m, giftData: { ...(m.giftData || {}), estado: action === 'accept' ? 'aceptado' : 'rechazado' } }
-          : m
-      ));
-      Alert.alert(
-        action === 'accept' ? 'Regalo aceptado ✓' : 'Regalo rechazado',
-        action === 'accept' ? 'El regalo fue añadido a tu cuenta' : 'Las monedas/marcos fueron devueltos'
-      );
+      const { data } = await api.post(`/gifts/${giftId}/claim`, {
+        roomId:   group._id,
+        roomType: 'group',
+      });
+      setMessages(prev => prev.map(m => {
+        if (m.giftId?.toString() !== giftId?.toString()) return m;
+        return {
+          ...m,
+          giftData: {
+            ...(m.giftData || {}),
+            slotsReclamados: data.slotsReclamados,
+            reclamadoPor: [...(m.giftData?.reclamadoPor || []), String(user._id)],
+          },
+        };
+      }));
+      if (data.monedasRecibidas > 0) {
+        Alert.alert('🎁 ¡Reclamado!', `Recibiste ${data.monedasRecibidas} coins`);
+      } else {
+        Alert.alert('🎁 ¡Reclamado!', 'El marco fue añadido a tu colección');
+      }
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'No se pudo procesar el regalo');
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo reclamar el regalo');
     }
-  }, []);
+  }, [group._id, user._id]);
 
   function sendMessage() {
     if (!text.trim() || sendingRef.current) return;
@@ -740,10 +765,10 @@ export default function GroupRoomScreen({ route, navigation }) {
         onOpenMenu={openMenu}
         onReply={setReplyTo}
         onFullImg={setFullImg}
-        onGiftAction={handleGroupGiftAction}
+        onGiftClaim={handleGroupGiftClaim}
       />
     );
-  }, [flatListData, user, group, isAdmin, handleGroupGiftAction]);
+  }, [flatListData, user, group, isAdmin, handleGroupGiftClaim]);
 
   const menuIsMe   = menuMsg && (menuMsg.sender?._id || menuMsg.sender)?.toString() === user?._id?.toString();
   const menuSender = menuMsg?.sender;
@@ -1110,33 +1135,11 @@ export default function GroupRoomScreen({ route, navigation }) {
           <Pressable style={s.giftSheet} onPress={() => {}}>
             <View style={s.giftHandle} />
             <View style={s.giftHead}>
-              <Text style={s.giftTitle}>🎁 Enviar regalo en el grupo</Text>
+              <Text style={s.giftTitle}>🎁 Lluvia de regalos</Text>
               <TouchableOpacity onPress={() => setGiftModal(false)}>
                 <Ionicons name="close" size={20} color={colors.textDim} />
               </TouchableOpacity>
             </View>
-
-            {/* Destinatario */}
-            <Text style={s.giftFieldLbl}>Destinatario</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-              {(group?.members || [])
-                .filter(m => (m.user?._id || m.user)?.toString() !== user?._id?.toString())
-                .map((m, i) => {
-                  const u = m.user;
-                  const uId = (u?._id || u)?.toString();
-                  const selected = giftRecipient && (giftRecipient._id === uId || giftRecipient.username === u?.username);
-                  return (
-                    <TouchableOpacity
-                      key={uId || i}
-                      style={[s.giftMemberCard, selected && s.giftMemberSelected]}
-                      onPress={() => { setGiftRecipient(u); setGiftErr(''); }}
-                    >
-                      <AvatarWithFrame size={36} avatarUrl={u?.avatarUrl} username={u?.username} />
-                      <Text style={s.giftMemberName} numberOfLines={1}>{u?.username || '?'}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-            </ScrollView>
 
             {/* Toggle tipo */}
             <View style={s.giftToggle}>
@@ -1159,19 +1162,31 @@ export default function GroupRoomScreen({ route, navigation }) {
 
             {giftType === 'coins' && (
               <>
-                <Text style={s.giftFieldLbl}>Cantidad de monedas</Text>
+                <Text style={s.giftFieldLbl}>Total de monedas a repartir</Text>
                 <TextInput
                   style={s.giftInput}
                   value={giftCoins}
                   onChangeText={v => setGiftCoins(v.replace(/[^0-9]/g, ''))}
                   keyboardType="numeric"
-                  placeholder="Ej: 100"
+                  placeholder="Ej: 500"
                   placeholderTextColor={colors.textDim}
                 />
-                {parseInt(giftCoins) > 0 && (
+                <Text style={s.giftFieldLbl}>¿Cuántos usuarios pueden reclamar?</Text>
+                <TextInput
+                  style={s.giftInput}
+                  value={giftSlots}
+                  onChangeText={v => setGiftSlots(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="numeric"
+                  placeholder="Ej: 5"
+                  placeholderTextColor={colors.textDim}
+                />
+                {parseInt(giftCoins) > 0 && parseInt(giftSlots) >= 2 && (
                   <View style={s.giftCommissionCard}>
                     <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
-                    <Text style={s.giftCommissionTxt}>El destinatario recibirá <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>{Math.round(parseInt(giftCoins) * 0.85)} coins</Text> (se aplica 15% de comisión)</Text>
+                    <Text style={s.giftCommissionTxt}>
+                      Cada usuario recibe <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>{Math.floor(parseInt(giftCoins) / parseInt(giftSlots))} coins</Text>
+                      {' '}· Total: <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>{giftCoins} coins</Text> para {giftSlots} usuarios
+                    </Text>
                   </View>
                 )}
               </>
@@ -1183,7 +1198,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 {giftInvLoad
                   ? <ActivityIndicator color={colors.c1} style={{ marginVertical: 16 }} />
                   : giftInv.length === 0
-                  ? <Text style={{ color: colors.textDim, fontSize: 12, marginBottom: 10 }}>Sin marcos en inventario</Text>
+                  ? <Text style={{ color: colors.textDim, fontSize: 12, marginBottom: 10 }}>Sin marcos disponibles (necesitas ≥2 unidades)</Text>
                   : (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                       {giftInv.map(item => {
@@ -1199,15 +1214,28 @@ export default function GroupRoomScreen({ route, navigation }) {
                               ? <Image source={{ uri: fr.imageUrl }} style={{ width: 44, height: 44 }} resizeMode="contain" />
                               : <Ionicons name="sparkles-outline" size={20} color={colors.c1} />}
                             <Text style={{ color: colors.textHi, fontSize: 8, textAlign: 'center' }} numberOfLines={1}>{fr.name}</Text>
+                            <Text style={{ color: colors.textDim, fontSize: 7 }}>{item.unidadesEnMano} uds</Text>
                           </TouchableOpacity>
                         );
                       })}
                     </ScrollView>
                   )}
-                {giftFrame && (
-                  <View style={[s.giftCommissionCard, { marginTop: 4, marginBottom: 8 }]}>
+                <Text style={s.giftFieldLbl}>¿Cuántas unidades repartir?</Text>
+                <TextInput
+                  style={s.giftInput}
+                  value={giftCantidad}
+                  onChangeText={v => setGiftCantidad(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="numeric"
+                  placeholder="Ej: 5"
+                  placeholderTextColor={colors.textDim}
+                />
+                {giftFrame && parseInt(giftCantidad) >= 2 && (
+                  <View style={[s.giftCommissionCard, { marginBottom: 8 }]}>
                     <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
-                    <Text style={s.giftCommissionTxt}>Costo de transferencia: <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>5 coins por ítem</Text></Text>
+                    <Text style={s.giftCommissionTxt}>
+                      Cada usuario recibe <Text style={{ color: 'rgba(168,85,247,0.9)', fontWeight: '700' }}>1 unidad</Text>
+                      {' '}· {giftCantidad} usuarios pueden reclamar
+                    </Text>
                   </View>
                 )}
               </>
@@ -1238,7 +1266,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             >
               {sendingGift
                 ? <ActivityIndicator size={16} color={colors.black} />
-                : <Text style={s.giftSendTxt}>Enviar regalo 🎁</Text>}
+                : <Text style={s.giftSendTxt}>Enviar lluvia de regalos 🎁</Text>}
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -1368,9 +1396,6 @@ const s = StyleSheet.create({
   giftHead:         { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:14 },
   giftTitle:        { color:colors.textHi, fontSize:15, fontWeight:'700' },
   giftFieldLbl:     { color:colors.textMid, fontSize:11, fontWeight:'700', marginBottom:8, letterSpacing:0.5 },
-  giftMemberCard:   { alignItems:'center', width:70, marginRight:10, padding:8, backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border },
-  giftMemberSelected: { borderColor:colors.c3, backgroundColor:'rgba(168,85,247,0.12)' },
-  giftMemberName:   { color:colors.textHi, fontSize:9, marginTop:4, textAlign:'center' },
   giftToggle:       { flexDirection:'row', backgroundColor:colors.deep, borderRadius:12, padding:3, marginBottom:14, gap:3 },
   giftToggleBtn:    { flex:1, paddingVertical:7, borderRadius:10, alignItems:'center' },
   giftToggleActive: { backgroundColor:colors.c3 },
