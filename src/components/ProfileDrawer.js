@@ -13,7 +13,38 @@ import api from '../services/api';
 import AvatarWithFrame from './AvatarWithFrame';
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = Math.min(width * 0.62, 320);
+const DRAWER_WIDTH = Math.min(width * 0.72, 300);
+
+// MenuItem con ícono en contenedor coloreado (estilo Telegram/Discord)
+function MenuItem({ icon, label, color, onPress, badge }) {
+  const bg     = color + '1A'; // ~10% opacity
+  const border = color + '30'; // ~19% opacity
+  return (
+    <TouchableOpacity style={s.menuItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={[s.iconBox, { backgroundColor: bg, borderColor: border }]}>
+        <Ionicons name={icon} size={19} color={color} />
+      </View>
+      <Text style={s.menuLabel}>{label}</Text>
+      {badge != null && badge > 0 ? (
+        <View style={s.badge}>
+          <Text style={s.badgeTxt}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      ) : (
+        <Ionicons name="chevron-forward" size={15} color={colors.textDim} />
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function SectionDivider({ label }) {
+  return (
+    <View style={s.dividerWrap}>
+      {label
+        ? <Text style={s.dividerLabel}>{label}</Text>
+        : <View style={s.dividerLine} />}
+    </View>
+  );
+}
 
 export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavigate, onAvatarUpdate }) {
   const insets     = useSafeAreaInsets();
@@ -86,84 +117,111 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       <Animated.View style={[s.drawer, { transform: [{ translateX }] }]}>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-          <View style={[s.drawerHeader, { paddingTop: insets.top + 44 }]}>
-            <TouchableOpacity onPress={() => { onClose(); onNavigate('Profile'); }} style={s.avatarArea}>
+          {/* ── Perfil ── */}
+          <View style={[s.header, { paddingTop: insets.top + 32 }]}>
+            <TouchableOpacity
+              onPress={() => { onClose(); onNavigate('Profile'); }}
+              style={s.avatarWrap}
+              activeOpacity={0.85}
+            >
               <AvatarWithFrame
-                size={64}
+                size={68}
                 avatarUrl={avatarUrl}
                 username={user?.username}
                 profileFrame={user?.profileFrame}
                 frameUrl={user?.profileFrameUrl}
                 bgColor={colors.surface}
               />
-              <View style={s.photoBtn}>
-                <Ionicons name={uploading ? 'time' : 'camera'} size={12} color={colors.textMid} />
+              <View style={s.cameraBtn}>
+                <Ionicons name={uploading ? 'time-outline' : 'camera-outline'} size={13} color={colors.textMid} />
               </View>
             </TouchableOpacity>
 
-            <Text style={s.drawerUsername}>{user?.username}</Text>
-            <Text style={s.drawerEmail}>{user?.email}</Text>
+            <Text style={s.username}>{user?.username}</Text>
+            <Text style={s.email}>{user?.email}</Text>
+
+            {/* Píldoras stats */}
+            <View style={s.pillRow}>
+              <View style={s.pill}>
+                <Ionicons name="flash-outline" size={11} color={colors.c1} />
+                <Text style={s.pillTxt}>{user?.xp || 0} XP</Text>
+              </View>
+              <View style={s.pillDot} />
+              <View style={s.pill}>
+                <Ionicons name="calendar-outline" size={11} color={colors.textDim} />
+                <Text style={s.pillTxt}>{daysSince}d</Text>
+              </View>
+              <View style={s.pillDot} />
+              <View style={s.pill}>
+                <Text style={s.pillCoin}>✦</Text>
+                <Text style={[s.pillTxt, { color: 'rgba(251,191,36,1)' }]}>{user?.coins ?? 50}</Text>
+              </View>
+            </View>
           </View>
 
-          <View style={s.statsRow}>
-            <View style={s.stat}>
-              <Text style={s.statVal}>{user?.xp || 0}</Text>
-              <Text style={s.statLbl}>XP</Text>
-            </View>
-            <View style={s.statDiv} />
-            <View style={s.stat}>
-              <Text style={s.statVal}>{daysSince}</Text>
-              <Text style={s.statLbl}>DÍAS</Text>
-            </View>
-          </View>
-
+          {/* ── Sección principal ── */}
           <View style={s.section}>
-            <Text style={s.sectionTitle}>MONEDAS</Text>
-            <View style={s.coinsRow}>
-              <View style={s.coinIcon}><Text style={s.coinEmoji}>✦</Text></View>
-              <Text style={s.coinsAmt}>{user?.coins ?? 50}</Text>
-            </View>
+            <SectionDivider label="COMUNIDAD" />
+            <MenuItem
+              icon="albums-outline"
+              label="Mi Colección"
+              color={colors.c5}
+              onPress={() => { onClose(); onNavigate('Collection'); }}
+            />
+            <MenuItem
+              icon="storefront-outline"
+              label="Mi Tienda"
+              color={colors.c1}
+              onPress={() => { onClose(); onNavigate('Store', { username: user?.username }); }}
+            />
+            <MenuItem
+              icon="trophy-outline"
+              label="Top Semanal"
+              color={colors.c4}
+              onPress={() => { onClose(); onNavigate('Top'); }}
+            />
           </View>
 
-          <View style={[s.section, { marginTop: 24 }]}>
-            <Text style={s.sectionTitle}>MENÚ</Text>
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Collection'); }}>
-              <Ionicons name='albums' size={18} color={colors.textMid} style={s.menuIconV} />
-              <Text style={s.menuTxt}>Mi Colección</Text>
-              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Store', { username: user?.username }); }}>
-              <Ionicons name='storefront' size={18} color={colors.c1} style={s.menuIconV} />
-              <Text style={[s.menuTxt, { color: colors.c1 }]}>Mi Tienda</Text>
-              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('GiftsReceived'); }}>
-              <Ionicons name='gift' size={18} color={colors.c3} style={s.menuIconV} />
-              <Text style={[s.menuTxt, { color: colors.c3 }]}>Regalos Recibidos</Text>
-              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Transactions'); }}>
-              <Ionicons name='receipt' size={18} color='rgba(251,191,36,1)' style={s.menuIconV} />
-              <Text style={[s.menuTxt, { color: 'rgba(251,191,36,1)' }]}>Historial de Coins</Text>
-              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Top'); }}>
-              <Ionicons name='trophy' size={18} color={colors.textMid} style={s.menuIconV} />
-              <Text style={s.menuTxt}>Top Semanal</Text>
-              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); onNavigate('Settings'); }}>
-              <Ionicons name='settings' size={18} color={colors.textMid} style={s.menuIconV} />
-              <Text style={s.menuTxt}>Ajustes</Text>
-              <Ionicons name='chevron-forward' size={16} color={colors.textDim} />
+          {/* ── Sección finanzas ── */}
+          <View style={s.section}>
+            <SectionDivider label="FINANZAS" />
+            <MenuItem
+              icon="gift-outline"
+              label="Regalos Recibidos"
+              color={colors.c3}
+              onPress={() => { onClose(); onNavigate('GiftsReceived'); }}
+            />
+            <MenuItem
+              icon="receipt-outline"
+              label="Historial de Coins"
+              color="rgba(251,191,36,1)"
+              onPress={() => { onClose(); onNavigate('Transactions'); }}
+            />
+          </View>
+
+          {/* ── Sección cuenta ── */}
+          <View style={s.section}>
+            <SectionDivider label="CUENTA" />
+            <MenuItem
+              icon="settings-outline"
+              label="Ajustes"
+              color={colors.textMid}
+              onPress={() => { onClose(); onNavigate('Settings'); }}
+            />
+          </View>
+
+          {/* ── Cerrar sesión ── */}
+          <View style={s.logoutWrap}>
+            <SectionDivider />
+            <TouchableOpacity style={s.logoutBtn} onPress={onLogout} activeOpacity={0.8}>
+              <View style={s.logoutIconBox}>
+                <Ionicons name="log-out-outline" size={19} color="#ef4444" />
+              </View>
+              <Text style={s.logoutTxt}>Cerrar sesión</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={s.logoutBtn} onPress={onLogout}>
-            <Text style={s.logoutTxt}>Cerrar sesión</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 30 }} />
+          <View style={{ height: insets.bottom + 24 }} />
         </ScrollView>
       </Animated.View>
     </View>
@@ -176,43 +234,64 @@ const s = StyleSheet.create({
   drawer: {
     position: 'absolute', top: 0, left: 0, bottom: 0,
     width: DRAWER_WIDTH, backgroundColor: colors.deep,
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, elevation: 20,
   },
-  drawerHeader: { paddingHorizontal: 18, paddingBottom: 18, alignItems: 'center', backgroundColor: colors.deep },
 
-  avatarArea:   { position: 'relative', marginBottom: 10 },
-  photoBtn: {
-    position: 'absolute', bottom: 0, right: -2,
-    backgroundColor: colors.deep, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.borderC,
-    width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
-    zIndex: 30, elevation: 6,
+  // Header / perfil
+  header: {
+    paddingHorizontal: 20, paddingBottom: 20,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+    marginBottom: 8,
   },
-  drawerUsername: { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 1 },
-  drawerEmail:    { color: colors.textDim, fontSize: 10, marginBottom: 12 },
-  coinsRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 4 },
-  coinIcon:  { width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(251,191,36,0.2)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.5)', alignItems: 'center', justifyContent: 'center' },
-  coinEmoji: { fontSize: 9, color: 'rgba(251,191,36,1)' },
-  coinsAmt:  { color: 'rgba(251,191,36,1)', fontWeight: '800', fontSize: 13 },
-  statsRow: {
-    flexDirection: 'row', marginHorizontal: 12, marginVertical: 10,
-    backgroundColor: colors.card,
-    borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 10,
+  avatarWrap: { position: 'relative', alignSelf: 'flex-start', marginBottom: 14 },
+  cameraBtn: {
+    position: 'absolute', bottom: 0, right: -4,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderC,
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 10,
   },
-  stat:    { flex: 1, alignItems: 'center' },
-  statVal: { color: colors.textHi, fontSize: 16, fontWeight: '700' },
-  statLbl: { color: colors.textDim, fontSize: 7, letterSpacing: 2, marginTop: 2 },
-  statDiv: { width: 1, backgroundColor: colors.border },
-  section:      { marginHorizontal: 12, marginBottom: 14 },
-  sectionTitle: { fontSize: 8, letterSpacing: 3, color: colors.textDim, marginBottom: 8 },
+  username: { color: colors.textHi, fontSize: 17, fontWeight: '700', marginBottom: 2 },
+  email:    { color: colors.textDim, fontSize: 11, marginBottom: 14 },
+
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  pill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: colors.border },
+  pillTxt: { color: colors.textMid, fontSize: 11, fontWeight: '600' },
+  pillCoin:{ color: 'rgba(251,191,36,1)', fontSize: 11, fontWeight: '800' },
+  pillDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.border },
+
+  // Secciones
+  section: { marginBottom: 4 },
+
+  dividerWrap:  { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
+  dividerLabel: { fontSize: 9, letterSpacing: 2.5, color: colors.textDim, fontWeight: '700' },
+  dividerLine:  { height: 1, backgroundColor: colors.border, marginTop: 4 },
+
+  // Ítems de menú
   menuItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 16, paddingVertical: 13,
   },
-  menuIconV: { width: 22 },
-  menuTxt:   { flex: 1, color: colors.textMid, fontSize: 13 },
+  iconBox: {
+    width: 38, height: 38, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
+  },
+  menuLabel: { flex: 1, color: colors.textHi, fontSize: 14, fontWeight: '500' },
+  badge:     { backgroundColor: colors.c3, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  badgeTxt:  { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  // Logout
+  logoutWrap: { marginTop: 4 },
   logoutBtn: {
-    marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 10,
-    backgroundColor: 'rgba(239,68,68,1)', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 16, paddingVertical: 13,
   },
-  logoutTxt: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  logoutIconBox: {
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  logoutTxt: { color: '#ef4444', fontSize: 14, fontWeight: '600' },
 });
