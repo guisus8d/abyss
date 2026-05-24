@@ -8,8 +8,6 @@ export const colors = {
   c3:      '#d946ef',
   c4:      '#f97316',
   c5:      '#22d3ee',
-  danger:  'rgba(239,68,68,1)',
-  warning: 'rgba(251,191,36,1)',
   textHi:  '#e8f4f8',
   textMid: '#7a9ab8',
   textDim: '#3a5570',

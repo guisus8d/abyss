@@ -423,11 +423,11 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-const CARD_BG = colors.card;
+const CARD_BG = '#0b1521';
 
 const s = StyleSheet.create({
   root:     { flex: 1, backgroundColor: colors.black },
-  feed:     { flex: 1, backgroundColor: colors.black },
+  feed:     { flex: 1, backgroundColor: '#020509' },
   center:   { alignItems: 'center', justifyContent: 'center', paddingVertical: 50 },
   emptyTxt: { color: colors.textDim, fontSize: 14, textAlign: 'center', paddingHorizontal: 30, marginTop: 6 },
 
@@ -509,7 +509,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   epBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  epSheet:    { backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30, paddingHorizontal: 8 },
+  epSheet:    { backgroundColor: '#0d1a24', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30, paddingHorizontal: 8 },
   epKnob:     { width: 40, height: 4, backgroundColor: colors.c1, borderRadius: 2, alignSelf: 'center', marginVertical: 10 },
   epItem:     { width: '12.5%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
   epEmoji:    { fontSize: 26, textAlign: 'center' },

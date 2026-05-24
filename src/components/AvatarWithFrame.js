@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Image, Text } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { colors } from '../theme/colors';
 
 const FRAME_001_URL       = 'https://res.cloudinary.com/dlpdzgkeg/image/upload/frames/frame_001.webp';
 const BADGE_ADMIN        = require('../../assets/badge-admin.png');
@@ -50,7 +49,7 @@ export default function AvatarWithFrame({
         }}>
           {avatarUrl
             ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
-            : <Text style={{ color: colors.c1, fontWeight: 'bold', fontSize: size * 0.38 }}>
+            : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
                 {username?.[0]?.toUpperCase()}
               </Text>}
         </View>
@@ -91,7 +90,7 @@ export default function AvatarWithFrame({
       }}>
         {avatarUrl
           ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
-          : <Text style={{ color: colors.c1, fontWeight: 'bold', fontSize: size * 0.38 }}>
+          : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
               {username?.[0]?.toUpperCase()}
             </Text>}
       </View>
