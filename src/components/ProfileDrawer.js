@@ -202,7 +202,7 @@ const s = StyleSheet.create({
   menuTxt:   { flex: 1, color: colors.textMid, fontSize: 13 },
   logoutBtn: {
     marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 10,
-    backgroundColor: 'rgba(160,25,25,0.85)', alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,1)', alignItems: 'center',
   },
   logoutTxt: { color: '#ffffff', fontSize: 12, fontWeight: '700', letterSpacing: 1 },
 });
