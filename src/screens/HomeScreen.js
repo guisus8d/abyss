@@ -87,7 +87,6 @@ export default function HomeScreen({ navigation }) {
     trending:  INITIAL_TAB_STATE(),
   });
 
-  const tabIndicator = useRef(new Animated.Value(0)).current;
   const loadingRef   = useRef(false);
 
   useEffect(() => {
@@ -132,7 +131,6 @@ export default function HomeScreen({ navigation }) {
 
   function switchTab(key) {
     const idx = TABS.findIndex(t => t.key === key);
-    Animated.spring(tabIndicator, { toValue: idx, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
     setActiveTab(key);
     if (!tabData[key].loaded && !tabData[key].loading) fetchTab(key, 1);
   }
@@ -221,7 +219,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={s.root}>
-      {Platform.OS !== 'web' && <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />}
+      {Platform.OS !== 'web' && <StatusBar barStyle="light-content" backgroundColor={colors.black} />}
 
       {toastBadge && <BadgeToast badge={toastBadge} onHide={() => setToastBadge(null)} />}
 
@@ -311,15 +309,12 @@ export default function HomeScreen({ navigation }) {
             {TABS.map((tab) => {
               const active = activeTab === tab.key;
               return (
-                <TouchableOpacity key={tab.key} style={s.tabBtn} onPress={() => switchTab(tab.key)} activeOpacity={0.7}>
-                  <Ionicons name={tab.icon} size={14} color={active ? colors.c1 : colors.textDim} style={{ marginRight: 4 }} />
+                <TouchableOpacity key={tab.key} style={[s.tabBtn, active ? s.tabBtnActive : s.tabBtnInactive]} onPress={() => switchTab(tab.key)} activeOpacity={0.7}>
+                  <Ionicons name={tab.icon} size={14} color={active ? colors.black : colors.textDim} style={{ marginRight: 4 }} />
                   <Text style={[s.tabLabel, active && s.tabLabelActive]}>{tab.label}</Text>
                 </TouchableOpacity>
               );
             })}
-            <Animated.View style={[s.tabIndicator, {
-              transform: [{ translateX: tabIndicator.interpolate({ inputRange: [0,1,2], outputRange: [0,120,240] }) }],
-            }]} />
           </View>
         </View>
 
@@ -464,12 +459,13 @@ const s = StyleSheet.create({
   tabBar: {
     flexDirection: 'row', backgroundColor: CARD_BG,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    padding: 4, position: 'relative', overflow: 'hidden',
+    padding: 4, gap: 4,
   },
-  tabBtn:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 4, borderRadius: 12, zIndex: 2 },
+  tabBtn:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 4, borderRadius: 10 },
+  tabBtnActive:   { backgroundColor: colors.c1 },
+  tabBtnInactive: { backgroundColor: 'rgba(255,255,255,0.05)' },
   tabLabel:       { color: colors.textDim, fontSize: 12, fontWeight: '600' },
-  tabLabelActive: { color: colors.c1 },
-  tabIndicator:   { position: 'absolute', top: 4, bottom: 4, width: '33.333%', backgroundColor: 'rgba(0,229,204,0.10)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,229,204,0.22)', zIndex: 1 },
+  tabLabelActive: { color: colors.black },
 
   feedContainer: { backgroundColor: CARD_BG, marginHorizontal: 0, minHeight: 300, paddingTop: 4, zIndex: 1 },
   postGap:       { marginTop: 8 },
