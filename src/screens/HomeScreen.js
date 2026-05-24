@@ -459,11 +459,11 @@ const s = StyleSheet.create({
   tabBar: {
     flexDirection: 'row', backgroundColor: CARD_BG,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    padding: 4, gap: 4,
+    padding: 4, position: 'relative', overflow: 'hidden',
   },
-  tabBtn:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 4, borderRadius: 10 },
+  tabBtn:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 4, borderRadius: 10, margin: 2 },
   tabBtnActive:   { backgroundColor: colors.c1 },
-  tabBtnInactive: { backgroundColor: 'rgba(255,255,255,0.05)' },
+  tabBtnInactive: { backgroundColor: colors.card },
   tabLabel:       { color: colors.textDim, fontSize: 12, fontWeight: '600' },
   tabLabelActive: { color: colors.black },
 
