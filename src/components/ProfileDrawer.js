@@ -16,7 +16,7 @@ import CoinIcon from './CoinIcon';
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.72, 300);
 
-const AVATAR_SIZE   = 80;
+const AVATAR_SIZE   = 64;
 const FRAME_SIZE    = AVATAR_SIZE * 1.42;
 const FRAME_OFFSET  = (FRAME_SIZE - AVATAR_SIZE) / 2;
 
@@ -209,16 +209,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 20,
     borderBottomWidth: 1, borderBottomColor: colors.border,
     marginBottom: 4,
+    alignItems: 'center',
   },
 
-  // El avatarArea acomoda el frame (que se desborda por FRAME_OFFSET en cada lado)
-  // y posiciona el botón de cámara en la esquina inferior-derecha del avatar
   avatarArea: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     marginBottom: 14,
-    // Compensar el desbordamiento superior e izquierdo del marco
     marginTop: FRAME_OFFSET,
-    marginLeft: FRAME_OFFSET,
     position: 'relative',
   },
   avatarTouch: {
@@ -226,9 +223,8 @@ const s = StyleSheet.create({
   },
   cameraBtn: {
     position: 'absolute',
-    // Situar el botón en la esquina inferior-derecha del avatar (no del marco)
-    bottom:  -FRAME_OFFSET + 2,
-    right:   -FRAME_OFFSET + 2,
+    bottom:  -FRAME_OFFSET + 4,
+    right:   -FRAME_OFFSET + 4,
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: colors.card,
     borderWidth: 1, borderColor: colors.borderC,
@@ -236,10 +232,10 @@ const s = StyleSheet.create({
     zIndex: 20,
   },
 
-  username: { color: colors.textHi, fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  email:    { color: colors.textDim, fontSize: 11, marginBottom: 14 },
+  username: { color: colors.textHi, fontSize: 17, fontWeight: '700', marginBottom: 2, textAlign: 'center' },
+  email:    { color: colors.textDim, fontSize: 11, marginBottom: 14, textAlign: 'center' },
 
-  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
   pill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: colors.border },
   pillTxt: { color: colors.textMid, fontSize: 11, fontWeight: '600' },
   pillDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.border },
