@@ -189,9 +189,8 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                 }
               </TouchableOpacity>
             ) : (
-              <View style={[s.btnHalf, s.btnDisabled]}>
-                <Ionicons name="close-circle-outline" size={18} color={colors.textDim} />
-                <Text style={s.btnDisabledTxt}>Agotado</Text>
+              <View style={s.btnUnavailWrap}>
+                <Text style={s.btnUnavailTxt}>No disponible{'\n'}en tienda</Text>
               </View>
             )}
           </View>
@@ -333,6 +332,9 @@ const s = StyleSheet.create({
   btnBuy:    { backgroundColor: 'rgba(251,191,36,0.12)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' },
   btnBuyTxt: { color: 'rgba(251,191,36,1)', fontWeight: '700', fontSize: 13 },
   btnBuyUnits: { color: colors.textDim, fontSize: 11, textAlign: 'right' },
+
+  btnUnavailWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  btnUnavailTxt:  { color: colors.textDim, fontSize: 11, textAlign: 'center', lineHeight: 16 },
 
   btnDisabled:  {
     backgroundColor: 'rgba(255,255,255,0.04)',
