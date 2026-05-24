@@ -93,6 +93,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                 onPress={() => navigation.navigate('PublicProfile', { username: creator.username })}
                 activeOpacity={0.7}
               >
+                <Text style={s.headerCreatorName}>@{creator.username}</Text>
                 {creator.avatarUrl
                   ? <Image source={{ uri: creator.avatarUrl }} style={s.headerAvatar} />
                   : (
@@ -101,7 +102,6 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                     </View>
                   )
                 }
-                <Text style={s.headerCreatorName}>@{creator.username}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -133,11 +133,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               />
             </TouchableOpacity>
 
-            <View style={s.nameWrap}>
-              {creator?.username
-                ? <Text style={s.creatorName}>@{creator.username}</Text>
-                : null}
-            </View>
+            <View style={s.nameWrap} />
           </View>
 
           {/* Columna derecha: like + comentar */}
