@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   StatusBar, ActivityIndicator, Alert,
-  Dimensions, Modal, ScrollView,
+  Dimensions, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,11 +21,17 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
   const { frame } = route.params;
   const { user, updateUser } = useAuthStore();
 
-  const [buying,       setBuying]       = useState(false);
-  const [liked,        setLiked]        = useState(frame.likedByMe || false);
-  const [likesCount,   setLikesCount]   = useState(frame.likesCount  || 0);
-  const [avatarModal,  setAvatarModal]  = useState(false);
-  const [infoModal,    setInfoModal]    = useState(false);
+  const [buying,          setBuying]          = useState(false);
+  const [liked,           setLiked]           = useState(frame.likedByMe || false);
+  const [likesCount,      setLikesCount]      = useState(frame.likesCount  || 0);
+  const [avatarModal,     setAvatarModal]     = useState(false);
+  const [infoModal,       setInfoModal]       = useState(false);
+  const [commentsModal,   setCommentsModal]   = useState(false);
+  const [comments,        setComments]        = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsCount,   setCommentsCount]   = useState(frame.commentsCount || 0);
+  const [commentText,     setCommentText]     = useState('');
+  const [commenting,      setCommenting]      = useState(false);
 
   const creator  = frame.creator;
   const frameUrl = frame.imageUrl || null;
@@ -62,6 +68,29 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
       setLiked(!next);
       setLikesCount(c => next ? Math.max(0, c - 1) : c + 1);
     }
+  }
+
+  async function openComments() {
+    setCommentsModal(true);
+    setCommentsLoading(true);
+    try {
+      const { data } = await api.get(`/market/frames/${frame._id}/comments`);
+      setComments(data.comments || []);
+    } catch {}
+    finally { setCommentsLoading(false); }
+  }
+
+  async function handleComment() {
+    if (!commentText.trim() || commenting) return;
+    setCommenting(true);
+    try {
+      const { data } = await api.post(`/market/frames/${frame._id}/comment`, { text: commentText.trim() });
+      setComments(prev => [data.comment, ...prev]);
+      setCommentsCount(c => c + 1);
+      setCommentText('');
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo comentar');
+    } finally { setCommenting(false); }
   }
 
   return (
@@ -147,9 +176,9 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               <Text style={[s.actionCount, liked && { color: '#f43f5e' }]}>{likesCount}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.actionBtn} activeOpacity={0.75}>
+            <TouchableOpacity style={s.actionBtn} onPress={openComments} activeOpacity={0.75}>
               <Ionicons name="chatbubble-outline" size={26} color={colors.textDim} />
-              <Text style={s.actionCount}>{frame.commentsCount || 0}</Text>
+              <Text style={s.actionCount}>{commentsCount}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -217,6 +246,69 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
             ) : null}
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* ── Modal: comentarios ── */}
+      <Modal visible={commentsModal} transparent animationType="slide" onRequestClose={() => setCommentsModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={s.overlay}>
+            <View style={s.modalBox}>
+              <View style={s.modalHead}>
+                <Text style={s.modalTitle}>COMENTARIOS</Text>
+                <TouchableOpacity onPress={() => setCommentsModal(false)}>
+                  <Ionicons name="close" size={20} color={colors.textDim} />
+                </TouchableOpacity>
+              </View>
+
+              {commentsLoading ? (
+                <ActivityIndicator style={{ marginVertical: 32 }} color={colors.c1} />
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 320 }}>
+                  {comments.length === 0 ? (
+                    <Text style={s.noComments}>Sé el primero en comentar</Text>
+                  ) : comments.map((c, i) => (
+                    <View key={c._id || i} style={[s.commentRow, i > 0 && s.commentBorder]}>
+                      {c.user?.avatarUrl
+                        ? <Image source={{ uri: c.user.avatarUrl }} style={s.commentAvatar} />
+                        : (
+                          <View style={s.commentAvatarPh}>
+                            <Text style={s.commentAvatarLetter}>{c.user?.username?.[0]?.toUpperCase()}</Text>
+                          </View>
+                        )
+                      }
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.commentUsername}>@{c.user?.username}</Text>
+                        <Text style={s.commentText}>{c.text}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+
+              <View style={s.commentInputRow}>
+                <TextInput
+                  style={s.commentInput}
+                  placeholder="Escribe un comentario..."
+                  placeholderTextColor={colors.textDim}
+                  value={commentText}
+                  onChangeText={setCommentText}
+                  maxLength={500}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={s.commentSendBtn}
+                  onPress={handleComment}
+                  disabled={commenting || !commentText.trim()}
+                >
+                  {commenting
+                    ? <ActivityIndicator size="small" color={colors.c1} />
+                    : <Ionicons name="send" size={18} color={commentText.trim() ? colors.c1 : colors.textDim} />
+                  }
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Modal: info del marco ── */}
@@ -352,6 +444,19 @@ const s = StyleSheet.create({
   avatarModalPh:    { width: 230, height: 230, borderRadius: 115, backgroundColor: 'rgba(0,229,204,0.15)', alignItems: 'center', justifyContent: 'center' },
   avatarModalLetter:{ color: colors.c1, fontSize: 90, fontWeight: '800' },
   avatarModalName:  { color: colors.textHi, fontSize: 15, fontWeight: '700' },
+
+  // ── Comments ──
+  noComments:          { color: colors.textDim, fontSize: 12, textAlign: 'center', paddingVertical: 28 },
+  commentRow:          { flexDirection: 'row', gap: 10, paddingVertical: 12, alignItems: 'flex-start' },
+  commentBorder:       { borderTopWidth: 1, borderTopColor: colors.border },
+  commentAvatar:       { width: 28, height: 28, borderRadius: 14 },
+  commentAvatarPh:     { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,229,204,0.15)', alignItems: 'center', justifyContent: 'center' },
+  commentAvatarLetter: { color: colors.c1, fontSize: 12, fontWeight: '800' },
+  commentUsername:     { color: colors.c1, fontSize: 11, fontWeight: '700', marginBottom: 2 },
+  commentText:         { color: colors.textHi, fontSize: 12 },
+  commentInputRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 14, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  commentInput:        { flex: 1, color: colors.textHi, fontSize: 13, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, maxHeight: 80, borderWidth: 1, borderColor: colors.borderC },
+  commentSendBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)', alignItems: 'center', justifyContent: 'center' },
 
   // ── Info modal ──
   overlay:    { flex:1, backgroundColor:'rgba(0,0,0,0.75)', justifyContent:'flex-end' },
