@@ -335,12 +335,21 @@ export default function ChatRoomScreen({ route, navigation }) {
       s.on('chat:typing', ({ userId, isTyping }) => {
         if (userId !== myId) setTyping(isTyping);
       });
+
+      s.on('gift:update', ({ giftId, estado }) => {
+        setMessages(prev => prev.map(m =>
+          m.giftId?.toString() === giftId?.toString()
+            ? { ...m, giftData: { ...(m.giftData || {}), estado } }
+            : m
+        ));
+      });
     });
 
     return () => {
       mounted = false;
       socketRef.current?.off('chat:message');
       socketRef.current?.off('chat:typing');
+      socketRef.current?.off('gift:update');
       socketRef.current?.emit('chat:leave', { chatId: chat._id.toString() });
     };
   }, []);
