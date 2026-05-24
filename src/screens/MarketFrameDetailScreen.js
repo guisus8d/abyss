@@ -174,23 +174,20 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                 <Text style={s.btnDisabledTxt}>Tuyo</Text>
               </View>
             ) : canBuy ? (
-              <View style={s.btnBuyWrap}>
-                <TouchableOpacity
-                  style={s.btnBuy}
-                  onPress={handleBuy}
-                  disabled={buying}
-                  activeOpacity={0.85}
-                >
-                  {buying
-                    ? <ActivityIndicator size="small" color="#000" />
-                    : <>
-                        <CoinIcon size={16} />
-                        <Text style={s.btnBuyTxt}>{frame.price}</Text>
-                      </>
-                  }
-                </TouchableOpacity>
-                <Text style={s.btnBuyUnits}>× {frame.units} disponibles</Text>
-              </View>
+              <TouchableOpacity
+                style={[s.btnHalf, s.btnBuy]}
+                onPress={handleBuy}
+                disabled={buying}
+                activeOpacity={0.85}
+              >
+                {buying
+                  ? <ActivityIndicator size="small" color="#1a0e00" />
+                  : <>
+                      <CoinIcon size={16} />
+                      <Text style={s.btnBuyTxt}>{frame.price}</Text>
+                    </>
+                }
+              </TouchableOpacity>
             ) : (
               <View style={[s.btnHalf, s.btnDisabled]}>
                 <Ionicons name="close-circle-outline" size={18} color={colors.textDim} />
@@ -198,6 +195,10 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               </View>
             )}
           </View>
+
+          {canBuy && (
+            <Text style={s.btnBuyUnits}>× {frame.units} disponibles</Text>
+          )}
         </View>
       </SafeAreaView>
 
@@ -329,15 +330,9 @@ const s = StyleSheet.create({
   btnPreview:    { backgroundColor: 'rgba(0,229,204,0.12)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.4)' },
   btnPreviewTxt: { color: colors.c1, fontWeight: '700', fontSize: 13 },
 
-  btnBuyWrap:  { flex: 1, alignItems: 'center', gap: 6 },
-  btnBuy: {
-    width: '100%', flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', gap: 8,
-    paddingVertical: 15, borderRadius: 18,
-    backgroundColor: '#f5b800',
-  },
-  btnBuyTxt:    { color: '#1a0e00', fontWeight: '800', fontSize: 14 },
-  btnBuyUnits:  { color: colors.textDim, fontSize: 11 },
+  btnBuy:    { backgroundColor: 'rgba(251,191,36,0.12)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' },
+  btnBuyTxt: { color: 'rgba(251,191,36,1)', fontWeight: '700', fontSize: 13 },
+  btnBuyUnits: { color: colors.textDim, fontSize: 11, textAlign: 'right' },
 
   btnDisabled:  {
     backgroundColor: 'rgba(255,255,255,0.04)',
