@@ -62,7 +62,7 @@ export default function CreateFrameScreen({ navigation }) {
 
   async function pickFrame() {
     const r = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes:['images'], allowsEditing:true, aspect:[1,1], quality:1,
+      mediaTypes:['images'], allowsEditing:false, quality:1,
     });
     if (!r.canceled) {
       const asset = r.assets[0];
