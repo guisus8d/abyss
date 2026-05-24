@@ -969,7 +969,7 @@ const s = StyleSheet.create({
   bubbleMe:     { backgroundColor:'#00a896', borderColor:'rgba(0,229,204,0.4)', borderBottomRightRadius:4 },
   bubbleThem:   { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius:4 },
   bubblePost:   { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
-  bubbleGift:   { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
+  bubbleGift:   { padding:0, backgroundColor:'transparent', borderColor:'transparent', maxWidth:'90%' },
   bubbleTxt:    { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:   { color: colors.textDim, fontSize:9, marginTop:4, textAlign:'right' },
   mediaBtn:           { padding:8, justifyContent:'center', alignItems:'center' },

@@ -1306,7 +1306,7 @@ const s = StyleSheet.create({
   bubbleMe:    { backgroundColor:'#00a896', borderBottomRightRadius:4 },
   bubbleThem:  { backgroundColor: colors.surface, borderBottomLeftRadius:4, borderWidth:1, borderColor: colors.border },
   bubblePost:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0 },
-  bubbleGift:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0 },
+  bubbleGift:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0, maxWidth:'90%' },
   bubbleText:  { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:  { color:'rgba(255,255,255,0.4)', fontSize:9, alignSelf:'flex-end' },
 
