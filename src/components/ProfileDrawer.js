@@ -42,9 +42,18 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
   const insets     = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
-  const [rendered,  setRendered]  = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || null);
+  const [rendered,     setRendered]     = useState(false);
+  const [uploading,    setUploading]    = useState(false);
+  const [avatarUrl,    setAvatarUrl]    = useState(user?.avatarUrl || null);
+  const [framesCount,  setFramesCount]  = useState(null);
+
+  useEffect(() => {
+    if (visible) {
+      api.get('/frames/my')
+        .then(({ data }) => setFramesCount((data.frames || []).length))
+        .catch(() => setFramesCount(0));
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
@@ -134,16 +143,28 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             <Text style={s.username}>{user?.username}</Text>
             <Text style={s.email}>{user?.email}</Text>
 
-            {/* Píldoras stats */}
+            {/* XP */}
             <View style={s.pillRow}>
               <View style={s.pill}>
                 <Ionicons name="flash-outline" size={11} color={colors.c1} />
                 <Text style={s.pillTxt}>{user?.xp || 0} XP</Text>
               </View>
-              <View style={s.pillDot} />
-              <View style={s.pill}>
-                <CoinIcon size={11} />
-                <Text style={[s.pillTxt, { color: 'rgba(251,191,36,1)' }]}>{user?.coins ?? 50}</Text>
+            </View>
+
+            {/* ── Tarjeta cartera ── */}
+            <View style={s.walletCard}>
+              <View style={s.walletSection}>
+                <CoinIcon size={22} />
+                <Text style={s.walletValue}>{user?.coins ?? 0}</Text>
+                <Text style={s.walletLabel}>COINS</Text>
+              </View>
+              <View style={s.walletDivider} />
+              <View style={s.walletSection}>
+                <Ionicons name="cube-outline" size={22} color={colors.textMid} />
+                <Text style={s.walletValue}>
+                  {framesCount === null ? '–' : framesCount}
+                </Text>
+                <Text style={s.walletLabel}>MARCOS</Text>
               </View>
             </View>
           </View>
@@ -239,6 +260,40 @@ const s = StyleSheet.create({
   pill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: colors.border },
   pillTxt: { color: colors.textMid, fontSize: 11, fontWeight: '600' },
   pillDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.border },
+
+  // Tarjeta cartera
+  walletCard: {
+    flexDirection: 'row',
+    alignSelf: 'stretch',
+    marginTop: 16,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  walletSection: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 5,
+  },
+  walletDivider: {
+    width: 1,
+    backgroundColor: colors.border,
+    marginVertical: 14,
+  },
+  walletValue: {
+    color: colors.textHi,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  walletLabel: {
+    color: colors.textDim,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
 
   // Secciones
   section: { marginBottom: 4, paddingTop: 8 },
