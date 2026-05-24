@@ -326,17 +326,17 @@ const s = StyleSheet.create({
     paddingVertical: 15, borderRadius: 18,
   },
 
-  btnPreview:    { backgroundColor: colors.c1 },
-  btnPreviewTxt: { color: '#000', fontWeight: '800', fontSize: 13 },
+  btnPreview:    { backgroundColor: 'rgba(0,229,204,0.12)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.4)' },
+  btnPreviewTxt: { color: colors.c1, fontWeight: '700', fontSize: 13 },
 
   btnBuyWrap:  { flex: 1, alignItems: 'center', gap: 6 },
   btnBuy: {
     width: '100%', flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8,
     paddingVertical: 15, borderRadius: 18,
-    backgroundColor: '#f97316',
+    backgroundColor: 'rgba(0,229,204,0.12)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.4)',
   },
-  btnBuyTxt:    { color: '#fff', fontWeight: '800', fontSize: 14 },
+  btnBuyTxt:    { color: colors.c1, fontWeight: '700', fontSize: 14 },
   btnBuyUnits:  { color: colors.textDim, fontSize: 11 },
 
   btnDisabled:  {
