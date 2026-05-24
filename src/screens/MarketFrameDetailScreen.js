@@ -323,7 +323,7 @@ const s = StyleSheet.create({
   btnHalf: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8,
-    paddingVertical: 15, borderRadius: 18,
+    paddingVertical: 15, borderRadius: 20,
   },
 
   btnPreview:    { backgroundColor: 'rgba(0,229,204,0.12)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.4)' },
