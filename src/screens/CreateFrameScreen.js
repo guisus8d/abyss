@@ -53,12 +53,15 @@ export default function CreateFrameScreen({ navigation }) {
   const [bgType, setBgType]   = useState('color');
   const [bgColor, setBgColor] = useState('#0d1f2d');
   const [bgGradient, setBgGrad] = useState(['#000000','#0d1f2d']);
-  const [bgImage, setBgImage] = useState(null);
+  const [bgImage, setBgImage]         = useState(null);  // { uri, mimeType }
+  const [logoImage, setLogoImg]       = useState(null);  // { uri, mimeType }
+  const [pedestalImage, setPedImg]    = useState(null);  // { uri, mimeType }
+  const [price, setPrice]             = useState('50');
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [publishing, setPublishing] = useState(false);
 
   const selectedPkg = PACKAGES[pkg];
-  const canCreate   = (user?.xp || 0) >= 200 && (user?.coins || 0) >= selectedPkg.cost;
+  const canCreate   = (user?.xp || 0) >= 100 && (user?.coins || 0) >= selectedPkg.cost;
   const frameUri    = frameImage?.uri || null;
 
   async function pickFrame() {
@@ -75,7 +78,31 @@ export default function CreateFrameScreen({ navigation }) {
     const r = await ImagePicker.launchImageLibraryAsync({
       mediaTypes:['images'], allowsEditing:true, aspect:[1,1], quality:0.8,
     });
-    if (!r.canceled) { setBgImage(r.assets[0].uri); setBgType('image'); }
+    if (!r.canceled) {
+      const asset = r.assets[0];
+      setBgImage({ uri: asset.uri, mimeType: asset.mimeType || 'image/jpeg' });
+      setBgType('image');
+    }
+  }
+
+  async function pickLogo() {
+    const r = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes:['images'], allowsEditing:true, aspect:[1,1], quality:0.8,
+    });
+    if (!r.canceled) {
+      const asset = r.assets[0];
+      setLogoImg({ uri: asset.uri, mimeType: asset.mimeType || 'image/jpeg' });
+    }
+  }
+
+  async function pickPedestal() {
+    const r = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes:['images'], allowsEditing:false, quality:1,
+    });
+    if (!r.canceled) {
+      const asset = r.assets[0];
+      setPedImg({ uri: asset.uri, mimeType: asset.mimeType || 'image/png' });
+    }
   }
 
   async function handleCreate() {
@@ -87,12 +114,14 @@ export default function CreateFrameScreen({ navigation }) {
       const formData = new FormData();
       formData.append('name', name.trim());
       formData.append('description', description.trim());
-      formData.append('price', '50');
+      formData.append('price', price || '50');
       formData.append('bgType', bgType);
       formData.append('bgColor', bgColor);
       formData.append('bgGradient', JSON.stringify(bgGradient));
       formData.append('units', String(selectedPkg.units));
       formData.append('cost', String(selectedPkg.cost));
+
+      // Imagen principal del marco (obligatoria)
       const mime = frameImage.mimeType || 'image/png';
       const ext  = mime.includes('webp') ? 'webp' : mime.includes('png') ? 'png' : 'jpg';
       if (frameImage.uri.startsWith('blob:') || frameImage.uri.startsWith('data:') || frameImage.uri.startsWith('http')) {
@@ -100,6 +129,27 @@ export default function CreateFrameScreen({ navigation }) {
         formData.append('image', blob, `frame.${ext}`);
       } else {
         formData.append('image', { uri: frameImage.uri, type: mime, name: `frame.${ext}` });
+      }
+
+      // Fondo tipo imagen (opcional)
+      if (bgType === 'image' && bgImage?.uri) {
+        const bgMime = bgImage.mimeType || 'image/jpeg';
+        const bgExt  = bgMime.includes('png') ? 'png' : bgMime.includes('webp') ? 'webp' : 'jpg';
+        formData.append('bgImage', { uri: bgImage.uri, type: bgMime, name: `bg.${bgExt}` });
+      }
+
+      // Logo (opcional)
+      if (logoImage?.uri) {
+        const logoMime = logoImage.mimeType || 'image/jpeg';
+        const logoExt  = logoMime.includes('png') ? 'png' : logoMime.includes('webp') ? 'webp' : 'jpg';
+        formData.append('logo', { uri: logoImage.uri, type: logoMime, name: `logo.${logoExt}` });
+      }
+
+      // Pedestal (opcional)
+      if (pedestalImage?.uri) {
+        const pedMime = pedestalImage.mimeType || 'image/png';
+        const pedExt  = pedMime.includes('webp') ? 'webp' : pedMime.includes('png') ? 'png' : 'jpg';
+        formData.append('pedestal', { uri: pedestalImage.uri, type: pedMime, name: `pedestal.${pedExt}` });
       }
       const data = await postFormData('/frames', formData);
       updateUser({ ...user, coins: data.newCoins });
@@ -118,8 +168,8 @@ export default function CreateFrameScreen({ navigation }) {
 
   // Fondo del preview
   function BgBlock({ style }) {
-    if (bgType==='image' && bgImage)
-      return <Image source={{uri:bgImage}} style={[style,{position:'absolute'}]} resizeMode="cover" />;
+    if (bgType==='image' && bgImage?.uri)
+      return <Image source={{uri:bgImage.uri}} style={[style,{position:'absolute'}]} resizeMode="cover" />;
     if (bgType==='gradient')
       return <LinearGradient colors={bgGradient} style={[style,{position:'absolute'}]} />;
     return <View style={[style,{position:'absolute',backgroundColor:bgColor}]} />;
@@ -228,7 +278,7 @@ export default function CreateFrameScreen({ navigation }) {
             <View style={s.reqBanner}>
               <Ionicons name="warning-outline" size={16} color="rgba(251,191,36,1)" />
               <Text style={s.reqTxt}>
-                {(user?.xp||0) < 200 ? `Faltan ${200-(user?.xp||0)} XP · ` : ''}
+                {(user?.xp||0) < 100 ? `Faltan ${100-(user?.xp||0)} XP · ` : ''}
                 {(user?.coins||0) < selectedPkg.cost ? `Faltan ${selectedPkg.cost-(user?.coins||0)} ✦` : ''}
                 {'  '}
                 <Text style={{textDecorationLine:'underline'}} onPress={() => setTab('info')}>Ver info</Text>
@@ -268,6 +318,21 @@ export default function CreateFrameScreen({ navigation }) {
               multiline maxLength={200} />
           </View>
 
+          {/* Precio de venta */}
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>PRECIO DE VENTA</Text>
+            <TextInput
+              style={s.input}
+              value={price}
+              onChangeText={setPrice}
+              placeholder="50"
+              placeholderTextColor={colors.textDim}
+              keyboardType="numeric"
+              maxLength={5}
+            />
+            <Text style={s.sectionHint}>Monedas que otros usuarios pagarán para comprarlo</Text>
+          </View>
+
           {/* Fondo */}
           <View style={s.section}>
             <Text style={s.sectionLabel}>FONDO DEL PREVIEW</Text>
@@ -301,14 +366,42 @@ export default function CreateFrameScreen({ navigation }) {
             )}
             {bgType==='image' && (
               <TouchableOpacity style={s.uploadBtn} onPress={pickBgImage}>
-                {bgImage
-                  ? <Image source={{uri:bgImage}} style={s.uploadPreview} resizeMode="cover" />
+                {bgImage?.uri
+                  ? <Image source={{uri:bgImage.uri}} style={s.uploadPreview} resizeMode="cover" />
                   : <View style={s.uploadEmpty}>
                       <Ionicons name="image-outline" size={28} color={colors.textDim} />
                       <Text style={s.uploadTxt}>Subir imagen de fondo</Text>
                     </View>}
               </TouchableOpacity>
             )}
+          </View>
+
+          {/* Logo (opcional) */}
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>LOGO / MARCA (OPCIONAL)</Text>
+            <Text style={s.sectionHint}>Imagen identificativa mostrada junto al marco en el mercado</Text>
+            <TouchableOpacity style={s.uploadBtn} onPress={pickLogo}>
+              {logoImage?.uri
+                ? <ExpoImage source={{uri:logoImage.uri}} style={s.uploadPreview} contentFit="contain" />
+                : <View style={s.uploadEmpty}>
+                    <Ionicons name="image-outline" size={28} color={colors.textDim} />
+                    <Text style={s.uploadTxt}>Subir logo</Text>
+                  </View>}
+            </TouchableOpacity>
+          </View>
+
+          {/* Pedestal (opcional) */}
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>PEDESTAL (OPCIONAL)</Text>
+            <Text style={s.sectionHint}>Elemento decorativo que aparece bajo el avatar · PNG/WebP transparente</Text>
+            <TouchableOpacity style={s.uploadBtn} onPress={pickPedestal}>
+              {pedestalImage?.uri
+                ? <ExpoImage source={{uri:pedestalImage.uri}} style={s.uploadPreview} contentFit="contain" />
+                : <View style={s.uploadEmpty}>
+                    <Ionicons name="podium-outline" size={28} color={colors.textDim} />
+                    <Text style={s.uploadTxt}>Subir pedestal</Text>
+                  </View>}
+            </TouchableOpacity>
           </View>
 
           {/* Paquetes */}
@@ -370,7 +463,7 @@ export default function CreateFrameScreen({ navigation }) {
             <Text style={s.infoTitle}>Requisitos</Text>
             <View style={{gap:8}}>
               {[
-                {ok:(user?.xp||0)>=200, txt:`200 XP mínimo`, val:`tienes ${user?.xp||0}`},
+                {ok:(user?.xp||0)>=100, txt:`100 XP mínimo`, val:`tienes ${user?.xp||0}`},
                 {ok:(user?.coins||0)>=50, txt:'50 monedas mínimo', val:`tienes ${user?.coins||0} ✦`},
               ].map((r,i) => (
                 <View key={i} style={{flexDirection:'row',alignItems:'center',gap:8}}>
