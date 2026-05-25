@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, FlatList, StatusBar, ActivityIndicator,
   Modal, Pressable, Linking, Alert, ScrollView, Dimensions,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -1144,7 +1145,8 @@ export default function GroupRoomScreen({ route, navigation }) {
       )}
 
       {/* ── Modal Regalo ─────────────────────────────────────────────────── */}
-      <Modal visible={giftModal} transparent animationType="slide" onRequestClose={() => setGiftModal(false)}>
+      <Modal visible={giftModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setGiftModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={s.giftOverlay} onPress={() => setGiftModal(false)}>
           <Pressable style={s.giftSheet} onPress={() => {}}>
             <View style={s.giftHandle} />
@@ -1257,24 +1259,32 @@ export default function GroupRoomScreen({ route, navigation }) {
                       <Text style={s.giftNoFramesTxt}>Sin marcos disponibles{'\n'}(necesitas mínimo 2 unidades)</Text>
                     </View>
                   ) : (
-                    <View style={s.giftFrameGrid}>
-                      {giftInv.map(item => {
-                        const fr = item.frame || item;
+                    <FlatList
+                      horizontal
+                      data={giftInv}
+                      keyExtractor={item => (item.frame || item)._id}
+                      showsHorizontalScrollIndicator={false}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={4}
+                      windowSize={5}
+                      contentContainerStyle={{ gap:8, paddingBottom:4 }}
+                      style={{ marginBottom:12 }}
+                      renderItem={({ item }) => {
+                        const fr  = item.frame || item;
                         const sel = giftFrame && (giftFrame.frame || giftFrame)._id === fr._id;
                         return (
                           <TouchableOpacity
-                            key={fr._id}
                             style={[s.giftFrameThumb, sel && s.giftFrameThumbSel]}
                             onPress={() => { setGiftFrame(item); setGiftErr(''); }}
                             activeOpacity={0.8}
                           >
                             <View style={s.giftFramePreview}>
                               {fr.imageUrl
-                                ? <Image source={{ uri: fr.imageUrl }} style={{ width:'80%', height:'80%' }} resizeMode="contain" />
-                                : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
+                                ? <Image source={{ uri: fr.imageUrl }} style={{ width:54, height:54 }} resizeMode="contain" />
+                                : <Ionicons name="image-outline" size={18} color={colors.textDim} />}
                               {sel && (
                                 <View style={s.giftFrameCheckOverlay}>
-                                  <Ionicons name="checkmark-circle" size={18} color={colors.c2} />
+                                  <Ionicons name="checkmark-circle" size={16} color={colors.c2} />
                                 </View>
                               )}
                             </View>
@@ -1282,8 +1292,8 @@ export default function GroupRoomScreen({ route, navigation }) {
                             <Text style={s.giftFrameUnits}>×{item.unidadesEnMano}</Text>
                           </TouchableOpacity>
                         );
-                      })}
-                    </View>
+                      }}
+                    />
                   )}
 
                   {/* Advertencia marco activo */}
@@ -1369,6 +1379,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             </ScrollView>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1489,7 +1500,7 @@ const s = StyleSheet.create({
   inviteBtnAcceptTxt:  { color: colors.c1, fontSize:13, fontWeight:'700' },
 
   // Gift modal
-  giftOverlay:         { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },
+  giftOverlay:         { flex:1, backgroundColor:'rgba(0,0,0,0.88)', justifyContent:'flex-end' },
   giftSheet:           { backgroundColor:colors.surface, borderTopLeftRadius:28, borderTopRightRadius:28, borderWidth:1, borderColor:colors.border, borderBottomWidth:0, paddingHorizontal:20, paddingTop:16, paddingBottom:36, maxHeight:'90%' },
   giftHandle:          { width:40, height:4, borderRadius:2, backgroundColor:colors.border, alignSelf:'center', marginBottom:16 },
   giftHead:            { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:16 },
@@ -1503,7 +1514,7 @@ const s = StyleSheet.create({
   giftTabTxt:          { color:colors.textDim, fontSize:13, fontWeight:'600' },
   giftTabTxtActive:    { color:colors.c2, fontWeight:'700' },
   giftFieldLbl:        { color:colors.textMid, fontSize:11, fontWeight:'700', marginBottom:8, letterSpacing:0.5 },
-  giftCoinsRow:        { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:10, marginBottom:6 },
+  giftCoinsRow:        { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:4, marginBottom:6 },
   giftCoinsInput:      { fontSize:44, fontWeight:'800', color:colors.textHi, minWidth:100, textAlign:'center' },
   giftBalanceRow:      { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:4, marginBottom:14 },
   giftBalanceTxt:      { color:colors.textDim, fontSize:12 },
@@ -1518,10 +1529,9 @@ const s = StyleSheet.create({
   giftHint:            { color:colors.textDim, fontSize:11, marginBottom:10, paddingTop:4 },
   giftNoFrames:        { alignItems:'center', gap:8, paddingVertical:20, marginBottom:8 },
   giftNoFramesTxt:     { color:colors.textDim, fontSize:12, textAlign:'center', lineHeight:18 },
-  giftFrameGrid:       { flexDirection:'row', flexWrap:'wrap', gap:GIFT_GAP, marginBottom:14 },
-  giftFrameThumb:      { width:GIFT_CARD_W, backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, overflow:'hidden' },
+  giftFrameThumb:      { width:70, backgroundColor:colors.deep, borderRadius:10, borderWidth:1, borderColor:colors.border, overflow:'hidden' },
   giftFrameThumbSel:   { borderColor:colors.c2, borderWidth:2, backgroundColor:'rgba(41,121,255,0.08)' },
-  giftFramePreview:    { width:'100%', aspectRatio:1, alignItems:'center', justifyContent:'center', position:'relative' },
+  giftFramePreview:    { width:70, height:70, alignItems:'center', justifyContent:'center', position:'relative' },
   giftFrameCheckOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor:'rgba(0,0,0,0.3)', alignItems:'center', justifyContent:'center' },
   giftFrameName:       { color:colors.textHi, fontSize:9, fontWeight:'600', paddingHorizontal:5, paddingTop:4, paddingBottom:2 },
   giftFrameUnits:      { color:colors.textDim, fontSize:8, paddingHorizontal:5, paddingBottom:5 },
