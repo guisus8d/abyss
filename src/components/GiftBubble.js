@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+  View, Text, TouchableOpacity, Modal, Pressable,
+  StyleSheet, Image, Animated,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 
+const COIN_ICON = require('../../assets/icons/coins.png');
+
 export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction, onGiftClaim }) {
   const [visible, setVisible] = useState(false);
+  const [claimed, setClaimed] = useState(false);
+
+  const enterAnim = useRef(new Animated.Value(0.4)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  const outerOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] });
 
   const {
     monedas = 0, items = [], mensaje = '', estado = 'pendiente',
@@ -23,12 +34,6 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
     ? Math.floor(monedas / Math.max(slots, 1))
     : Math.round(monedas * 0.85);
 
-  const contentLine = monedas > 0
-    ? `Recibirás ${coinsForReceiver} coins`
-    : items.length > 0
-    ? `Recibirás el marco "${items[0]?.name || 'Marco'}"`
-    : 'Regalo especial';
-
   const canAccept = isPending && !yaReclame && !agotado;
   const canReject = !isMe && isPending && !isGrupal;
 
@@ -38,16 +43,46 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
     : agotado   ? 'Sin unidades disponibles'
     : null;
 
+  function startSuccessAnim() {
+    enterAnim.setValue(0.4);
+    pulseAnim.setValue(0);
+    Animated.parallel([
+      Animated.spring(enterAnim, {
+        toValue: 1, useNativeDriver: true, friction: 5, tension: 150,
+      }),
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 0.45, duration: 300, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1,    duration: 300, useNativeDriver: true }),
+          ]),
+          { iterations: 2 }
+        ),
+      ]),
+    ]).start(() => {
+      setTimeout(() => {
+        setVisible(false);
+        setClaimed(false);
+      }, 120);
+    });
+  }
+
   function handleAccept() {
-    setVisible(false);
     if (!canAccept) return;
     if (isGrupal) onGiftClaim?.(giftId);
     else onGiftAction?.(giftId, 'accept');
+    setClaimed(true);
+    startSuccessAnim();
   }
 
   function handleReject() {
     setVisible(false);
     if (canReject) onGiftAction?.(giftId, 'reject');
+  }
+
+  function handleOverlayPress() {
+    if (!claimed) setVisible(false);
   }
 
   return (
@@ -59,62 +94,103 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
           end={{ x: 1, y: 1 }}
           style={s.card}
         >
-          {/* Left accent bar */}
           <View style={s.accentBar} />
-
           <View style={s.iconWrap}>
             <Ionicons name="gift" size={36} color={colors.c2} />
           </View>
-
           <View style={s.info}>
             <Text style={s.msg} numberOfLines={2}>{displayMsg}</Text>
-            <Text style={s.sub}>
-              {statusBadge || 'Toca para ver el contenido'}
-            </Text>
+            <Text style={s.sub}>{statusBadge || 'Toca para ver el contenido'}</Text>
           </View>
         </LinearGradient>
       </TouchableOpacity>
 
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
-        <Pressable style={s.overlay} onPress={() => setVisible(false)}>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleOverlayPress}
+      >
+        <Pressable style={s.overlay} onPress={handleOverlayPress}>
           <Pressable style={s.sheet} onPress={() => {}}>
 
-            <View style={s.modalIconRow}>
-              <View style={s.modalIconCircle}>
-                <Ionicons name="gift" size={32} color={colors.c2} />
+            {claimed ? (
+              /* ── Animación de éxito ─────────────────────────────────────────── */
+              <View style={s.successContainer}>
+                {/* Contenedor 140×140 con doble anillo de glow */}
+                <View style={s.glowContainer}>
+                  <Animated.View style={[s.glowRingOuter, { opacity: outerOpacity }]} />
+                  <Animated.View style={[s.glowRingInner, { opacity: pulseAnim }]} />
+                  <Animated.View style={{ transform: [{ scale: enterAnim }] }}>
+                    <Image source={COIN_ICON} style={s.coinSuccessIcon} />
+                  </Animated.View>
+                </View>
+
+                {monedas > 0 && (
+                  <Animated.Text style={[s.coinSuccessAmt, { opacity: pulseAnim }]}>
+                    +{coinsForReceiver}
+                  </Animated.Text>
+                )}
+
+                <Animated.Text style={[s.successLabel, { opacity: pulseAnim }]}>
+                  ¡Reclamado!
+                </Animated.Text>
               </View>
-              <Text style={s.modalTitle}>Regalo</Text>
-            </View>
+            ) : (
+              /* ── Contenido normal ───────────────────────────────────────────── */
+              <>
+                <View style={s.modalIconRow}>
+                  <View style={s.modalIconCircle}>
+                    <Ionicons name="gift" size={32} color={colors.c2} />
+                  </View>
+                  <Text style={s.modalTitle}>Regalo</Text>
+                </View>
 
-            <View style={s.divider} />
+                <View style={s.divider} />
 
-            <Text style={s.contentLine}>{contentLine}</Text>
+                {monedas > 0 ? (
+                  <View style={s.contentRow}>
+                    <Image source={COIN_ICON} style={s.coinInline} />
+                    <Text style={s.contentLine}>Recibirás {coinsForReceiver} coins</Text>
+                  </View>
+                ) : (
+                  <Text style={[s.contentLine, { marginBottom: 10 }]}>
+                    {items.length > 0
+                      ? `Recibirás el marco "${items[0]?.name || 'Marco'}"`
+                      : 'Regalo especial'}
+                  </Text>
+                )}
 
-            {isGrupal && (
-              <View style={s.slotsRow}>
-                <Ionicons name="people-outline" size={13} color={colors.textDim} />
-                <Text style={s.slotsTxt}>{slotsReclamados}/{slots} reclamados</Text>
-              </View>
+                {isGrupal && (
+                  <View style={s.slotsRow}>
+                    <Ionicons name="people-outline" size={13} color={colors.textDim} />
+                    <Text style={s.slotsTxt}>{slotsReclamados}/{slots} reclamados</Text>
+                  </View>
+                )}
+
+                {statusBadge && (
+                  <Text style={s.statusTxt}>{statusBadge}</Text>
+                )}
+
+                <View style={[s.btnRow, isGrupal && s.btnRowCentered]}>
+                  {!isGrupal && (
+                    <TouchableOpacity style={s.rejectBtn} onPress={handleReject}>
+                      <Text style={s.rejectTxt}>Rechazar</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={[
+                      isGrupal ? s.acceptBtnCompact : s.acceptBtn,
+                      !canAccept && s.btnDisabled,
+                    ]}
+                    onPress={handleAccept}
+                    disabled={!canAccept}
+                  >
+                    <Text style={s.acceptTxt}>{isGrupal ? 'Reclamar' : 'Aceptar'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
             )}
-
-            {statusBadge && (
-              <Text style={s.statusTxt}>{statusBadge}</Text>
-            )}
-
-            <View style={s.btnRow}>
-              {!isGrupal && (
-                <TouchableOpacity style={s.rejectBtn} onPress={handleReject}>
-                  <Text style={s.rejectTxt}>Rechazar</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[s.acceptBtn, !canAccept && s.btnDisabled]}
-                onPress={handleAccept}
-                disabled={!canAccept}
-              >
-                <Text style={s.acceptTxt}>{isGrupal ? 'Reclamar' : 'Aceptar'}</Text>
-              </TouchableOpacity>
-            </View>
 
           </Pressable>
         </Pressable>
@@ -209,12 +285,24 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.07)',
     marginBottom: 16,
   },
+
+  // Content line with optional coin icon
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 10,
+  },
+  coinInline: {
+    width: 18,
+    height: 18,
+  },
   contentLine: {
     color: colors.textHi,
     fontSize: 15,
     fontWeight: '700',
-    marginBottom: 10,
   },
+
   slotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -231,10 +319,15 @@ const s = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 4,
   },
+
+  // Buttons
   btnRow: {
     flexDirection: 'row',
     gap: 10,
     marginTop: 20,
+  },
+  btnRowCentered: {
+    justifyContent: 'center',
   },
   rejectBtn: {
     flex: 1,
@@ -257,6 +350,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.c2,
   },
+  acceptBtnCompact: {
+    paddingVertical: 9,
+    paddingHorizontal: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: colors.c2,
+  },
   acceptTxt: {
     color: '#fff',
     fontSize: 14,
@@ -264,5 +364,68 @@ const s = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.35,
+  },
+
+  // ── Success overlay ───────────────────────────────────────────────────────────
+  successContainer: {
+    alignItems: 'center',
+    paddingVertical: 28,
+  },
+
+  // Fixed square container — rings fill it absolutely, coin is centered child
+  glowContainer: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+
+  // Outer ring: fills entire 140×140 area
+  glowRingOuter: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,200,0,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,200,0,0.22)',
+  },
+
+  // Inner ring: inset 14px each side → 112×112
+  glowRingInner: {
+    position: 'absolute',
+    top: 14, left: 14, right: 14, bottom: 14,
+    borderRadius: 56,
+    backgroundColor: 'rgba(255,200,0,0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,200,0,0.6)',
+    shadowColor: '#ffc800',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 18,
+  },
+
+  coinSuccessIcon: {
+    width: 78,
+    height: 78,
+  },
+
+  coinSuccessAmt: {
+    color: '#ffc800',
+    fontSize: 34,
+    fontWeight: '900',
+    marginTop: 10,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(255,200,0,0.55)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+  },
+  successLabel: {
+    color: colors.textHi,
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 6,
+    letterSpacing: 0.3,
   },
 });
