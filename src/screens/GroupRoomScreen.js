@@ -174,7 +174,7 @@ const MessageBubble = memo(function MessageBubble({
                   </View>
                 )}
                 {msg.type === 'gift'
-                  ? <GiftBubble giftData={msg.giftData} giftId={msg.giftId} isMe={isMe} myId={user?._id} onGiftAction={onGiftAction} onGiftClaim={onGiftClaim} />
+                  ? <GiftBubble giftData={msg.giftData} giftId={msg.giftId} isMe={isMe} myId={user?._id} onGiftAction={onGiftAction} onGiftClaim={onGiftClaim} members={group?.members} />
                   : msg.type === 'shared_profile' && msg.sharedProfile
                   ? <SharedProfileBubble sharedProfile={msg.sharedProfile} navigation={navigation} isMe={isMe} onLongPress={() => onOpenMenu(msg)} />
                   : msg.type === 'shared_post' && msg.sharedPost

@@ -1,15 +1,18 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, Pressable,
-  StyleSheet, Image, Animated,
+  StyleSheet, Image, Animated, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
+import AvatarWithFrame from './AvatarWithFrame';
 
 const COIN_ICON = require('../../assets/icons/coins.png');
 
-export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction, onGiftClaim }) {
+export default function GiftBubble({
+  giftData, giftId, isMe, myId, onGiftAction, onGiftClaim, members,
+}) {
   const [visible, setVisible] = useState(false);
   const [claimed, setClaimed] = useState(false);
 
@@ -30,8 +33,9 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
 
   const displayMsg = mensaje.trim() || '¡Con mis mejores deseos!';
 
+  // Apply 15% Abyss commission for group gifts (matches backend fix)
   const coinsForReceiver = isGrupal
-    ? Math.floor(monedas / Math.max(slots, 1))
+    ? Math.floor((monedas * 0.85) / Math.max(slots, 1))
     : Math.round(monedas * 0.85);
 
   const canAccept = isPending && !yaReclame && !agotado;
@@ -55,6 +59,23 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
     : yaReclame ? 'Ya reclamaste'
     : agotado   ? 'Sin unidades disponibles'
     : null;
+
+  // Resolve claimant info from group members list
+  const claimantsList = (reclamadoPor || []).map(uid => {
+    const m = (members || []).find(
+      mb => (mb.user?._id || mb.user)?.toString() === uid.toString()
+    );
+    return {
+      id:           uid,
+      username:     m?.user?.username     || 'Usuario',
+      avatarUrl:    m?.user?.avatarUrl    || null,
+      profileFrame: m?.user?.profileFrame || null,
+      frameUrl:     m?.user?.profileFrameUrl || null,
+    };
+  });
+
+  // Show info-only modal (no action buttons) for group: already claimed or exhausted
+  const showInfoModal = isGrupal && (yaReclame || agotado);
 
   function startSuccessAnim() {
     enterAnim.setValue(0.4);
@@ -136,9 +157,8 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
           <Pressable style={s.sheet} onPress={() => {}}>
 
             {claimed ? (
-              /* ── Animación de éxito ─────────────────────────────────────────── */
+              /* ── Animación de éxito ──────────────────────────────────────────── */
               <View style={s.successContainer}>
-                {/* Contenedor 140×140 con doble anillo de glow */}
                 <View style={s.glowContainer}>
                   <Animated.View style={[s.glowRingOuter, { opacity: outerOpacity }]} />
                   <Animated.View style={[s.glowRingInner, { opacity: pulseAnim }]} />
@@ -157,8 +177,72 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
                   ¡Reclamado!
                 </Animated.Text>
               </View>
+
+            ) : showInfoModal ? (
+              /* ── Modal informativo (ya reclamó o agotado) ───────────────────── */
+              <>
+                <View style={s.modalIconRow}>
+                  <View style={[s.modalIconCircle, s.modalIconCircleDone]}>
+                    <Ionicons
+                      name={agotado ? 'gift-outline' : 'checkmark-circle'}
+                      size={28}
+                      color={agotado ? 'rgba(255,255,255,0.45)' : '#22c55e'}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalTitle}>
+                      {agotado ? 'Regalo completado' : 'Ya reclamaste'}
+                    </Text>
+                    {!agotado && (
+                      <Text style={s.modalSubtitle}>
+                        {slots - slotsReclamados} {slots - slotsReclamados === 1 ? 'slot disponible' : 'slots disponibles'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                <View style={s.divider} />
+
+                {monedas > 0 && (
+                  <View style={s.contentRow}>
+                    <Text style={s.contentLineDim}>Cada uno recibe</Text>
+                    <Image source={COIN_ICON} style={s.coinInline} />
+                    <Text style={s.contentLineDim}>{coinsForReceiver} coins</Text>
+                  </View>
+                )}
+
+                <View style={s.slotsRow}>
+                  <Ionicons name="people-outline" size={13} color={colors.textDim} />
+                  <Text style={s.slotsTxt}>{slotsReclamados}/{slots} reclamados</Text>
+                </View>
+
+                {claimantsList.length > 0 && (
+                  <>
+                    <Text style={s.claimantsLabel}>Reclamado por:</Text>
+                    <ScrollView
+                      style={s.claimantsList}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {claimantsList.map((c, i) => (
+                        <View key={c.id || i} style={s.claimantRow}>
+                          <AvatarWithFrame
+                            size={28}
+                            avatarUrl={c.avatarUrl}
+                            username={c.username}
+                            profileFrame={c.profileFrame}
+                            frameUrl={c.frameUrl}
+                          />
+                          <Text style={s.claimantName}>{c.username}</Text>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </>
+                )}
+              </>
+
             ) : (
-              /* ── Contenido normal ───────────────────────────────────────────── */
+              /* ── Modal normal (puede reclamar) ──────────────────────────────── */
               <>
                 <View style={s.modalIconRow}>
                   <View style={s.modalIconCircle}>
@@ -274,7 +358,7 @@ const s = StyleSheet.create({
     marginTop: 3,
   },
 
-  // ── Modal ────────────────────────────────────────────────────────────────────
+  // ── Modal base ────────────────────────────────────────────────────────────────
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -289,6 +373,7 @@ const s = StyleSheet.create({
     borderColor: 'rgba(41,121,255,0.35)',
     width: '100%',
     padding: 24,
+    maxHeight: '85%',
   },
   modalIconRow: {
     flexDirection: 'row',
@@ -306,10 +391,19 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  modalIconCircleDone: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
   modalTitle: {
     color: colors.textHi,
     fontSize: 18,
     fontWeight: '800',
+  },
+  modalSubtitle: {
+    color: colors.textDim,
+    fontSize: 12,
+    marginTop: 2,
   },
   divider: {
     height: 1,
@@ -317,7 +411,7 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
 
-  // Content line with optional coin icon
+  // Content line
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -332,6 +426,11 @@ const s = StyleSheet.create({
     color: colors.textHi,
     fontSize: 15,
     fontWeight: '700',
+  },
+  contentLineDim: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   slotsRow: {
@@ -349,6 +448,31 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     marginBottom: 4,
+  },
+
+  // Claimants list
+  claimantsLabel: {
+    color: colors.textDim,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  claimantsList: {
+    maxHeight: 180,
+  },
+  claimantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 5,
+  },
+  claimantName: {
+    color: colors.textHi,
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Buttons
@@ -403,43 +527,43 @@ const s = StyleSheet.create({
     paddingVertical: 28,
   },
 
-  // Fixed square container — rings fill it absolutely, coin is centered child
+  // 100×100 container — rings are absolute, coin is centered child
   glowContainer: {
-    width: 140,
-    height: 140,
+    width: 100,
+    height: 100,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
 
-  // Outer ring: fills entire 140×140 area
+  // Outer ring: fills 100×100
   glowRingOuter: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: 70,
+    borderRadius: 50,
     backgroundColor: 'rgba(255,200,0,0.07)',
     borderWidth: 1,
     borderColor: 'rgba(255,200,0,0.22)',
   },
 
-  // Inner ring: inset 14px each side → 112×112
+  // Inner ring: inset 10px → 80×80
   glowRingInner: {
     position: 'absolute',
-    top: 14, left: 14, right: 14, bottom: 14,
-    borderRadius: 56,
+    top: 10, left: 10, right: 10, bottom: 10,
+    borderRadius: 40,
     backgroundColor: 'rgba(255,200,0,0.15)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,200,0,0.6)',
     shadowColor: '#ffc800',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 18,
+    shadowRadius: 16,
+    elevation: 14,
   },
 
   coinSuccessIcon: {
-    width: 78,
-    height: 78,
+    width: 54,
+    height: 54,
   },
 
   coinSuccessAmt: {
