@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, FlatList, StatusBar, ActivityIndicator,
   Modal, Pressable, Linking, Alert, ScrollView, Dimensions,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -558,7 +558,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     setGiftInvLoad(true);
     try {
       const { data } = await api.get('/frames/me/inventory');
-      setGiftInv((data.inventory || []).filter(i => (i.unidadesEnMano || 0) >= 2));
+      setGiftInv((data.inventory || []).filter(i => (i.unidadesEnMano || 0) >= 1));
     } catch {}
     finally { setGiftInvLoad(false); }
   }
@@ -569,7 +569,7 @@ export default function GroupRoomScreen({ route, navigation }) {
       if (!giftSlots || parseInt(giftSlots) < 2) { setGiftErr('Mínimo 2 usuarios'); return; }
     } else {
       if (!giftFrame) { setGiftErr('Selecciona un marco'); return; }
-      if (!giftCantidad || parseInt(giftCantidad) < 2) { setGiftErr('Mínimo 2 unidades'); return; }
+      if (!giftCantidad || parseInt(giftCantidad) < 1) { setGiftErr('Ingresa al menos 1 unidad'); return; }
     }
     setSendingGift(true); setGiftErr('');
     try {
@@ -599,6 +599,7 @@ export default function GroupRoomScreen({ route, navigation }) {
           reclamadoPor:    [],
         },
       });
+      Keyboard.dismiss();
       setGiftModal(false);
     } catch (e) {
       setGiftErr(e.response?.data?.error || 'Error al enviar regalo');
@@ -1145,9 +1146,9 @@ export default function GroupRoomScreen({ route, navigation }) {
       )}
 
       {/* ── Modal Regalo ─────────────────────────────────────────────────── */}
-      <Modal visible={giftModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setGiftModal(false)}>
+      <Modal visible={giftModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => { Keyboard.dismiss(); setGiftModal(false); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Pressable style={s.giftOverlay} onPress={() => setGiftModal(false)}>
+        <Pressable style={s.giftOverlay} onPress={() => { Keyboard.dismiss(); setGiftModal(false); }}>
           <Pressable style={s.giftSheet} onPress={() => {}}>
             <View style={s.giftHandle} />
 
@@ -1159,7 +1160,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 </View>
                 <Text style={s.giftTitle}>Enviar Regalo</Text>
               </View>
-              <TouchableOpacity onPress={() => setGiftModal(false)} style={s.giftCloseBtn}>
+              <TouchableOpacity onPress={() => { Keyboard.dismiss(); setGiftModal(false); }} style={s.giftCloseBtn}>
                 <Ionicons name="close" size={20} color={colors.textDim} />
               </TouchableOpacity>
             </View>
@@ -1256,7 +1257,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                   ) : giftInv.length === 0 ? (
                     <View style={s.giftNoFrames}>
                       <Ionicons name="image-outline" size={22} color={colors.textDim} />
-                      <Text style={s.giftNoFramesTxt}>Sin marcos disponibles{'\n'}(necesitas mínimo 2 unidades)</Text>
+                      <Text style={s.giftNoFramesTxt}>No tienes marcos en tu inventario</Text>
                     </View>
                   ) : (
                     <FlatList
