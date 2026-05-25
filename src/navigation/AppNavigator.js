@@ -48,6 +48,7 @@ import StoreScreen           from '../screens/StoreScreen';
 import CreateStoreScreen     from '../screens/CreateStoreScreen';
 import GiftScreen            from '../screens/GiftScreen';
 import GiftsReceivedScreen   from '../screens/GiftsReceivedScreen';
+import MyGiftsScreen         from '../screens/MyGiftsScreen';
 import TransactionsScreen    from '../screens/TransactionsScreen';
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
@@ -125,6 +126,7 @@ export default function AppNavigator() {
               <Stack.Screen name="CreateStore"     component={CreateStoreScreen} />
               <Stack.Screen name="Gift"            component={GiftScreen} />
               <Stack.Screen name="GiftsReceived"   component={GiftsReceivedScreen} />
+              <Stack.Screen name="MyGifts"         component={MyGiftsScreen} />
               <Stack.Screen name="Transactions"    component={TransactionsScreen} />
             </>
           ) : (

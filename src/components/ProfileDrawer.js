@@ -188,8 +188,8 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             />
             <MenuItem
               icon="gift-outline"
-              label="Regalos Recibidos"
-              onPress={() => { onClose(); onNavigate('GiftsReceived'); }}
+              label="Mis Regalos"
+              onPress={() => { onClose(); onNavigate('MyGifts'); }}
             />
             <MenuItem
               icon="settings-outline"
