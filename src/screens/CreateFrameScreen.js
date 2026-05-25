@@ -14,6 +14,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api, { postFormData } from '../services/api';
 import CoinIcon from '../components/CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 const { width: W } = Dimensions.get('window');
 const PREVIEW_SIZE = W - 64;
@@ -282,7 +283,7 @@ export default function CreateFrameScreen({ navigation }) {
               <Ionicons name="warning-outline" size={16} color="rgba(251,191,36,1)" />
               <Text style={s.reqTxt}>
                 {(user?.xp||0) < 100 ? `Faltan ${100-(user?.xp||0)} XP · ` : ''}
-                {(user?.coins||0) < selectedPkg.cost ? `Faltan ${selectedPkg.cost-(user?.coins||0)} ✦` : ''}
+                {(user?.coins||0) < selectedPkg.cost ? `Faltan ${formatCoins(selectedPkg.cost-(user?.coins||0))} ✦` : ''}
                 {'  '}
                 <Text style={{textDecorationLine:'underline'}} onPress={() => setTab('info')}>Ver info</Text>
               </Text>
@@ -467,7 +468,7 @@ export default function CreateFrameScreen({ navigation }) {
             <View style={{gap:8}}>
               {[
                 {ok:(user?.xp||0)>=100, txt:`100 XP mínimo`, val:`tienes ${user?.xp||0}`},
-                {ok:(user?.coins||0)>=50, txt:'50 monedas mínimo', val:`tienes ${user?.coins||0} ✦`},
+                {ok:(user?.coins||0)>=50, txt:'50 monedas mínimo', val:`tienes ${formatCoins(user?.coins)} ✦`},
               ].map((r,i) => (
                 <View key={i} style={{flexDirection:'row',alignItems:'center',gap:8}}>
                   <Ionicons name={r.ok?'checkmark-circle':'close-circle'} size={16}

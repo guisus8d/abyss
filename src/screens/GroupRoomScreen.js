@@ -19,6 +19,7 @@ import CoinIcon from '../components/CoinIcon';
 import AudioMessage from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
 import GiftBubble from '../components/GiftBubble';
+import { formatCoins } from '../utils/formatCoins';
 
 const AVATAR_SLOT = 38;
 const COMMISSION = 0.15;
@@ -1205,7 +1206,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                     <Ionicons name="wallet-outline" size={11} color={colors.textDim} />
                     <Text style={s.giftBalanceTxt}>Saldo disponible: </Text>
                     <CoinIcon size={11} />
-                    <Text style={s.giftBalanceTxt}> {user?.coins ?? 0}</Text>
+                    <Text style={s.giftBalanceTxt}> {formatCoins(user?.coins)}</Text>
                   </View>
 
                   {/* Desglose comisión */}

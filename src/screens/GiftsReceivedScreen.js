@@ -11,6 +11,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 function FrameCardBg({ frame }) {
   const grad = typeof frame.bgGradient === 'string' ? JSON.parse(frame.bgGradient || '[]') : (frame.bgGradient || []);
@@ -205,7 +206,7 @@ export default function GiftsReceivedScreen({ navigation }) {
                 {selected.monedas > 0 && (
                   <View style={s.contentCoins}>
                     <CoinIcon size={22} />
-                    <Text style={s.coinsAmt}>{selected.monedas}</Text>
+                    <Text style={s.coinsAmt}>{formatCoins(selected.monedas)}</Text>
                     <Text style={s.coinsSub}>monedas</Text>
                   </View>
                 )}

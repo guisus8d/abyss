@@ -12,6 +12,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 const { width: W } = Dimensions.get('window');
 const COLS   = 3;
@@ -148,7 +149,7 @@ export default function MarketScreen({ navigation }) {
           <Text style={s.headerTitle}>MERCADO</Text>
           <View style={s.coinsBadge}>
             <CoinIcon size={14} />
-            <Text style={s.coinsVal}>{user?.coins ?? 0}</Text>
+            <Text style={s.coinsVal}>{formatCoins(user?.coins)}</Text>
           </View>
         </View>
 

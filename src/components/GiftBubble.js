@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
+import { formatCoins } from '../utils/formatCoins';
 
 const COIN_ICON = require('../../assets/icons/coins.png');
 
@@ -172,7 +173,7 @@ export default function GiftBubble({
 
                     {monedas > 0 && (
                       <Animated.Text style={[s.coinSuccessAmt, { opacity: pulseAnim }]}>
-                        +{coinsForReceiver}
+                        +{formatCoins(coinsForReceiver)}
                       </Animated.Text>
                     )}
 
@@ -218,7 +219,7 @@ export default function GiftBubble({
                   <View style={s.contentRow}>
                     <Text style={s.contentLineDim}>Cada uno recibe</Text>
                     <Image source={COIN_ICON} style={s.coinInline} />
-                    <Text style={s.contentLineDim}>{coinsForReceiver} coins</Text>
+                    <Text style={s.contentLineDim}>{formatCoins(coinsForReceiver)} coins</Text>
                   </View>
                 )}
 
@@ -266,7 +267,7 @@ export default function GiftBubble({
                   <View style={s.contentRow}>
                     <Text style={s.contentLine}>Recibirás</Text>
                     <Image source={COIN_ICON} style={s.coinInline} />
-                    <Text style={s.contentLine}>{coinsForReceiver} coins</Text>
+                    <Text style={s.contentLine}>{formatCoins(coinsForReceiver)} coins</Text>
                   </View>
                 ) : (
                   <Text style={[s.contentLine, { marginBottom: 10 }]}>

@@ -12,6 +12,7 @@ import { colors } from '../theme/colors';
 import api from '../services/api';
 import AvatarWithFrame from './AvatarWithFrame';
 import CoinIcon from './CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.72, 300);
@@ -155,7 +156,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             <View style={s.walletCard}>
               <View style={s.walletSection}>
                 <CoinIcon size={17} />
-                <Text style={s.walletValue}>{user?.coins ?? 0}</Text>
+                <Text style={s.walletValue}>{formatCoins(user?.coins)}</Text>
                 <Text style={s.walletLabel}>COINS</Text>
               </View>
               <View style={s.walletDivider} />

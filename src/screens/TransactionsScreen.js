@@ -10,6 +10,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 const FILTERS = [
   { key: '',              label: 'Todas' },
@@ -147,7 +148,7 @@ export default function TransactionsScreen({ navigation }) {
               <Text style={s.balanceLbl}>Disponible</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <CoinIcon size={20} />
-                <Text style={s.balanceVal}>{balance.coins}</Text>
+                <Text style={s.balanceVal}>{formatCoins(balance.coins)}</Text>
               </View>
             </View>
             {balance.coinsReservadas > 0 && (
@@ -157,7 +158,7 @@ export default function TransactionsScreen({ navigation }) {
                   <Text style={s.balanceLbl}>En espera</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <CoinIcon size={20} />
-                    <Text style={[s.balanceVal, { color: colors.textMid }]}>{balance.coinsReservadas}</Text>
+                    <Text style={[s.balanceVal, { color: colors.textMid }]}>{formatCoins(balance.coinsReservadas)}</Text>
                   </View>
                 </View>
               </>

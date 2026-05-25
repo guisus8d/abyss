@@ -9,6 +9,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ const STATUS_COLOR = {
 
 function giftSummary(gift) {
   const parts = [];
-  if (gift.monedas > 0) parts.push(`${gift.monedas} coins`);
+  if (gift.monedas > 0) parts.push(`${formatCoins(gift.monedas)} coins`);
   if (gift.items?.length > 0) {
     gift.items.forEach(it => {
       const name = it.frame?.name || 'Marco';

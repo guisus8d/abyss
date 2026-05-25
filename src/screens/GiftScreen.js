@@ -13,6 +13,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 const { width: W } = Dimensions.get('window');
 const COLS   = 3;
@@ -247,7 +248,7 @@ export default function GiftScreen({ navigation, route }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <Text style={[s.coinsBalance, { marginBottom: 0 }]}>Tu saldo: </Text>
                 <CoinIcon size={12} style={{ marginHorizontal: 2 }} />
-                <Text style={[s.coinsBalance, { marginBottom: 0 }]}>{user?.coins ?? 0}</Text>
+                <Text style={[s.coinsBalance, { marginBottom: 0 }]}>{formatCoins(user?.coins)}</Text>
               </View>
 
               {coinsNum > 0 && (

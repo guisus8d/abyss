@@ -13,6 +13,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
+import { formatCoins } from '../utils/formatCoins';
 
 const { width: W } = Dimensions.get('window');
 const COLS     = 3;
@@ -182,7 +183,7 @@ export default function CollectionScreen({ navigation }) {
         </View>
         <View style={s.infoItem}>
           <CoinIcon size={13} />
-          <Text style={s.coinsVal}>{user?.coins ?? 50}</Text>
+          <Text style={s.coinsVal}>{formatCoins(user?.coins ?? 50)}</Text>
         </View>
       </View>
 
