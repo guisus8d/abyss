@@ -37,6 +37,19 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
   const canAccept = isPending && !yaReclame && !agotado;
   const canReject = !isMe && isPending && !isGrupal;
 
+  // Bubble is "done" → dim the card for the current viewer
+  const isDone =
+    (isGrupal && (yaReclame || agotado)) ||
+    (!isGrupal && !isPending);
+
+  const bubbleSub =
+    yaReclame                           ? 'Ya reclamaste este regalo' :
+    agotado                             ? 'Regalo completado'          :
+    !isGrupal && estado === 'aceptado'  ? 'Regalo aceptado'           :
+    !isGrupal && estado === 'rechazado' ? 'Regalo rechazado'          :
+    !isPending                          ? 'Regalo expirado'           :
+                                          'Toca para ver el contenido';
+
   const statusBadge = !isPending
     ? (estado === 'aceptado' ? 'Aceptado' : estado === 'rechazado' ? 'Rechazado' : 'Expirado')
     : yaReclame ? 'Ya reclamaste'
@@ -87,20 +100,28 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
 
   return (
     <>
-      <TouchableOpacity onPress={() => setVisible(true)} activeOpacity={0.8}>
+      <TouchableOpacity
+        onPress={() => setVisible(true)}
+        activeOpacity={isDone ? 0.85 : 0.8}
+        style={isDone && { opacity: 0.52 }}
+      >
         <LinearGradient
           colors={['#0e2040', '#060f1e']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={s.card}
+          style={[s.card, isDone && s.cardDone]}
         >
-          <View style={s.accentBar} />
-          <View style={s.iconWrap}>
-            <Ionicons name="gift" size={36} color={colors.c2} />
+          <View style={[s.accentBar, isDone && s.accentBarDone]} />
+          <View style={[s.iconWrap, isDone && s.iconWrapDone]}>
+            <Ionicons
+              name={isDone ? 'gift-outline' : 'gift'}
+              size={36}
+              color={isDone ? 'rgba(255,255,255,0.4)' : colors.c2}
+            />
           </View>
           <View style={s.info}>
             <Text style={s.msg} numberOfLines={2}>{displayMsg}</Text>
-            <Text style={s.sub}>{statusBadge || 'Toca para ver el contenido'}</Text>
+            <Text style={s.sub}>{bubbleSub}</Text>
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -150,8 +171,9 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
 
                 {monedas > 0 ? (
                   <View style={s.contentRow}>
+                    <Text style={s.contentLine}>Recibirás</Text>
                     <Image source={COIN_ICON} style={s.coinInline} />
-                    <Text style={s.contentLine}>Recibirás {coinsForReceiver} coins</Text>
+                    <Text style={s.contentLine}>{coinsForReceiver} coins</Text>
                   </View>
                 ) : (
                   <Text style={[s.contentLine, { marginBottom: 10 }]}>
@@ -214,6 +236,9 @@ const s = StyleSheet.create({
     minWidth: 230,
     overflow: 'hidden',
   },
+  cardDone: {
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
   accentBar: {
     width: 3,
     alignSelf: 'stretch',
@@ -222,6 +247,9 @@ const s = StyleSheet.create({
     marginLeft: 12,
     marginVertical: 4,
   },
+  accentBarDone: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
   iconWrap: {
     width: 52,
     height: 52,
@@ -229,6 +257,9 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(41,121,255,0.13)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconWrapDone: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   info: { flex: 1 },
   msg: {
