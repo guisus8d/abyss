@@ -20,6 +20,7 @@ import CreatePostMenu  from '../components/CreatePostMenu';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import PostCard        from '../components/PostCard';
 import OrbitUsers      from '../components/OrbitUsers';
+import GuestAuthModal  from '../components/GuestAuthModal';
 
 const EMOJI_LIST = [
   '❤️','😂','😍','🔥','👏','😮','😢','😡',
@@ -60,7 +61,7 @@ function BadgeToast({ badge, onHide }) {
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { user, logout, updateUser } = useAuthStore();
+  const { user, logout, updateUser, isGuest } = useAuthStore();
 
   const [unreadNotifs,  setUnreadNotifs]  = useState(0);
   const [openPickerId,  setOpenPickerId]  = useState(null);
@@ -79,6 +80,7 @@ export default function HomeScreen({ navigation }) {
     const interval = setInterval(() => setActivityStatus(getActivityStatus(user?.lastActive)), 60000);
     return () => clearInterval(interval);
   }, [user?.lastActive]);
+  const [showGuestModal, setShowGuestModal] = useState(false);
   const [refreshing,    setRefreshing]    = useState(false);
   const [activeTab,     setActiveTab]     = useState('todos');
   const [tabData,       setTabData]       = useState({
@@ -90,18 +92,20 @@ export default function HomeScreen({ navigation }) {
   const loadingRef   = useRef(false);
 
   useEffect(() => {
+    if (isGuest) return;
     api.get('/notifications/unread').then(r => setUnreadNotifs(r.data.unread)).catch(() => {});
     connectSocket().then(s => {
       s.off('notification:new');
       s.on('notification:new', () => setUnreadNotifs(prev => prev + 1));
     });
-  }, []);
+  }, [isGuest]);
 
   useEffect(() => {
+    if (isGuest) return;
     api.get('/users/me').then(({ data }) => {
       if (data.user) updateUser(data.user);
     }).catch(() => {});
-  }, []);
+  }, [isGuest]);
 
   const fetchTab = useCallback(async (tabKey, page = 1, append = false) => {
     const tab = TABS.find(t => t.key === tabKey);
@@ -118,7 +122,7 @@ export default function HomeScreen({ navigation }) {
         return { ...prev, [tabKey]: { posts: unique, page, hasMore: page < (data.totalPages || 1), loading: false, loaded: true } };
       });
     } catch {
-      setTabData(prev => ({ ...prev, [tabKey]: { ...prev[tabKey], loading: false } }));
+      setTabData(prev => ({ ...prev, [tabKey]: { ...prev[tabKey], loading: false, loaded: true } }));
     } finally {
       setRefreshing(false);
     }
@@ -130,7 +134,7 @@ export default function HomeScreen({ navigation }) {
   }, [activeTab, tabData, fetchTab]));
 
   function switchTab(key) {
-    const idx = TABS.findIndex(t => t.key === key);
+    if (isGuest && key === 'siguiendo') { setShowGuestModal(true); return; }
     setActiveTab(key);
     if (!tabData[key].loaded && !tabData[key].loading) fetchTab(key, 1);
   }
@@ -154,6 +158,7 @@ export default function HomeScreen({ navigation }) {
   }
 
   function handleReact(postId, type) {
+    if (isGuest) { setShowGuestModal(true); return; }
     const updatePosts = posts => posts.map(p => {
       if (p._id !== postId) return p;
       const myId   = user._id?.toString();
@@ -187,6 +192,7 @@ export default function HomeScreen({ navigation }) {
 
   async function handleComment(postId, text, replyTo, updatedComments) {
     if (updatedComments) {
+      // solo actualiza estado local, no requiere auth
       setTabData(prev => {
         const next = { ...prev };
         TABS.forEach(t => { next[t.key] = { ...prev[t.key], posts: prev[t.key].posts.map(p => p._id === postId ? { ...p, comments: updatedComments } : p) }; });
@@ -194,6 +200,7 @@ export default function HomeScreen({ navigation }) {
       });
       return;
     }
+    if (isGuest) { setShowGuestModal(true); return; }
     try {
       const { data } = await api.post(`/posts/${postId}/comment`, { text, replyTo });
       setTabData(prev => {
@@ -223,29 +230,45 @@ export default function HomeScreen({ navigation }) {
 
       {toastBadge && <BadgeToast badge={toastBadge} onHide={() => setToastBadge(null)} />}
 
-      <ProfileDrawer
-        visible={drawerOpen} onClose={() => setDrawerOpen(false)}
-        user={user} onLogout={logout}
-        onNavigate={(screen, params) => navigation.navigate(screen, params)}
-      />
+      <GuestAuthModal visible={showGuestModal} onClose={() => setShowGuestModal(false)} />
+
+      {!isGuest && (
+        <ProfileDrawer
+          visible={drawerOpen} onClose={() => setDrawerOpen(false)}
+          user={user} onLogout={logout}
+          onNavigate={(screen, params) => navigation.navigate(screen, params)}
+        />
+      )}
 
       {/* Header */}
       <LinearGradient colors={['rgba(2,5,9,1)', 'rgba(2,5,9,0)']} style={s.headerWrap} start={{ x:0, y:0 }} end={{ x:0, y:1 }}>
         <SafeAreaView>
           <View style={s.header}>
-            <TouchableOpacity style={s.headerLeft} onPress={() => setDrawerOpen(true)}>
-              <AvatarWithFrame size={34} avatarUrl={user?.avatarUrl} username={user?.username}
-                profileFrame={user?.profileFrame} frameUrl={user?.profileFrameUrl} bgColor="rgba(0,229,204,0.15)" />
-              <View>
-                <Text style={s.headerUsername}>{user?.username}</Text>
-                {activityStatus.text ? (
-                  <View style={{ flexDirection:'row', alignItems:'center', marginTop:1 }}>
-                    <View style={{ width:6, height:6, borderRadius:3, backgroundColor: activityStatus.isOnline ? '#16B88A' : '#6B6090', marginRight:4 }} />
-                    <Text style={{ fontSize:11, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>{activityStatus.text}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </TouchableOpacity>
+            {isGuest ? (
+              <TouchableOpacity style={s.headerLeft} onPress={() => setShowGuestModal(true)} activeOpacity={0.75}>
+                <View style={s.guestAvatar}>
+                  <Ionicons name="person-outline" size={18} color={colors.c1} />
+                </View>
+                <View>
+                  <Text style={s.headerUsername}>Modo invitado</Text>
+                  <Text style={{ fontSize: 11, color: colors.c1 }}>Inicia sesión →</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={s.headerLeft} onPress={() => setDrawerOpen(true)}>
+                <AvatarWithFrame size={34} avatarUrl={user?.avatarUrl} username={user?.username}
+                  profileFrame={user?.profileFrame} frameUrl={user?.profileFrameUrl} bgColor="rgba(0,229,204,0.15)" />
+                <View>
+                  <Text style={s.headerUsername}>{user?.username}</Text>
+                  {activityStatus.text ? (
+                    <View style={{ flexDirection:'row', alignItems:'center', marginTop:1 }}>
+                      <View style={{ width:6, height:6, borderRadius:3, backgroundColor: activityStatus.isOnline ? '#16B88A' : '#6B6090', marginRight:4 }} />
+                      <Text style={{ fontSize:11, color: activityStatus.isOnline ? '#16B88A' : colors.textDim }}>{activityStatus.text}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            )}
             <View style={s.headerRight}>
               {Platform.OS === 'web' && (
                 <TouchableOpacity
@@ -262,9 +285,12 @@ export default function HomeScreen({ navigation }) {
                 <Ionicons name="search" size={18} color={colors.textHi} />
               </TouchableOpacity>
               <TouchableOpacity style={s.iconBtnBox}
-                onPress={() => { setUnreadNotifs(0); navigation.navigate('Notifications'); }}>
-                <Ionicons name="notifications" size={18} color={colors.textHi} />
-                {unreadNotifs > 0 && (
+                onPress={isGuest
+                  ? () => setShowGuestModal(true)
+                  : () => { setUnreadNotifs(0); navigation.navigate('Notifications'); }
+                }>
+                <Ionicons name="notifications" size={18} color={isGuest ? colors.textDim : colors.textHi} />
+                {!isGuest && unreadNotifs > 0 && (
                   <View style={s.notifBadge}>
                     <Text style={s.notifBadgeTxt}>{unreadNotifs > 99 ? '99+' : unreadNotifs}</Text>
                   </View>
@@ -345,7 +371,8 @@ export default function HomeScreen({ navigation }) {
             <View key={`${activeTab}-${p._id}`} style={i > 0 ? s.postGap : null}>
               <PostCard post={p} currentUserId={user?._id} onReact={handleReact}
                 onComment={handleComment} onDelete={handleDelete}
-                openPickerId={openPickerId} setOpenPickerId={setOpenPickerId} navigation={navigation} />
+                openPickerId={openPickerId} setOpenPickerId={setOpenPickerId} navigation={navigation}
+                isGuest={isGuest} />
             </View>
           ))}
           {currentTab.loading && currentTab.loaded && <View style={s.loadingMore}><ActivityIndicator color={colors.c1} size="small" /></View>}
@@ -396,18 +423,18 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
 
         {/* Botón crear — mismo estilo que addBtn de ChatsScreen */}
-        <TouchableOpacity style={s.ni} onPress={() => setShowMenu(true)}>
+        <TouchableOpacity style={s.ni} onPress={() => isGuest ? setShowGuestModal(true) : setShowMenu(true)}>
           <View style={s.niCreate}>
             <View style={s.rhombus} />
             <View style={s.rhombusIcon}><Ionicons name="add" size={24} color={colors.c1} /></View>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Chats')}>
+        <TouchableOpacity style={s.ni} onPress={() => isGuest ? setShowGuestModal(true) : navigation.navigate('Chats')}>
           <View style={s.niBox}><Ionicons name="chatbubble" size={20} color={colors.textDim} /></View>
           <Text style={s.niLbl}>Chat</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.ni} onPress={() => setDrawerOpen(true)}>
+        <TouchableOpacity style={s.ni} onPress={() => isGuest ? setShowGuestModal(true) : setDrawerOpen(true)}>
           <View style={s.niBox}><Ionicons name="people" size={20} color={colors.textDim} /></View>
           <Text style={s.niLbl}>Círculos</Text>
         </TouchableOpacity>
@@ -450,6 +477,7 @@ const s = StyleSheet.create({
   header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   headerLeft:     { flexDirection: 'row', alignItems: 'center', gap: 14 },
   headerUsername: { color: colors.textHi, fontWeight: '700', fontSize: 13 },
+  guestAvatar:    { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)', alignItems: 'center', justifyContent: 'center' },
   headerRight:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtnBox:     { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 },
   downloadBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.35)', marginHorizontal: 2 },

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import AvatarWithFrame from './AvatarWithFrame';
 import SharePostModal  from './SharePostModal';
+import GuestAuthModal  from './GuestAuthModal';
 import api from '../services/api';
 
 const C = {
@@ -73,6 +74,7 @@ const cm = StyleSheet.create({
 function CommentSection({
   post, currentUserId, replyToComment, setReplyToComment,
   commentText, setCommentText, sending, onSubmit, onDeleteComment, goToProfile, onViewAll,
+  isGuest, onGuestAction,
 }) {
   const topLevel = useMemo(() => post.comments.filter(c => !c.replyTo?.commentId), [post.comments]);
   const replies  = useMemo(() => post.comments.filter(c => !!c.replyTo?.commentId), [post.comments]);
@@ -162,31 +164,38 @@ function CommentSection({
         </View>
       )}
 
-      <View style={s.commentInputRow}>
-        <TextInput
-          style={s.commentField}
-          placeholder="Escribe un comentario..."
-          placeholderTextColor={C.textDim}
-          value={commentText}
-          onChangeText={setCommentText}
-          returnKeyType="send"
-          onSubmitEditing={Platform.OS !== 'web' ? onSubmit : undefined}
-          blurOnSubmit={false}
-          onKeyPress={
-            Platform.OS === 'web'
-              ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); onSubmit(); } }
-              : undefined
-          }
-        />
-        <TouchableOpacity
-          style={[s.sendBtn, (!commentText.trim() || sending) && s.sendBtnDisabled]}
-          onPress={onSubmit}
-          disabled={!commentText.trim() || sending}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="send" size={14} color="#020509" />
+      {isGuest ? (
+        <TouchableOpacity style={s.guestCommentBtn} onPress={onGuestAction} activeOpacity={0.8}>
+          <Ionicons name="lock-closed-outline" size={14} color={C.accent} />
+          <Text style={s.guestCommentTxt}>Inicia sesión para comentar</Text>
         </TouchableOpacity>
-      </View>
+      ) : (
+        <View style={s.commentInputRow}>
+          <TextInput
+            style={s.commentField}
+            placeholder="Escribe un comentario..."
+            placeholderTextColor={C.textDim}
+            value={commentText}
+            onChangeText={setCommentText}
+            returnKeyType="send"
+            onSubmitEditing={Platform.OS !== 'web' ? onSubmit : undefined}
+            blurOnSubmit={false}
+            onKeyPress={
+              Platform.OS === 'web'
+                ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); onSubmit(); } }
+                : undefined
+            }
+          />
+          <TouchableOpacity
+            style={[s.sendBtn, (!commentText.trim() || sending) && s.sendBtnDisabled]}
+            onPress={onSubmit}
+            disabled={!commentText.trim() || sending}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="send" size={14} color="#020509" />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -194,7 +203,7 @@ function CommentSection({
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 const PostCard = memo(function PostCard({
-  post, currentUserId, onReact, onComment, onDelete, navigation, openPickerId, setOpenPickerId,
+  post, currentUserId, onReact, onComment, onDelete, navigation, openPickerId, setOpenPickerId, isGuest,
 }) {
   const goToProfile = useCallback((username) => {
     navigation.navigate('PublicProfile', { username });
@@ -206,7 +215,8 @@ const PostCard = memo(function PostCard({
   const [replyToComment,     setReplyToComment]     = useState(null);
   const [deleteCommentModal, setDeleteCommentModal] = useState(null);
   const [deletePostModal,    setDeletePostModal]    = useState(false);
-  const [shareOpen,          setShareOpen]          = useState(false); // ← NUEVO
+  const [shareOpen,          setShareOpen]          = useState(false);
+  const [showGuestModal,     setShowGuestModal]     = useState(false);
 
   const [liked, setLiked] = useState(() =>
     post.reactions.some(r => (r.user?._id || r.user)?.toString() === currentUserId?.toString() && r.type === 'like')
@@ -230,6 +240,7 @@ const PostCard = memo(function PostCard({
   const ago = useMemo(() => timeAgo(post.createdAt), [post.createdAt]);
 
   const handleLike = useCallback(() => {
+    if (isGuest) { setShowGuestModal(true); return; }
     if (likeBlocked.current) return;
     likeBlocked.current = true;
     setTimeout(() => { likeBlocked.current = false; }, 400);
@@ -242,7 +253,7 @@ const PostCard = memo(function PostCard({
       Animated.spring(heartScale, { toValue: 1,   useNativeDriver: true, speed: 80,  bounciness: 4  }),
     ]).start();
     onReact(post._id, 'like');
-  }, [liked, heartScale, onReact, post._id]);
+  }, [liked, heartScale, onReact, post._id, isGuest]);
 
   const handleDeletePost = useCallback(() => {
     setDeletePostModal(false);
@@ -298,6 +309,9 @@ const PostCard = memo(function PostCard({
         post={post}
         currentUserId={currentUserId}
       />
+
+      {/* ── Modal guest ── */}
+      <GuestAuthModal visible={showGuestModal} onClose={() => setShowGuestModal(false)} />
 
       {/* ── Header ── */}
       <View style={s.header}>
@@ -379,7 +393,7 @@ const PostCard = memo(function PostCard({
           <TouchableOpacity
             key={g.emoji}
             style={[s.emojiPill, myEmoji?.type === g.emoji && s.emojiPillActive]}
-            onPress={() => onReact(post._id, g.emoji)}
+            onPress={() => isGuest ? setShowGuestModal(true) : onReact(post._id, g.emoji)}
             activeOpacity={0.7}
           >
             <Text style={s.emojiTxt}>{g.emoji}</Text>
@@ -389,7 +403,7 @@ const PostCard = memo(function PostCard({
 
         <TouchableOpacity
           style={s.emojiAddBtn}
-          onPress={() => setOpenPickerId(prev => prev === post._id ? null : post._id)}
+          onPress={() => isGuest ? setShowGuestModal(true) : setOpenPickerId(prev => prev === post._id ? null : post._id)}
           activeOpacity={0.7}
         >
           <Text style={s.emojiAddTxt}>+</Text>
@@ -429,6 +443,8 @@ const PostCard = memo(function PostCard({
           onDeleteComment={setDeleteCommentModal}
           goToProfile={goToProfile}
           onViewAll={() => navigation.navigate('PostDetail', { postId: post._id })}
+          isGuest={isGuest}
+          onGuestAction={() => setShowGuestModal(true)}
         />
       )}
     </View>
@@ -441,7 +457,8 @@ const PostCard = memo(function PostCard({
   prev.post.imageUrl  === next.post.imageUrl  &&
   prev.post.title     === next.post.title     &&
   prev.post.postType  === next.post.postType  &&
-  prev.openPickerId   === next.openPickerId
+  prev.openPickerId   === next.openPickerId   &&
+  prev.isGuest        === next.isGuest
 );
 
 export default PostCard;
@@ -502,8 +519,10 @@ const s = StyleSheet.create({
   replyBarAccent:{ width: 3, backgroundColor: C.accent, alignSelf: 'stretch' },
   replyBarTxt:   { color: C.textDim, fontSize: 11.5, flex: 1, paddingVertical: 8, paddingHorizontal: 8 },
   replyBarClose: { padding: 8 },
-  commentInputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.inputBg, borderRadius: 14, borderWidth: 1, borderColor: C.cardBorder, paddingHorizontal: 12, paddingVertical: 6, marginTop: 4 },
-  commentField:    { flex: 1, color: C.textHi, fontSize: 13, paddingVertical: 4, ...(isWeb ? { outlineStyle: 'none' } : {}) },
-  sendBtn:         { backgroundColor: C.accent, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  sendBtnDisabled: { backgroundColor: 'rgba(15,227,184,0.2)' },
+  commentInputRow:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.inputBg, borderRadius: 14, borderWidth: 1, borderColor: C.cardBorder, paddingHorizontal: 12, paddingVertical: 6, marginTop: 4 },
+  commentField:     { flex: 1, color: C.textHi, fontSize: 13, paddingVertical: 4, ...(isWeb ? { outlineStyle: 'none' } : {}) },
+  sendBtn:          { backgroundColor: C.accent, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  sendBtnDisabled:  { backgroundColor: 'rgba(15,227,184,0.2)' },
+  guestCommentBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(15,227,184,0.2)', backgroundColor: 'rgba(15,227,184,0.05)' },
+  guestCommentTxt:  { color: C.accent, fontSize: 13, fontWeight: '600' },
 });
