@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 
 const AbyssTheme = {
@@ -50,6 +50,7 @@ import GiftScreen            from '../screens/GiftScreen';
 import GiftsReceivedScreen   from '../screens/GiftsReceivedScreen';
 import MyGiftsScreen         from '../screens/MyGiftsScreen';
 import TransactionsScreen    from '../screens/TransactionsScreen';
+import LandingScreen         from '../screens/LandingScreen';
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
 // El panel de moderación solo es accesible desde abyss.social/mod
@@ -70,7 +71,7 @@ const linking = {
 };
 
 export default function AppNavigator() {
-  const { user, isRestoring, restoreSession } = useAuthStore();
+  const { user, isRestoring, restoreSession, isGuest } = useAuthStore();
   useEffect(() => { restoreSession(); }, []);
 
   if (isRestoring) {
@@ -95,7 +96,7 @@ export default function AppNavigator() {
             animation: 'slide_from_right',
           }}
         >
-          {user ? (
+          {(user || isGuest) ? (
             <>
               <Stack.Screen name="Home"            component={HomeScreen} />
               <Stack.Screen name="Chats"           component={ChatsScreen} />
@@ -131,6 +132,9 @@ export default function AppNavigator() {
             </>
           ) : (
             <>
+              {Platform.OS === 'web' && (
+                <Stack.Screen name="Landing" component={LandingScreen} />
+              )}
               <Stack.Screen name="Login"         component={LoginScreen} />
               <Stack.Screen name="PostDetail"    component={PostDetailScreen} />
               <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />

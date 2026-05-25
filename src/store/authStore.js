@@ -11,6 +11,7 @@ export const useAuthStore = create((set) => ({
   token: null,
   isLoading: false,
   isRestoring: true,
+  isGuest: false,
 
   restoreSession: async () => {
     try {
@@ -80,8 +81,11 @@ export const useAuthStore = create((set) => ({
   logout: async () => {
     disconnectSocket();
     await AsyncStorage.removeItem('token');
-    set({ user: null, token: null });
+    set({ user: null, token: null, isGuest: false });
   },
+
+  enterGuestMode: () => set({ isGuest: true }),
+  exitGuestMode:  () => set({ isGuest: false }),
 
   updateUser: (user) => set({ user }),
 }));

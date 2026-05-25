@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Image,
+  View, Text, TextInput, TouchableOpacity, Image, ActivityIndicator,
   StyleSheet, Alert, StatusBar, ScrollView, Platform,
   Animated, Dimensions, Linking,
 } from 'react-native';
@@ -83,7 +83,7 @@ function GoogleIcon({ size = 20 }) {
   );
 }
 
-export default function LoginScreen() {
+export default function LoginScreen({ route }) {
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -93,7 +93,7 @@ export default function LoginScreen() {
   const [confirmPassDisplay, setConfirmPassDisplay] = useState('');
   const maskTimerPass    = useRef(null);
   const maskTimerConfirm = useRef(null);
-  const [isRegister,      setIsRegister]      = useState(false);
+  const [isRegister,      setIsRegister]      = useState(route?.params?.mode === 'register');
   const [username,        setUsername]        = useState('');
   const [gender,          setGender]          = useState('prefiero-no-decir');
   const [avatar,          setAvatar]          = useState(null);
@@ -475,10 +475,7 @@ export default function LoginScreen() {
                 style={s.btnEnter}
               >
                 {isLoading ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="hourglass-outline" size={16} color="#001a18" />
-                    <Text style={s.btnTxt}>CONECTANDO...</Text>
-                  </View>
+                  <ActivityIndicator size="small" color="#001a18" />
                 ) : (
                   <Text style={s.btnTxt}>
                     {isRegister ? 'CREAR CUENTA' : 'SUMERGIRSE'}
