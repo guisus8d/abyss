@@ -32,10 +32,9 @@ export default function GiftBubble({
 
   const displayMsg = mensaje.trim() || '¡Con mis mejores deseos!';
 
-  // Apply 15% Abyss commission for group gifts (matches backend fix)
   const coinsForReceiver = isGrupal
-    ? Math.floor((monedas * 0.85) / Math.max(slots, 1))
-    : Math.round(monedas * 0.85);
+    ? Math.round((monedas * 0.85) / Math.max(slots, 1) * 100) / 100
+    : Math.round(monedas * 0.85 * 100) / 100;
 
   const canAccept = isPending && !yaReclame && !agotado;
   const canReject = !isMe && isPending && !isGrupal;
@@ -156,25 +155,39 @@ export default function GiftBubble({
 
             {claimed ? (
               /* ── Animación de éxito ──────────────────────────────────────────── */
-              <View style={s.successContainer}>
-                <View style={s.glowContainer}>
-                  <Animated.View style={[s.glowRingOuter, { opacity: outerOpacity }]} />
-                  <Animated.View style={[s.glowRingInner, { opacity: pulseAnim }]} />
-                  <Animated.View style={{ transform: [{ scale: enterAnim }] }}>
-                    <Image source={COIN_ICON} style={s.coinSuccessIcon} />
-                  </Animated.View>
-                </View>
+              (() => {
+                const isFrameGift = items.length > 0 && !monedas;
+                const frameItem   = items[0];
+                return (
+                  <View style={s.successContainer}>
+                    <View style={s.glowContainer}>
+                      <Animated.View style={[s.glowRingOuter, isFrameGift && s.glowRingOuterFrame, { opacity: outerOpacity }]} />
+                      <Animated.View style={[s.glowRingInner, isFrameGift && s.glowRingInnerFrame, { opacity: pulseAnim }]} />
+                      <Animated.View style={{ transform: [{ scale: enterAnim }] }}>
+                        {isFrameGift && frameItem?.imageUrl
+                          ? <Image source={{ uri: frameItem.imageUrl }} style={s.frameSuccessIcon} resizeMode="contain" />
+                          : <Image source={COIN_ICON} style={s.coinSuccessIcon} />}
+                      </Animated.View>
+                    </View>
 
-                {monedas > 0 && (
-                  <Animated.Text style={[s.coinSuccessAmt, { opacity: pulseAnim }]}>
-                    +{coinsForReceiver}
-                  </Animated.Text>
-                )}
+                    {monedas > 0 && (
+                      <Animated.Text style={[s.coinSuccessAmt, { opacity: pulseAnim }]}>
+                        +{coinsForReceiver}
+                      </Animated.Text>
+                    )}
 
-                <Animated.Text style={[s.successLabel, { opacity: pulseAnim }]}>
-                  ¡Reclamado!
-                </Animated.Text>
-              </View>
+                    {isFrameGift && frameItem?.name && (
+                      <Animated.Text style={[s.frameSuccessName, { opacity: pulseAnim }]}>
+                        {frameItem.name}
+                      </Animated.Text>
+                    )}
+
+                    <Animated.Text style={[s.successLabel, { opacity: pulseAnim }]}>
+                      ¡Reclamado!
+                    </Animated.Text>
+                  </View>
+                );
+              })()
 
             ) : showInfoModal ? (
               /* ── Modal informativo (ya reclamó o agotado) ───────────────────── */
@@ -597,5 +610,30 @@ const s = StyleSheet.create({
     fontWeight: '700',
     marginTop: 6,
     letterSpacing: 0.3,
+  },
+
+  // Frame success animation variants
+  glowRingOuterFrame: {
+    backgroundColor: 'rgba(41,121,255,0.07)',
+    borderColor: 'rgba(41,121,255,0.22)',
+  },
+  glowRingInnerFrame: {
+    backgroundColor: 'rgba(41,121,255,0.15)',
+    borderColor: 'rgba(41,121,255,0.6)',
+    shadowColor: '#2979ff',
+  },
+  frameSuccessIcon: {
+    width: 62,
+    height: 62,
+  },
+  frameSuccessName: {
+    color: colors.c2,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 8,
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(41,121,255,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
 });

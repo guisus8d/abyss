@@ -589,7 +589,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         giftId:  gift._id,
         giftData: {
           monedas:         gift.monedas || 0,
-          items:           (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad })),
+          items:           (gift.items || []).map(i => ({ name: i.frame?.name, cantidad: i.cantidad, imageUrl: i.frame?.imageUrl || null })),
           mensaje:         gift.mensaje || '',
           estado:          'pendiente',
           emisorUsername:  user.username,
@@ -1244,7 +1244,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                   </View>
                   {giftSlotsNum >= 1 && giftCoinsNum > 0 && (
                     <Text style={s.giftHint}>
-                      Cada usuario recibirá aprox. {Math.floor(giftNeto / giftSlotsNum)} coins
+                      Cada usuario recibirá aprox. {Math.round(giftNeto / giftSlotsNum * 100) / 100} coins
                     </Text>
                   )}
                 </>
