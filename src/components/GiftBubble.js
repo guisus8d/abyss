@@ -29,7 +29,7 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
     ? `Recibirás el marco "${items[0]?.name || 'Marco'}"`
     : 'Regalo especial';
 
-  const canAccept = !isMe && isPending && !yaReclame && !agotado;
+  const canAccept = isPending && !yaReclame && !agotado;
   const canReject = !isMe && isPending && !isGrupal;
 
   const statusBadge = !isPending
@@ -102,9 +102,11 @@ export default function GiftBubble({ giftData, giftId, isMe, myId, onGiftAction,
             )}
 
             <View style={s.btnRow}>
-              <TouchableOpacity style={s.rejectBtn} onPress={handleReject}>
-                <Text style={s.rejectTxt}>Rechazar</Text>
-              </TouchableOpacity>
+              {!isGrupal && (
+                <TouchableOpacity style={s.rejectBtn} onPress={handleReject}>
+                  <Text style={s.rejectTxt}>Rechazar</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[s.acceptBtn, !canAccept && s.btnDisabled]}
                 onPress={handleAccept}
