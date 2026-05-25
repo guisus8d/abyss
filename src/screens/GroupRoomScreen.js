@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from '
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, FlatList, StatusBar, ActivityIndicator,
-  Modal, Pressable, Linking, Alert, ScrollView,
+  Modal, Pressable, Linking, Alert, ScrollView, Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,11 @@ import SharedProfileBubble from '../components/SharedProfileBubble';
 import GiftBubble from '../components/GiftBubble';
 
 const AVATAR_SLOT = 38;
+const COMMISSION = 0.15;
+const FRAME_COST_PER_UNIT = 5;
+const GIFT_COLS = 3;
+const GIFT_GAP  = 8;
+const GIFT_CARD_W = (Dimensions.get('window').width - 40 - GIFT_GAP * (GIFT_COLS - 1)) / GIFT_COLS;
 
 // ─── Helpers de fecha ─────────────────────────────────────────────────────────
 function dateLabel(date) {
@@ -771,6 +776,20 @@ export default function GroupRoomScreen({ route, navigation }) {
   // ─── Determinar si el input debe estar deshabilitado ─────────────────────
   const inputDisabled = isKicked || isBanned || !isMember;
 
+  // ─── Validación gift modal ────────────────────────────────────────────────
+  const giftCoinsNum    = parseInt(giftCoins) || 0;
+  const giftSlotsNum    = parseInt(giftSlots) || 0;
+  const giftCantidadNum = parseInt(giftCantidad) || 0;
+  const maxSlots        = group?.members?.length || 99;
+  const giftComision    = Math.round(giftCoinsNum * COMMISSION);
+  const giftNeto        = giftCoinsNum - giftComision;
+  const frameCost       = giftCantidadNum * FRAME_COST_PER_UNIT;
+  const isGiftValid     = giftType === 'coins'
+    ? giftCoinsNum > 0 && giftCoinsNum <= (user?.coins || 0) && giftSlotsNum >= 1 && giftSlotsNum <= maxSlots
+    : !!giftFrame && giftCantidadNum >= 1
+        && giftCantidadNum <= (giftFrame?.unidadesEnMano || 0)
+        && frameCost <= (user?.coins || 0);
+
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
@@ -1129,140 +1148,225 @@ export default function GroupRoomScreen({ route, navigation }) {
         <Pressable style={s.giftOverlay} onPress={() => setGiftModal(false)}>
           <Pressable style={s.giftSheet} onPress={() => {}}>
             <View style={s.giftHandle} />
+
+            {/* Header */}
             <View style={s.giftHead}>
-              <Text style={s.giftTitle}>🎁 Lluvia de regalos</Text>
-              <TouchableOpacity onPress={() => setGiftModal(false)}>
+              <View style={s.giftHeadLeft}>
+                <View style={s.giftHeaderIcon}>
+                  <Ionicons name="gift" size={17} color={colors.c2} />
+                </View>
+                <Text style={s.giftTitle}>Enviar Regalo</Text>
+              </View>
+              <TouchableOpacity onPress={() => setGiftModal(false)} style={s.giftCloseBtn}>
                 <Ionicons name="close" size={20} color={colors.textDim} />
               </TouchableOpacity>
             </View>
 
-            {/* Toggle tipo */}
-            <View style={s.giftToggle}>
+            {/* Tabs */}
+            <View style={s.giftTabs}>
               <TouchableOpacity
-                style={[s.giftToggleBtn, giftType === 'coins' && s.giftToggleActive]}
+                style={[s.giftTab, giftType === 'coins' && s.giftTabActive]}
                 onPress={() => { setGiftType('coins'); setGiftFrame(null); setGiftErr(''); }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <CoinIcon size={12} />
-                  <Text style={[s.giftToggleTxt, giftType === 'coins' && s.giftToggleActiveTxt]}>Monedas</Text>
-                </View>
+                <CoinIcon size={13} />
+                <Text style={[s.giftTabTxt, giftType === 'coins' && s.giftTabTxtActive]}>Monedas</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.giftToggleBtn, giftType === 'frame' && s.giftToggleActive]}
+                style={[s.giftTab, giftType === 'frame' && s.giftTabActive]}
                 onPress={() => { setGiftType('frame'); setGiftErr(''); }}
               >
-                <Text style={[s.giftToggleTxt, giftType === 'frame' && s.giftToggleActiveTxt]}>🖼 Marco</Text>
+                <Ionicons name="image-outline" size={13} color={giftType === 'frame' ? colors.c2 : colors.textDim} />
+                <Text style={[s.giftTabTxt, giftType === 'frame' && s.giftTabTxtActive]}>Marco</Text>
               </TouchableOpacity>
             </View>
 
-            {giftType === 'coins' && (
-              <>
-                <Text style={s.giftFieldLbl}>Total de monedas a repartir</Text>
-                <TextInput
-                  style={s.giftInput}
-                  value={giftCoins}
-                  onChangeText={v => setGiftCoins(v.replace(/[^0-9]/g, ''))}
-                  keyboardType="numeric"
-                  placeholder="Ej: 500"
-                  placeholderTextColor={colors.textDim}
-                />
-                <Text style={s.giftFieldLbl}>¿Cuántos usuarios pueden reclamar?</Text>
-                <TextInput
-                  style={s.giftInput}
-                  value={giftSlots}
-                  onChangeText={v => setGiftSlots(v.replace(/[^0-9]/g, ''))}
-                  keyboardType="numeric"
-                  placeholder="Ej: 5"
-                  placeholderTextColor={colors.textDim}
-                />
-                {parseInt(giftCoins) > 0 && parseInt(giftSlots) >= 2 && (
-                  <View style={s.giftCommissionCard}>
-                    <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
-                    <Text style={s.giftCommissionTxt}>
-                      Cada usuario recibe <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>{Math.floor(parseInt(giftCoins) / parseInt(giftSlots))} coins</Text>
-                      {' '}· Total: <Text style={{ color: 'rgba(251,191,36,0.9)', fontWeight: '700' }}>{giftCoins} coins</Text> para {giftSlots} usuarios
-                    </Text>
-                  </View>
-                )}
-              </>
-            )}
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-            {giftType === 'frame' && (
-              <>
-                <Text style={s.giftFieldLbl}>Marco del inventario</Text>
-                {giftInvLoad
-                  ? <ActivityIndicator color={colors.c1} style={{ marginVertical: 16 }} />
-                  : giftInv.length === 0
-                  ? <Text style={{ color: colors.textDim, fontSize: 12, marginBottom: 10 }}>Sin marcos disponibles (necesitas ≥2 unidades)</Text>
-                  : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              {giftType === 'coins' ? (
+                <>
+                  {/* Input de monedas */}
+                  <View style={s.giftCoinsRow}>
+                    <CoinIcon size={26} />
+                    <TextInput
+                      style={s.giftCoinsInput}
+                      value={giftCoins}
+                      onChangeText={v => { setGiftCoins(v.replace(/[^0-9]/g, '')); setGiftErr(''); }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.textDim}
+                    />
+                  </View>
+
+                  {/* Saldo */}
+                  <View style={s.giftBalanceRow}>
+                    <Ionicons name="wallet-outline" size={11} color={colors.textDim} />
+                    <Text style={s.giftBalanceTxt}>Saldo disponible: </Text>
+                    <CoinIcon size={11} />
+                    <Text style={s.giftBalanceTxt}> {user?.coins ?? 0}</Text>
+                  </View>
+
+                  {/* Desglose comisión */}
+                  {giftCoinsNum > 0 && (
+                    <View style={s.giftBreakdown}>
+                      <View style={s.giftBreakRow}>
+                        <Text style={s.giftBreakLbl}>Comisión (15%)</Text>
+                        <View style={{ flexDirection:'row', alignItems:'center', gap:3 }}>
+                          <Text style={[s.giftBreakVal, { color: colors.c4 }]}>-</Text>
+                          <CoinIcon size={11} />
+                          <Text style={[s.giftBreakVal, { color: colors.c4 }]}>{giftComision}</Text>
+                        </View>
+                      </View>
+                      <View style={[s.giftBreakRow, s.giftBreakRowTotal]}>
+                        <Text style={s.giftBreakLblBold}>Recibirán en total</Text>
+                        <View style={{ flexDirection:'row', alignItems:'center', gap:3 }}>
+                          <CoinIcon size={11} />
+                          <Text style={[s.giftBreakVal, { color: colors.c1, fontWeight:'800' }]}>{giftNeto}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Slots */}
+                  <Text style={s.giftFieldLbl}>Número de receptores</Text>
+                  <View style={s.giftInputRow}>
+                    <Ionicons name="people-outline" size={16} color={colors.textDim} />
+                    <TextInput
+                      style={s.giftInputField}
+                      value={giftSlots}
+                      onChangeText={v => { setGiftSlots(v.replace(/[^0-9]/g, '')); setGiftErr(''); }}
+                      keyboardType="numeric"
+                      placeholder={`Mín. 1 · Máx. ${maxSlots}`}
+                      placeholderTextColor={colors.textDim}
+                    />
+                  </View>
+                  {giftSlotsNum >= 1 && giftCoinsNum > 0 && (
+                    <Text style={s.giftHint}>
+                      Cada usuario recibirá aprox. {Math.floor(giftNeto / giftSlotsNum)} coins
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Grid de marcos */}
+                  <Text style={s.giftFieldLbl}>Selecciona un marco</Text>
+                  {giftInvLoad ? (
+                    <ActivityIndicator color={colors.c1} style={{ marginVertical: 16 }} />
+                  ) : giftInv.length === 0 ? (
+                    <View style={s.giftNoFrames}>
+                      <Ionicons name="image-outline" size={22} color={colors.textDim} />
+                      <Text style={s.giftNoFramesTxt}>Sin marcos disponibles{'\n'}(necesitas mínimo 2 unidades)</Text>
+                    </View>
+                  ) : (
+                    <View style={s.giftFrameGrid}>
                       {giftInv.map(item => {
                         const fr = item.frame || item;
                         const sel = giftFrame && (giftFrame.frame || giftFrame)._id === fr._id;
                         return (
                           <TouchableOpacity
                             key={fr._id}
-                            style={[s.giftFrameCard, sel && s.giftFrameCardSel]}
+                            style={[s.giftFrameThumb, sel && s.giftFrameThumbSel]}
                             onPress={() => { setGiftFrame(item); setGiftErr(''); }}
+                            activeOpacity={0.8}
                           >
-                            {fr.imageUrl
-                              ? <Image source={{ uri: fr.imageUrl }} style={{ width: 44, height: 44 }} resizeMode="contain" />
-                              : <Ionicons name="sparkles-outline" size={20} color={colors.c1} />}
-                            <Text style={{ color: colors.textHi, fontSize: 8, textAlign: 'center' }} numberOfLines={1}>{fr.name}</Text>
-                            <Text style={{ color: colors.textDim, fontSize: 7 }}>{item.unidadesEnMano} uds</Text>
+                            <View style={s.giftFramePreview}>
+                              {fr.imageUrl
+                                ? <Image source={{ uri: fr.imageUrl }} style={{ width:'80%', height:'80%' }} resizeMode="contain" />
+                                : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
+                              {sel && (
+                                <View style={s.giftFrameCheckOverlay}>
+                                  <Ionicons name="checkmark-circle" size={18} color={colors.c2} />
+                                </View>
+                              )}
+                            </View>
+                            <Text style={s.giftFrameName} numberOfLines={1}>{fr.name}</Text>
+                            <Text style={s.giftFrameUnits}>×{item.unidadesEnMano}</Text>
                           </TouchableOpacity>
                         );
                       })}
-                    </ScrollView>
+                    </View>
                   )}
-                <Text style={s.giftFieldLbl}>¿Cuántas unidades repartir?</Text>
-                <TextInput
-                  style={s.giftInput}
-                  value={giftCantidad}
-                  onChangeText={v => setGiftCantidad(v.replace(/[^0-9]/g, ''))}
-                  keyboardType="numeric"
-                  placeholder="Ej: 5"
-                  placeholderTextColor={colors.textDim}
-                />
-                {giftFrame && parseInt(giftCantidad) >= 2 && (
-                  <View style={[s.giftCommissionCard, { marginBottom: 8 }]}>
-                    <Ionicons name="information-circle-outline" size={13} color={colors.textDim} />
-                    <Text style={s.giftCommissionTxt}>
-                      Cada usuario recibe <Text style={{ color: 'rgba(168,85,247,0.9)', fontWeight: '700' }}>1 unidad</Text>
-                      {' '}· {giftCantidad} usuarios pueden reclamar
-                    </Text>
-                  </View>
-                )}
-              </>
-            )}
 
-            <Text style={s.giftFieldLbl}>Mensaje (opcional)</Text>
-            <TextInput
-              style={[s.giftInput, { height: 60, textAlignVertical: 'top', marginBottom: 14 }]}
-              value={giftMsg}
-              onChangeText={setGiftMsg}
-              placeholder="Con mis mejores deseos! 🎁"
-              placeholderTextColor={colors.textDim}
-              multiline
-              maxLength={200}
-            />
+                  {/* Advertencia marco activo */}
+                  {giftFrame && (giftFrame.frame || giftFrame)?._id === user?.profileFrame && (
+                    <View style={s.giftWarnBox}>
+                      <Ionicons name="warning-outline" size={13} color={colors.c4} />
+                      <Text style={s.giftWarnTxt}>Este marco será retirado de tu perfil al enviarlo</Text>
+                    </View>
+                  )}
 
-            {!!giftErr && (
-              <View style={{ flexDirection:'row', alignItems:'center', gap:6, backgroundColor:'rgba(249,115,22,0.1)', borderRadius:10, borderWidth:1, borderColor:'rgba(249,115,22,0.25)', padding:10, marginBottom:12 }}>
-                <Ionicons name="alert-circle-outline" size={14} color={colors.c4} />
-                <Text style={{ color: colors.c4, fontSize: 12, flex: 1 }}>{giftErr}</Text>
-              </View>
-            )}
+                  {/* Input unidades */}
+                  {!!giftFrame && (
+                    <>
+                      <Text style={s.giftFieldLbl}>Unidades a repartir</Text>
+                      <View style={s.giftInputRow}>
+                        <Ionicons name="layers-outline" size={16} color={colors.textDim} />
+                        <TextInput
+                          style={s.giftInputField}
+                          value={giftCantidad}
+                          onChangeText={v => { setGiftCantidad(v.replace(/[^0-9]/g, '')); setGiftErr(''); }}
+                          keyboardType="numeric"
+                          placeholder={`Máx. ${giftFrame?.unidadesEnMano || 0}`}
+                          placeholderTextColor={colors.textDim}
+                        />
+                      </View>
 
-            <TouchableOpacity
-              style={[s.giftSendBtn, sendingGift && { opacity: 0.6 }]}
-              onPress={sendGroupGift}
-              disabled={sendingGift}
-            >
-              {sendingGift
-                ? <ActivityIndicator size={16} color={colors.black} />
-                : <Text style={s.giftSendTxt}>Enviar lluvia de regalos 🎁</Text>}
-            </TouchableOpacity>
+                      {/* Costo de transferencia */}
+                      {giftCantidadNum > 0 && (
+                        <View style={s.giftBreakdown}>
+                          <View style={s.giftBreakRow}>
+                            <Text style={s.giftBreakLbl}>Costo de transferencia</Text>
+                            <View style={{ flexDirection:'row', alignItems:'center', gap:3 }}>
+                              <CoinIcon size={11} />
+                              <Text style={s.giftBreakVal}>{frameCost}</Text>
+                            </View>
+                          </View>
+                          <Text style={s.giftHint}>
+                            {FRAME_COST_PER_UNIT} coins por unidad · {giftCantidadNum} {giftCantidadNum === 1 ? 'usuario recibe' : 'usuarios reciben'} 1 unidad
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Mensaje */}
+              <Text style={[s.giftFieldLbl, { marginTop: 14 }]}>Mensaje</Text>
+              <TextInput
+                style={s.giftMsgInput}
+                value={giftMsg}
+                onChangeText={setGiftMsg}
+                placeholder="Escribe un mensaje (opcional)"
+                placeholderTextColor={colors.textDim}
+                multiline
+                maxLength={200}
+                textAlignVertical="top"
+              />
+
+              {/* Error */}
+              {!!giftErr && (
+                <View style={s.giftErrBox}>
+                  <Ionicons name="alert-circle-outline" size={14} color={colors.c4} />
+                  <Text style={s.giftErrTxt}>{giftErr}</Text>
+                </View>
+              )}
+
+              {/* Botón enviar */}
+              <TouchableOpacity
+                style={[s.giftSendBtn, (!isGiftValid || sendingGift) && s.giftSendBtnDisabled]}
+                onPress={sendGroupGift}
+                disabled={!isGiftValid || sendingGift}
+              >
+                {sendingGift
+                  ? <ActivityIndicator size={16} color={colors.black} />
+                  : (
+                    <>
+                      <Ionicons name="gift" size={16} color={!isGiftValid ? colors.textDim : colors.black} />
+                      <Text style={[s.giftSendTxt, !isGiftValid && { color: colors.textDim }]}>Enviar Regalo</Text>
+                    </>
+                  )}
+              </TouchableOpacity>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1385,22 +1489,48 @@ const s = StyleSheet.create({
   inviteBtnAcceptTxt:  { color: colors.c1, fontSize:13, fontWeight:'700' },
 
   // Gift modal
-  giftOverlay:      { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },
-  giftSheet:        { backgroundColor:colors.surface, borderTopLeftRadius:28, borderTopRightRadius:28, borderWidth:1, borderColor:colors.border, borderBottomWidth:0, padding:20, paddingBottom:36, maxHeight:'90%' },
-  giftHandle:       { width:40, height:4, borderRadius:2, backgroundColor:colors.border, alignSelf:'center', marginBottom:16 },
-  giftHead:         { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:14 },
-  giftTitle:        { color:colors.textHi, fontSize:15, fontWeight:'700' },
-  giftFieldLbl:     { color:colors.textMid, fontSize:11, fontWeight:'700', marginBottom:8, letterSpacing:0.5 },
-  giftToggle:       { flexDirection:'row', backgroundColor:colors.deep, borderRadius:12, padding:3, marginBottom:14, gap:3 },
-  giftToggleBtn:    { flex:1, paddingVertical:7, borderRadius:10, alignItems:'center' },
-  giftToggleActive: { backgroundColor:colors.c3 },
-  giftToggleTxt:    { color:colors.textDim, fontSize:12, fontWeight:'600' },
-  giftToggleActiveTxt: { color:'#fff', fontWeight:'800' },
-  giftInput:        { backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, color:colors.textHi, fontSize:14, paddingHorizontal:14, paddingVertical:10, marginBottom:10 },
-  giftFrameCard:    { width:80, height:90, backgroundColor:colors.deep, borderRadius:10, borderWidth:1, borderColor:colors.border, alignItems:'center', justifyContent:'center', marginRight:8, padding:6 },
-  giftFrameCardSel: { borderColor:colors.c3, backgroundColor:'rgba(168,85,247,0.1)' },
-  giftSendBtn:      { flexDirection:'row', alignItems:'center', justifyContent:'center', backgroundColor:colors.c3, borderRadius:16, paddingVertical:13 },
-  giftSendTxt:      { color:'#fff', fontSize:14, fontWeight:'800' },
-  giftCommissionCard: { flexDirection:'row', alignItems:'flex-start', gap:6, backgroundColor:'rgba(255,255,255,0.04)', borderRadius:10, borderWidth:1, borderColor:colors.border, padding:10 },
-  giftCommissionTxt:  { color:colors.textDim, fontSize:11, flex:1 },
+  giftOverlay:         { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },
+  giftSheet:           { backgroundColor:colors.surface, borderTopLeftRadius:28, borderTopRightRadius:28, borderWidth:1, borderColor:colors.border, borderBottomWidth:0, paddingHorizontal:20, paddingTop:16, paddingBottom:36, maxHeight:'90%' },
+  giftHandle:          { width:40, height:4, borderRadius:2, backgroundColor:colors.border, alignSelf:'center', marginBottom:16 },
+  giftHead:            { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:16 },
+  giftHeadLeft:        { flexDirection:'row', alignItems:'center', gap:10 },
+  giftHeaderIcon:      { width:34, height:34, borderRadius:10, backgroundColor:'rgba(41,121,255,0.12)', borderWidth:1, borderColor:'rgba(41,121,255,0.25)', alignItems:'center', justifyContent:'center' },
+  giftTitle:           { color:colors.textHi, fontSize:15, fontWeight:'800' },
+  giftCloseBtn:        { padding:4 },
+  giftTabs:            { flexDirection:'row', gap:8, marginBottom:16 },
+  giftTab:             { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6, paddingVertical:10, borderRadius:12, backgroundColor:colors.deep, borderWidth:1, borderColor:colors.border },
+  giftTabActive:       { backgroundColor:'rgba(41,121,255,0.1)', borderColor:'rgba(41,121,255,0.35)' },
+  giftTabTxt:          { color:colors.textDim, fontSize:13, fontWeight:'600' },
+  giftTabTxtActive:    { color:colors.c2, fontWeight:'700' },
+  giftFieldLbl:        { color:colors.textMid, fontSize:11, fontWeight:'700', marginBottom:8, letterSpacing:0.5 },
+  giftCoinsRow:        { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:10, marginBottom:6 },
+  giftCoinsInput:      { fontSize:44, fontWeight:'800', color:colors.textHi, minWidth:100, textAlign:'center' },
+  giftBalanceRow:      { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:4, marginBottom:14 },
+  giftBalanceTxt:      { color:colors.textDim, fontSize:12 },
+  giftBreakdown:       { backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, padding:12, marginBottom:14 },
+  giftBreakRow:        { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingVertical:5 },
+  giftBreakRowTotal:   { borderTopWidth:1, borderTopColor:colors.border, marginTop:4, paddingTop:10 },
+  giftBreakLbl:        { color:colors.textDim, fontSize:12 },
+  giftBreakLblBold:    { color:colors.textHi, fontSize:12, fontWeight:'700' },
+  giftBreakVal:        { color:colors.textHi, fontSize:12, fontWeight:'600' },
+  giftInputRow:        { flexDirection:'row', alignItems:'center', gap:10, backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, paddingHorizontal:14, paddingVertical:11, marginBottom:8 },
+  giftInputField:      { flex:1, color:colors.textHi, fontSize:14 },
+  giftHint:            { color:colors.textDim, fontSize:11, marginBottom:10, paddingTop:4 },
+  giftNoFrames:        { alignItems:'center', gap:8, paddingVertical:20, marginBottom:8 },
+  giftNoFramesTxt:     { color:colors.textDim, fontSize:12, textAlign:'center', lineHeight:18 },
+  giftFrameGrid:       { flexDirection:'row', flexWrap:'wrap', gap:GIFT_GAP, marginBottom:14 },
+  giftFrameThumb:      { width:GIFT_CARD_W, backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, overflow:'hidden' },
+  giftFrameThumbSel:   { borderColor:colors.c2, borderWidth:2, backgroundColor:'rgba(41,121,255,0.08)' },
+  giftFramePreview:    { width:'100%', aspectRatio:1, alignItems:'center', justifyContent:'center', position:'relative' },
+  giftFrameCheckOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor:'rgba(0,0,0,0.3)', alignItems:'center', justifyContent:'center' },
+  giftFrameName:       { color:colors.textHi, fontSize:9, fontWeight:'600', paddingHorizontal:5, paddingTop:4, paddingBottom:2 },
+  giftFrameUnits:      { color:colors.textDim, fontSize:8, paddingHorizontal:5, paddingBottom:5 },
+  giftWarnBox:         { flexDirection:'row', alignItems:'center', gap:7, backgroundColor:'rgba(249,115,22,0.08)', borderRadius:10, borderWidth:1, borderColor:'rgba(249,115,22,0.2)', padding:10, marginBottom:12 },
+  giftWarnTxt:         { color:colors.c4, fontSize:11, flex:1 },
+  giftMsgInput:        { backgroundColor:colors.deep, borderRadius:12, borderWidth:1, borderColor:colors.border, color:colors.textHi, fontSize:14, paddingHorizontal:14, paddingVertical:11, minHeight:70, marginBottom:12 },
+  giftErrBox:          { flexDirection:'row', alignItems:'center', gap:7, backgroundColor:'rgba(249,115,22,0.1)', borderRadius:10, borderWidth:1, borderColor:'rgba(249,115,22,0.25)', padding:10, marginBottom:12 },
+  giftErrTxt:          { color:colors.c4, fontSize:12, flex:1 },
+  giftSendBtn:         { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:colors.c2, borderRadius:16, paddingVertical:14, marginBottom:4 },
+  giftSendBtnDisabled: { backgroundColor:colors.surface, borderWidth:1, borderColor:colors.border },
+  giftSendTxt:         { color:colors.black, fontSize:14, fontWeight:'800' },
 });
