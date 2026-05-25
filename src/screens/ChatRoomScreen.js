@@ -744,7 +744,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             </TouchableOpacity>
             {!requestMode && (
               <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
-                <Ionicons name="gift-outline" size={20} color={colors.c3} />
+                <Ionicons name="gift" size={20} color={colors.c2} />
               </TouchableOpacity>
             )}
             {isRecording ? (

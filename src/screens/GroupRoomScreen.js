@@ -616,11 +616,6 @@ export default function GroupRoomScreen({ route, navigation }) {
           },
         };
       }));
-      if (data.monedasRecibidas > 0) {
-        Alert.alert('🎁 ¡Reclamado!', `Recibiste ${data.monedasRecibidas} coins`);
-      } else {
-        Alert.alert('🎁 ¡Reclamado!', 'El marco fue añadido a tu colección');
-      }
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'No se pudo reclamar el regalo');
     }
@@ -1082,7 +1077,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                   {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
-                  <Ionicons name="gift-outline" size={20} color={colors.c3} />
+                  <Ionicons name="gift" size={20} color={colors.c2} />
                 </TouchableOpacity>
                 {isRecording ? (
                   <View style={s.recRow}>

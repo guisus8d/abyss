@@ -6,7 +6,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
-import AvatarWithFrame from './AvatarWithFrame';
 
 const COIN_ICON = require('../../assets/icons/coins.png');
 
@@ -60,17 +59,16 @@ export default function GiftBubble({
     : agotado   ? 'Sin unidades disponibles'
     : null;
 
-  // Resolve claimant info from group members list
-  const claimantsList = (reclamadoPor || []).map(uid => {
+  // Deduplicate and resolve claimant info from group members list
+  const uniqueIds = [...new Set((reclamadoPor || []).map(String))];
+  const claimantsList = uniqueIds.map(uid => {
     const m = (members || []).find(
-      mb => (mb.user?._id || mb.user)?.toString() === uid.toString()
+      mb => (mb.user?._id || mb.user)?.toString() === uid
     );
     return {
-      id:           uid,
-      username:     m?.user?.username     || 'Usuario',
-      avatarUrl:    m?.user?.avatarUrl    || null,
-      profileFrame: m?.user?.profileFrame || null,
-      frameUrl:     m?.user?.profileFrameUrl || null,
+      id:        uid,
+      username:  m?.user?.username  || 'Usuario',
+      avatarUrl: m?.user?.avatarUrl || null,
     };
   });
 
@@ -226,13 +224,11 @@ export default function GiftBubble({
                     >
                       {claimantsList.map((c, i) => (
                         <View key={c.id || i} style={s.claimantRow}>
-                          <AvatarWithFrame
-                            size={28}
-                            avatarUrl={c.avatarUrl}
-                            username={c.username}
-                            profileFrame={c.profileFrame}
-                            frameUrl={c.frameUrl}
-                          />
+                          <View style={s.claimantAvatar}>
+                            {c.avatarUrl
+                              ? <Image source={{ uri: c.avatarUrl }} style={s.claimantAvatarImg} />
+                              : <Text style={s.claimantAvatarLetter}>{c.username?.[0]?.toUpperCase()}</Text>}
+                          </View>
                           <Text style={s.claimantName}>{c.username}</Text>
                         </View>
                       ))}
@@ -468,6 +464,25 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingVertical: 5,
+  },
+  claimantAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,229,204,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  claimantAvatarImg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  claimantAvatarLetter: {
+    color: '#00e5cc',
+    fontWeight: 'bold',
+    fontSize: 11,
   },
   claimantName: {
     color: colors.textHi,
