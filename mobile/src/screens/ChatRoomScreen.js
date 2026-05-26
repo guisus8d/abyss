@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
-  View, ActivityIndicator, Text, TextInput, TouchableOpacity,
-  FlatList, Image, Modal, Pressable, StyleSheet, StatusBar, Linking,
-  ScrollView,
+  View, Animated, LayoutAnimation, ActivityIndicator, Text, TextInput, TouchableOpacity,
+  FlatList, Image, ImageBackground, Keyboard, Modal, Platform,
+  Pressable, StyleSheet, StatusBar, Linking, ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,7 +37,7 @@ function dateLabel(date) {
   const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const diff   = (today - d) / (1000 * 60 * 60 * 24);
   if (diff < 7) return days[d.getDay()];
-  return `${d.getDate()} ${months[d.getMonth()]}`;
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 }
 
 function timeStr(date) {
@@ -249,6 +249,8 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [replyTo,            setReplyTo]            = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [isBlocked,          setIsBlocked]          = useState(other?.blocked ?? false);
+  const [kbVisible,          setKbVisible]          = useState(false);
+  const [isFocused,          setIsFocused]          = useState(false);
 
   // ── Regalo ────────────────────────────────────────────────────────────────
   const [giftModal,     setGiftModal]     = useState(false);
@@ -262,12 +264,14 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [sendingGift,   setSendingGift]   = useState(false);
   const [giftErr,       setGiftErr]       = useState('');
 
-  const flatRef      = useRef(null);
-  const socketRef    = useRef(null);
-  const recordingRef = useRef(null);
-  const recTimerRef  = useRef(null);
-  const typingTimer  = useRef(null);
-  const sendingRef   = useRef(false);
+  const flatRef        = useRef(null);
+  const socketRef      = useRef(null);
+  const recordingRef   = useRef(null);
+  const recTimerRef    = useRef(null);
+  const typingTimer    = useRef(null);
+  const sendingRef     = useRef(false);
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
+  const sendAnim       = useRef(new Animated.Value(0)).current;
 
   // Mensajes más recientes primero, con separadores de fecha como items propios
   const flatListData = useMemo(() => {
@@ -282,6 +286,28 @@ export default function ChatRoomScreen({ route, navigation }) {
     }
     return result;
   }, [messages]);
+
+  useEffect(() => {
+    const eventShow = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const eventHide = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(eventShow, (e) => {
+      setKbVisible(true);
+      Animated.timing(keyboardOffset, {
+        toValue: e.endCoordinates.height,
+        duration: e.duration || 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    const hide = Keyboard.addListener(eventHide, (e) => {
+      setKbVisible(false);
+      Animated.timing(keyboardOffset, {
+        toValue: 0,
+        duration: e.duration || 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     if (!chat?._id) return;
@@ -556,10 +582,8 @@ export default function ChatRoomScreen({ route, navigation }) {
   const renderMessage = useCallback(({ item, index }) => {
     if (item.type === 'date_separator') {
       return (
-        <View style={s.dateSep}>
-          <View style={s.dateLine} />
-          <Text style={s.dateLabel}>{item.label}</Text>
-          <View style={s.dateLine} />
+        <View style={s.datePill}>
+          <Text style={s.datePillTxt}>{item.label}</Text>
         </View>
       );
     }
@@ -611,7 +635,13 @@ export default function ChatRoomScreen({ route, navigation }) {
         </Pressable>
       </Modal>
 
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      <ImageBackground
+        source={require('../../assets/chat-bg.jpeg')}
+        style={{ flex: 1, backgroundColor: '#050c14' }}
+        resizeMode="cover"
+      >
+        <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(2,5,9,0.6)' }} pointerEvents="none" />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" />
 
       <SafeAreaView edges={['top']}>
         <View style={s.header}>
@@ -624,30 +654,31 @@ export default function ChatRoomScreen({ route, navigation }) {
           </TouchableOpacity>
           <TouchableOpacity style={{ flex:1 }} onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
             <Text style={s.headerName}>{other.username}</Text>
-            {typing ? <Text style={s.typingTxt}>escribiendo...</Text> : <Text style={s.headerSub}>{other.username}</Text>}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
 
       <View style={{ flex:1 }}>
-        <FlatList
-          ref={flatRef}
-          style={{ flex: 1, backgroundColor: '#020509' }}
-          data={flatListData}
-          keyExtractor={(m) => String(m._id)}
-          renderItem={renderMessage}
-          inverted
-          contentContainerStyle={s.messagesList}
-          keyboardShouldPersistTaps="handled"
-          // ✅ Performance props — reducen trabajo del JS thread
-          removeClippedSubviews={true}       // antes: false — libera memoria de items fuera de pantalla
-          windowSize={5}                     // antes: 21 (default) — mantiene solo 5 "pantallas" en memoria
-          maxToRenderPerBatch={10}           // antes: default alto — renderiza de a 10 por batch
-          initialNumToRender={15}            // muestra 15 mensajes al abrir, no todos
-          updateCellsBatchingPeriod={50}     // agrupa updates en batches de 50ms
-          onScroll={e => setShowScrollBtn(e.nativeEvent.contentOffset.y > 150)}
-          scrollEventThrottle={32}
-        />
+          <View style={{ flex:1 }}>
+            <FlatList
+              ref={flatRef}
+              style={{ flex: 1 }}
+              data={flatListData}
+              keyExtractor={(m) => String(m._id)}
+              renderItem={renderMessage}
+              inverted
+              contentContainerStyle={s.messagesList}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              removeClippedSubviews={true}
+              windowSize={5}
+              maxToRenderPerBatch={10}
+              initialNumToRender={15}
+              updateCellsBatchingPeriod={50}
+              onScroll={e => setShowScrollBtn(e.nativeEvent.contentOffset.y > 150)}
+              scrollEventThrottle={32}
+            />
+          </View>
 
         {isBlocked && (
           <View style={s.blockedBanner}>
@@ -679,7 +710,20 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
 
-        <View style={{ paddingBottom: insets.bottom }}>
+        {typing && (
+          <View style={s.typingBar}>
+            <Text style={s.typingBarTxt}>{other.username} está escribiendo...</Text>
+          </View>
+        )}
+
+        <Animated.View style={{ marginBottom: keyboardOffset }}>
+        <LinearGradient
+          colors={kbVisible ? ['rgba(2,5,9,0.95)', '#050c14'] : ['transparent', 'rgba(2,5,9,0.85)', '#050c14']}
+          locations={kbVisible ? [0, 1] : [0, 0.5, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={[s.inputContainer, { paddingBottom: insets.bottom }]}
+        >
         {audioPreview ? (
           <View style={s.audioPreviewRow}>
             <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -691,46 +735,65 @@ export default function ChatRoomScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={s.inputRow}>
-            <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
-              {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
-              <Ionicons name="gift" size={20} color={colors.c2} />
-            </TouchableOpacity>
-            {isRecording ? (
-              <View style={s.recRow}>
-                <View style={s.recDot} />
-                <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
-                <TouchableOpacity onPress={stopRecording} style={s.recStop}>
-                  <Ionicons name="stop" size={14} color={colors.c1} />
+          <>
+            <View style={s.inputRow}>
+              <View style={s.inputWrap}>
+                <TextInput
+                  style={s.input}
+                  placeholder="Mensaje..."
+                  placeholderTextColor={colors.textDim}
+                  value={text}
+                  onChangeText={handleTyping}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  onSubmitEditing={Platform.OS !== 'web' ? handleSend : undefined}
+                  returnKeyType="send"
+                  onKeyPress={Platform.OS === 'web' ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); handleSend(); } } : undefined}
+                  blurOnSubmit={false}
+                />
+                <TouchableOpacity style={s.stickerBtn} onPress={() => {}}>
+                  <Ionicons name="happy-outline" size={20} color={colors.textDim} />
                 </TouchableOpacity>
               </View>
-            ) : (
-              <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
-                <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+              {isFocused && (
+                <TouchableOpacity
+                  onPress={handleSend}
+                  disabled={!text.trim()}
+                  style={{ opacity: text.length > 0 ? 1 : 0.3 }}
+                >
+                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.sendBtn}>
+                    <Ionicons name="send" size={18} color={colors.black} />
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={s.mediaBtnRow}>
+              <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
+                {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
               </TouchableOpacity>
-            )}
-            <TextInput
-              style={s.input}
-              placeholder="Mensaje..."
-              placeholderTextColor={colors.textDim}
-              value={text}
-              onChangeText={handleTyping}
-              onSubmitEditing={require('react-native').Platform.OS !== 'web' ? handleSend : undefined}
-              returnKeyType="send"
-              onKeyPress={require('react-native').Platform.OS === 'web' ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); handleSend(); } } : undefined}
-              blurOnSubmit={false}
-            />
-            <TouchableOpacity onPress={handleSend} disabled={!text.trim()}>
-              <LinearGradient colors={text.trim() ? ['#006b63','#00e5cc'] : ['#1a2a2a','#1a2a2a']} style={s.sendBtn}>
-                <Ionicons name="send" size={18} color={colors.black} />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+              {isRecording ? (
+                <View style={s.recRow}>
+                  <View style={s.recDot} />
+                  <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
+                  <TouchableOpacity onPress={stopRecording} style={s.recStop}>
+                    <Ionicons name="stop" size={14} color={colors.c1} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
+                  <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
+                <Ionicons name="gift" size={20} color={colors.c2} />
+              </TouchableOpacity>
+            </View>
+          </>
         )}
-        </View>
+        </LinearGradient>
+        </Animated.View>
       </View>
+      </ImageBackground>
 
       {showScrollBtn && (
         <TouchableOpacity style={s.scrollDownBtn} onPress={() => flatRef.current?.scrollToOffset({ offset:0, animated:true })}>
@@ -910,19 +973,21 @@ const s = StyleSheet.create({
   header:       { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:10, borderBottomWidth:1, borderBottomColor: colors.border, gap:12 },
   backBtn:      { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.08)', alignItems:'center', justifyContent:'center' },
   headerName:   { color: colors.textHi, fontWeight:'700', fontSize:15 },
-  headerSub:    { color: colors.textDim, fontSize:11, marginTop:1 },
-  typingTxt:    { color: colors.c1, fontSize:11, opacity:0.8, marginTop:1 },
+  typingBar:    { paddingHorizontal:16, paddingVertical:4 },
+  typingBarTxt: { color: colors.textDim, fontSize:11, fontStyle:'italic' },
   messagesList: { padding:16, paddingBottom:20 },
   msgRow:       { flexDirection:'row', alignItems:'flex-end', gap:8, marginBottom:10 },
   msgRowMe:     { flexDirection:'row-reverse' },
   msgSenderName:{ color:'rgba(255,255,255,0.7)', fontSize:11, fontWeight:'700', marginLeft: AVATAR_SLOT + 8, marginBottom:2 },
-  bubble:       { maxWidth:'75%', borderRadius:16, padding:12, borderWidth:1 },
-  bubbleMe:     { backgroundColor:'#00a896', borderColor:'rgba(0,229,204,0.4)', borderBottomRightRadius:4 },
-  bubbleThem:   { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius:4 },
+  bubble:       { maxWidth:'75%', borderRadius:10, padding:12, borderWidth:1 },
+  bubbleMe:     { backgroundColor:'#00a896', borderColor:'rgba(0,229,204,0.4)' },
+  bubbleThem:   { backgroundColor: colors.card, borderColor: colors.border },
   bubblePost:   { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
   bubbleGift:   { padding:0, backgroundColor:'transparent', borderColor:'transparent', maxWidth:'90%' },
   bubbleTxt:    { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:   { color: colors.textDim, fontSize:9, marginTop:4, textAlign:'right' },
+  inputContainer:     { paddingTop: 20, paddingHorizontal: 12 },
+  mediaBtnRow:        { flexDirection:'row', gap:12, paddingVertical:10, paddingHorizontal:12 },
   mediaBtn:           { padding:8, justifyContent:'center', alignItems:'center' },
   recRow:             { flexDirection:'row', alignItems:'center', gap:6, paddingHorizontal:8 },
   recDot:             { width:8, height:8, borderRadius:4, backgroundColor:'rgba(239,68,68,0.9)' },
@@ -931,14 +996,15 @@ const s = StyleSheet.create({
   audioPreviewRow:    { flexDirection:'row', alignItems:'center', justifyContent:'center', paddingHorizontal:16, paddingVertical:10, gap:12, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
   audioPreviewCancel: { width:36, height:36, borderRadius:18, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)', alignItems:'center', justifyContent:'center' },
   audioPreviewSend:   { width:36, height:36, borderRadius:18, backgroundColor:'rgba(0,229,204,0.8)', alignItems:'center', justifyContent:'center' },
-  inputRow:     { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:12, paddingVertical:10, borderTopWidth:1, borderTopColor: colors.border, backgroundColor: colors.deep, overflow:'hidden' },
-  input:        { flex:1, minWidth:0, flexShrink:1, backgroundColor:'#080f18', borderWidth:1, borderColor: colors.border, borderRadius:22, paddingHorizontal:16, paddingVertical:10, color: colors.textHi, fontSize:14 },
+  inputRow:     { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:0, paddingVertical:6 },
+  inputWrap:    { flex:1, minWidth:0, flexDirection:'row', alignItems:'center', position:'relative' },
+  input:        { flex:1, backgroundColor:'#080f18', borderWidth:1, borderColor: colors.border, borderRadius:12, paddingHorizontal:16, paddingRight:40, paddingVertical:10, color: colors.textHi, fontSize:14 },
+  stickerBtn:   { position:'absolute', right:10, top:0, bottom:0, justifyContent:'center', alignItems:'center', width:28 },
   sendBtn:      { width:42, height:42, minWidth:42, maxWidth:42, borderRadius:21, alignItems:'center', justifyContent:'center', flexShrink:0 },
   blockedBanner:    { flexDirection:'row', alignItems:'center', gap:8, margin:12, padding:12, backgroundColor:'rgba(239,68,68,0.07)', borderRadius:12, borderWidth:1, borderColor:'rgba(239,68,68,0.25)' },
   blockedBannerTxt: { flex:1, color:'rgba(239,68,68,0.8)', fontSize:12 },
-  dateSep:      { flexDirection:'row', alignItems:'center', marginVertical:12, paddingHorizontal:16 },
-  dateLine:     { flex:1, height:1, backgroundColor: colors.border },
-  dateLabel:    { color: colors.textDim, fontSize:11, marginHorizontal:10 },
+  datePill:     { alignSelf:'center', backgroundColor:'rgba(2,5,9,0.55)', borderRadius:10, paddingHorizontal:14, paddingVertical:4, marginVertical:10, borderWidth:1, borderColor:'rgba(255,255,255,0.08)' },
+  datePillTxt:  { color:'rgba(255,255,255,0.6)', fontSize:11, fontWeight:'500' },
   modalOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'center', alignItems:'center' },
   menuBox:      { backgroundColor: colors.surface, borderRadius:16, padding:16, width:280, borderWidth:1, borderColor: colors.borderC },
   menuTitle:    { color: colors.textDim, fontSize:12, marginBottom:12, fontStyle:'italic' },
@@ -958,7 +1024,7 @@ const s = StyleSheet.create({
   mentionItem:      { flexDirection:'row', alignItems:'center', paddingVertical:10, paddingHorizontal:16, gap:4, borderBottomWidth:1, borderBottomColor:'#222' },
   mentionAt:        { color:'#666', fontSize:14 },
   mentionName:      { color:'#eee', fontSize:14, fontWeight:'600' },
-  scrollDownBtn:    { position:'absolute', bottom:130, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
+  scrollDownBtn:    { position:'absolute', bottom:200, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
 
   // Gift modal
   giftOverlay:      { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },
