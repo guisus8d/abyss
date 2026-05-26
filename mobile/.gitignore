@@ -39,5 +39,8 @@ yarn-error.*
 /ios
 /android
 *.apk
+
+# Expo dist — solo ignorar bundle iOS (no subir a Vercel)
+dist/_expo/static/js/ios/
 abyss-cb14f-firebase-adminsdk-fbsvc-019c4887af.json
 *-firebase-adminsdk-*.json
