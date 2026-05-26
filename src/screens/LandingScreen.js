@@ -4,7 +4,6 @@ import {
   StyleSheet, Animated, Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 
@@ -111,7 +110,6 @@ export default function LandingScreen({ navigation }) {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={s.btnPrimary}
             >
-              <Ionicons name="log-in-outline" size={18} color="#001a18" />
               <Text style={s.btnPrimaryTxt}>INICIAR SESIÓN</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -125,7 +123,6 @@ export default function LandingScreen({ navigation }) {
               colors={['rgba(41,121,255,0.15)', 'rgba(41,121,255,0.08)']}
               style={StyleSheet.absoluteFill}
             />
-            <Ionicons name="person-add-outline" size={18} color={colors.c2} />
             <Text style={s.btnSecondaryTxt}>CREAR CUENTA</Text>
           </TouchableOpacity>
         </View>
@@ -137,7 +134,6 @@ export default function LandingScreen({ navigation }) {
           style={s.guestBtn}
         >
           <Text style={s.guestTxt}>Explorar sin cuenta</Text>
-          <Ionicons name="arrow-forward" size={13} color="rgba(0,229,204,0.4)" />
         </TouchableOpacity>
 
         <Text style={s.depth}>— 3,800m —</Text>
@@ -198,7 +194,7 @@ const s = StyleSheet.create({
   // Tagline
   taglineArea: { alignItems: 'center', marginBottom: 52, gap: 8 },
   tagline: {
-    fontSize: 20, fontWeight: '700', color: 'rgba(232,244,248,0.9)',
+    fontSize: 16, fontWeight: '600', color: 'rgba(160,210,220,0.65)',
     textAlign: 'center', letterSpacing: 0.3,
   },
   sub: {
