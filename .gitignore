@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Env
+.env
+**/.env
+
+# Logs
+*.log
+backend/backend.log
+
+# Build artifacts
+*.tsbuildinfo
+
+# OS
+.DS_Store
