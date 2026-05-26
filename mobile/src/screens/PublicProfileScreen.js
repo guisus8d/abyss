@@ -192,24 +192,16 @@ export default function PublicProfileScreen({ route, navigation }) {
   }
 
   async function handleChat() {
-    if (chatStatus === 'active') {
-      try {
-        const { data } = await api.get(`/chats/with/${profile._id}`);
-        if (data.chat) {
-          navigation.navigate('ChatRoom', {
-            chat:  data.chat,
-            other: { _id: profile._id, username: profile.username, avatarUrl: profile.avatarUrl, profileFrame: profile.profileFrame, profileFrameUrl: profile.profileFrameUrl },
-          });
-        }
-      } catch (err) { Alert.alert('Error', err.response?.data?.error || 'No se pudo abrir el chat'); }
-      return;
+    try {
+      const { data } = await api.post(`/chats/request/${profile._id}`);
+      if (!data.chat?._id) throw new Error('Chat inválido');
+      navigation.navigate('ChatRoom', {
+        chat:  data.chat,
+        other: { _id: profile._id, username: profile.username, avatarUrl: profile.avatarUrl, profileFrame: profile.profileFrame, profileFrameUrl: profile.profileFrameUrl },
+      });
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo abrir el chat');
     }
-    navigation.navigate('ChatRoom', {
-      chat:  { _id: null, participants: [] },
-      other: { _id: profile._id, username: profile.username, avatarUrl: profile.avatarUrl, profileFrame: profile.profileFrame, profileFrameUrl: profile.profileFrameUrl },
-      requestMode:      true,
-      alreadyRequested: chatStatus === 'requested',
-    });
   }
 
   async function handleFramePress() {
@@ -470,9 +462,9 @@ export default function PublicProfileScreen({ route, navigation }) {
                   ? () => Alert.alert('No disponible', 'No puedes contactar a este usuario.')
                   : handleChat
                 }>
-                <Ionicons name={chatStatus==='active'?'chatbubble':chatStatus==='requested'?'time-outline':'chatbubble-outline'} size={15} color={chatStatus==='active'?colors.c1:colors.textMid} />
-                <Text style={[s.btnChatTxt, chatStatus==='active'&&{color:colors.c1}]}>
-                  {chatStatus==='active'?'Chat':chatStatus==='requested'?'Pendiente':'Chatear'}
+                <Ionicons name={chatStatus === 'active' ? 'chatbubble' : 'chatbubble-outline'} size={15} color={chatStatus === 'active' ? colors.c1 : colors.textMid} />
+                <Text style={[s.btnChatTxt, chatStatus === 'active' && { color: colors.c1 }]}>
+                  {chatStatus === 'active' ? 'Chat' : 'Chatear'}
                 </Text>
               </TouchableOpacity>
             </View>

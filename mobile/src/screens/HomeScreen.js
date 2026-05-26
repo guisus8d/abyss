@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
+import CustomTabBar from '../components/CustomTabBar';
 import { colors } from '../theme/colors';
 import { getActivityStatus } from '../utils/timeUtils';
 import { Ionicons } from '@expo/vector-icons';
@@ -381,7 +382,7 @@ export default function HomeScreen({ navigation }) {
               <View style={s.endLine} /><Text style={s.endTxt}>ya viste todo</Text><View style={s.endLine} />
             </View>
           )}
-          <View style={{ height: 100 }} />
+          <View style={{ height: 160 }} />
         </View>
       </ScrollView>
 
@@ -411,34 +412,13 @@ export default function HomeScreen({ navigation }) {
         </Pressable>
       </Modal>
 
-      {/* Nav bar */}
-      <View style={[s.bnav, { paddingBottom: insets.bottom + 10 }]}>
-        <TouchableOpacity style={s.ni}>
-          <View style={s.niBox}><Ionicons name="game-controller" size={20} color={colors.c1} /></View>
-          <Text style={[s.niLbl, { color: colors.c1 }]}>Game</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Market')}>
-          <View style={s.niBox}><Ionicons name="storefront" size={20} color={colors.textDim} /></View>
-          <Text style={s.niLbl}>Tienda</Text>
-        </TouchableOpacity>
-
-        {/* Botón crear — mismo estilo que addBtn de ChatsScreen */}
-        <TouchableOpacity style={s.ni} onPress={() => isGuest ? setShowGuestModal(true) : setShowMenu(true)}>
-          <View style={s.niCreate}>
-            <View style={s.rhombus} />
-            <View style={s.rhombusIcon}><Ionicons name="add" size={24} color={colors.c1} /></View>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.ni} onPress={() => isGuest ? setShowGuestModal(true) : navigation.navigate('Chats')}>
-          <View style={s.niBox}><Ionicons name="chatbubble" size={20} color={colors.textDim} /></View>
-          <Text style={s.niLbl}>Chat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.ni} onPress={() => isGuest ? setShowGuestModal(true) : setDrawerOpen(true)}>
-          <View style={s.niBox}><Ionicons name="people" size={20} color={colors.textDim} /></View>
-          <Text style={s.niLbl}>Círculos</Text>
-        </TouchableOpacity>
-      </View>
+      <CustomTabBar
+        navigation={navigation}
+        activeTab="home"
+        onCreatePress={() => setShowMenu(true)}
+        onCirclesPress={() => setDrawerOpen(true)}
+        onGuestAction={() => setShowGuestModal(true)}
+      />
 
       {showMenu && (
         <CreatePostMenu visible={showMenu} onClose={() => setShowMenu(false)}
@@ -514,36 +494,6 @@ const s = StyleSheet.create({
   endLine:       { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.06)' },
   endTxt:        { color: colors.textDim, fontSize: 11, letterSpacing: 1 },
 
-  // Nav bar
-  bnav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: colors.deep, borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },
-  ni:   { alignItems: 'center', flex: 1 },
-  niBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  niLbl: { fontSize: 9, color: colors.textDim, letterSpacing: 0.5 },
-  // Mismo estilo que addBtn en ChatsScreen
-  niCreate: {
-    width: 48, height: 48,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 4,
-  },
-  rhombus: {
-    position: 'absolute',
-    width: 34, height: 34,
-    borderRadius: 8,
-    backgroundColor: 'rgba(230,240,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(230,240,255,0.22)',
-    transform: [{ rotate: '45deg' }],
-  },
-  rhombusIcon: {
-    position: 'absolute',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  niCreateOLD_DELETED: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: 'rgba(230,240,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(230,240,255,0.22)',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 4,
-  },
   epBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   epSheet:    { backgroundColor: '#0d1a24', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30, paddingHorizontal: 8 },
   epKnob:     { width: 40, height: 4, backgroundColor: colors.c1, borderRadius: 2, alignSelf: 'center', marginVertical: 10 },

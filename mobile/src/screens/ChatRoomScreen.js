@@ -230,7 +230,7 @@ const MessageBubble = memo(function MessageBubble({
 // ─── ChatRoomScreen ───────────────────────────────────────────────────────────
 
 export default function ChatRoomScreen({ route, navigation }) {
-  const { chat, other, requestMode = false, alreadyRequested = false } = route.params;
+  const { chat, other } = route.params;
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const myId = user?._id?.toString() ?? '';
@@ -245,8 +245,6 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [text,               setText]               = useState('');
   const [typing,             setTyping]             = useState(false);
   const [showScrollBtn,      setShowScrollBtn]      = useState(false);
-  const [reqSent,            setReqSent]            = useState(alreadyRequested);
-  const [sendingReq,         setSendingReq]         = useState(false);
   const [menuMsg,            setMenuMsg]            = useState(null);
   const [replyTo,            setReplyTo]            = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -285,34 +283,13 @@ export default function ChatRoomScreen({ route, navigation }) {
     return result;
   }, [messages]);
 
-  async function handleSendRequest() {
-    if (reqSent) return;
-    setSendingReq(true);
-    try { await api.post(`/chats/request/${other._id}`); setReqSent(true); }
-    catch { setReqSent(true); }
-    finally { setSendingReq(false); }
-  }
-
   useEffect(() => {
+    if (!chat?._id) return;
     let mounted = true;
-    if (requestMode) {
-      api.get('/chats/requests/sent').then(({ data }) => {
-        const myReq = data.sent?.find(s => s.to._id === other._id);
-        if (myReq?.messages?.length) {
-          setMessages(myReq.messages.map(m => ({
-            _id: m._id || 'req_' + Math.random(),
-            sender: { _id: m.sender },
-            text: m.text,
-            createdAt: m.createdAt,
-          })));
-        }
-      }).catch(() => {});
-      return;
-    }
 
     api.get(`/chats/${chat._id}/messages`).then(({ data }) => {
       setMessages(data.messages || []);
-    });
+    }).catch(() => {});
 
     connectSocket().then(s => {
       if (!mounted) return;                   // component unmounted before promise resolved
@@ -438,18 +415,10 @@ export default function ChatRoomScreen({ route, navigation }) {
     sendingRef.current = true;
     setText('');
     try {
-      if (requestMode) {
-        if (!reqSent) {
-          try { await api.post(`/chats/request/${other._id}`); setReqSent(true); }
-          catch { setReqSent(true); }
-        }
-        await api.post(`/chats/request/${other._id}/message`, { text: msgText });
-      } else {
-        socketRef.current?.emit('chat:send', {
-          chatId: chat._id.toString(), text: msgText,
-          replyTo: replyTo ? { messageId: replyTo._id, text: replyTo.text, senderUsername: replyTo.sender?.username || '' } : undefined,
-        });
-      }
+      socketRef.current?.emit('chat:send', {
+        chatId: chat._id.toString(), text: msgText,
+        replyTo: replyTo ? { messageId: replyTo._id, text: replyTo.text, senderUsername: replyTo.sender?.username || '' } : undefined,
+      });
     } catch (e) { console.log('handleSend error:', e.message); }
     finally { sendingRef.current = false; setReplyTo(null); }
   }
@@ -687,22 +656,6 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
 
-        {requestMode && (
-          <View style={s.reqBanner}>
-            <View style={{ flex:1 }}>
-              <Text style={s.reqBannerTitle}>{reqSent ? '⏳ Solicitud enviada' : '💬 Enviar solicitud de chat'}</Text>
-              <Text style={s.reqBannerSub}>{reqSent ? `Espera a que ${other.username} acepte` : `${other.username} recibirá una notificación`}</Text>
-            </View>
-            {!reqSent && (
-              <TouchableOpacity style={s.reqBannerBtn} onPress={handleSendRequest} disabled={sendingReq}>
-                <LinearGradient colors={['#006b63','#00e5cc']} style={s.reqBannerBtnInner} start={{x:0,y:0}} end={{x:1,y:0}}>
-                  <Text style={s.reqBannerBtnTxt}>{sendingReq ? '...' : 'Enviar'}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
         {mentionSuggestions.length > 0 && (
           <View style={s.mentionDropdown}>
             {mentionSuggestions.map(u => (
@@ -742,11 +695,9 @@ export default function ChatRoomScreen({ route, navigation }) {
             <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
               {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
             </TouchableOpacity>
-            {!requestMode && (
-              <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
-                <Ionicons name="gift" size={20} color={colors.c2} />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
+              <Ionicons name="gift" size={20} color={colors.c2} />
+            </TouchableOpacity>
             {isRecording ? (
               <View style={s.recRow}>
                 <View style={s.recDot} />
@@ -985,12 +936,6 @@ const s = StyleSheet.create({
   sendBtn:      { width:42, height:42, minWidth:42, maxWidth:42, borderRadius:21, alignItems:'center', justifyContent:'center', flexShrink:0 },
   blockedBanner:    { flexDirection:'row', alignItems:'center', gap:8, margin:12, padding:12, backgroundColor:'rgba(239,68,68,0.07)', borderRadius:12, borderWidth:1, borderColor:'rgba(239,68,68,0.25)' },
   blockedBannerTxt: { flex:1, color:'rgba(239,68,68,0.8)', fontSize:12 },
-  reqBanner:         { flexDirection:'row', alignItems:'center', margin:12, padding:14, backgroundColor:'rgba(0,229,204,0.06)', borderRadius:14, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', gap:12 },
-  reqBannerTitle:    { color: colors.textHi, fontSize:13, fontWeight:'600', marginBottom:2 },
-  reqBannerSub:      { color: colors.textDim, fontSize:11 },
-  reqBannerBtn:      {},
-  reqBannerBtnInner: { borderRadius:10, paddingHorizontal:16, paddingVertical:10 },
-  reqBannerBtnTxt:   { color:'#001a18', fontSize:12, fontWeight:'700' },
   dateSep:      { flexDirection:'row', alignItems:'center', marginVertical:12, paddingHorizontal:16 },
   dateLine:     { flex:1, height:1, backgroundColor: colors.border },
   dateLabel:    { color: colors.textDim, fontSize:11, marginHorizontal:10 },
