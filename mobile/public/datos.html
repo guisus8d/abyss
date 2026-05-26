@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Abyss — Aviso de Uso de Datos</title>
+  <meta name="description" content="Qué datos recopila Abyss, con quién los compartimos, cómo los protegemos y cómo puedes eliminarlos." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #020509; --surface: #0b1521; --border: rgba(255,255,255,0.07); --accent: #00e5cc; --textHi: #e6f0ff; --textMid: rgba(230,240,255,0.65); --textDim: rgba(230,240,255,0.35); }
+    body { background: var(--bg); color: var(--textMid); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.7; }
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(2,5,9,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 14px 24px; }
+    nav .logo { font-size: 18px; font-weight: 800; letter-spacing: 3px; color: var(--accent); text-decoration: none; }
+    nav .tabs { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+    nav .tabs a { color: var(--textDim); font-size: 12px; font-weight: 600; letter-spacing: 1px; text-decoration: none; padding: 6px 14px; border-radius: 20px; border: 1px solid transparent; transition: all .2s; }
+    nav .tabs a:hover, nav .tabs a.active { color: var(--accent); border-color: rgba(0,229,204,0.3); background: rgba(0,229,204,0.07); }
+    .hero { text-align: center; padding: 72px 24px 48px; max-width: 720px; margin: 0 auto; }
+    .hero h1 { font-size: 28px; font-weight: 800; color: var(--textHi); letter-spacing: 1px; margin-bottom: 10px; }
+    .hero p { color: var(--textDim); font-size: 13px; }
+    .content { max-width: 760px; margin: 0 auto; padding: 0 24px 80px; }
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 28px 32px; margin-bottom: 16px; }
+    .section h2 { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .section h2::before { content: ''; display: block; width: 3px; height: 16px; background: var(--accent); border-radius: 2px; }
+    .section p { margin-bottom: 10px; }
+    .section ul { padding-left: 20px; margin-bottom: 10px; }
+    .section ul li { margin-bottom: 6px; }
+    .highlight { background: rgba(0,229,204,0.06); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; }
+    .tag { display: inline-block; background: rgba(0,229,204,0.08); border: 1px solid rgba(0,229,204,0.2); color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 3px 10px; border-radius: 20px; margin-bottom: 16px; }
+    .updated { text-align: center; color: var(--textDim); font-size: 11px; padding: 20px 0 40px; }
+    a { color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 10px 8px; color: var(--accent); font-size: 10px; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    td:first-child { color: var(--textHi); }
+    .yes { color: #00e5cc; font-weight: 700; }
+    .no  { color: rgba(230,240,255,0.35); }
+    @media (max-width: 600px) { .section { padding: 20px 18px; } .hero h1 { font-size: 22px; } nav .tabs a { font-size: 11px; padding: 5px 10px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="https://abyss.social">ABYSS</a>
+  <div class="tabs">
+    <a href="/privacidad">Privacidad</a>
+    <a href="/terminos">Términos</a>
+    <a href="/datos" class="active">Datos</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Aviso de Uso de Datos</h1>
+  <p>Qué datos usamos, con quién los compartimos, cómo los protegemos y cuánto tiempo los conservamos.</p>
+</div>
+
+<div class="content">
+
+  <!-- Tabla resumen — compatible con Google Play Data Safety -->
+  <div class="section">
+    <h2>DATOS RECOPILADOS Y SU PROPÓSITO</h2>
+    <div class="tag">RESUMEN CLARO</div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>DATO</th>
+            <th>PARA QUÉ</th>
+            <th>CIFRADO EN TRÁNSITO</th>
+            <th>CUÁNTO TIEMPO</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Correo electrónico</td><td>Autenticación y recuperación de cuenta</td><td class="yes">✓ HTTPS</td><td>Hasta eliminar la cuenta</td></tr>
+          <tr><td>Contraseña (hash bcrypt)</td><td>Verificación de identidad — nunca en texto plano</td><td class="yes">✓ HTTPS</td><td>Hasta eliminar la cuenta</td></tr>
+          <tr><td>Foto de perfil y banner</td><td>Mostrar tu identidad visual en la plataforma</td><td class="yes">✓ HTTPS</td><td>Hasta que la cambies o elimines tu cuenta</td></tr>
+          <tr><td>Posts y comentarios</td><td>Mostrar tu contenido a otros usuarios</td><td class="yes">✓ HTTPS</td><td>Hasta que los elimines o elimines tu cuenta</td></tr>
+          <tr><td>Mensajes de chat</td><td>Comunicación privada entre usuarios</td><td class="yes">✓ HTTPS + WSS</td><td>Hasta eliminar el mensaje o la cuenta</td></tr>
+          <tr><td>Audios de voz</td><td>Mensajes de voz en chats y grupos</td><td class="yes">✓ HTTPS</td><td>Hasta eliminar el mensaje</td></tr>
+          <tr><td>Token de sesión (JWT)</td><td>Mantener la sesión activa de forma segura</td><td class="yes">✓ HTTPS</td><td>Hasta cerrar sesión o expiración del token</td></tr>
+          <tr><td>Interacciones (likes, follows)</td><td>Calcular XP y mostrar actividad social</td><td class="yes">✓ HTTPS</td><td>Hasta eliminar la cuenta</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Google Play Data Safety compliance -->
+  <div class="section">
+    <h2>DECLARACIÓN GOOGLE PLAY — DATA SAFETY</h2>
+    <div class="tag">PLAY STORE COMPLIANCE</div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>CATEGORÍA</th><th>¿SE RECOPILA?</th><th>¿SE COMPARTE?</th><th>¿CIFRADO?</th><th>¿USUARIO PUEDE ELIMINAR?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Nombre / usuario</td><td class="yes">Sí</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+          <tr><td>Correo electrónico</td><td class="yes">Sí</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+          <tr><td>Foto de perfil</td><td class="yes">Sí</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+          <tr><td>Mensajes</td><td class="yes">Sí</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+          <tr><td>Imágenes y audios</td><td class="yes">Sí</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+          <tr><td>Interacciones</td><td class="yes">Sí</td><td class="no">No</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+          <tr><td>Datos de publicidad</td><td class="no">No</td><td class="no">No</td><td>—</td><td>—</td></tr>
+          <tr><td>Ubicación</td><td class="no">No</td><td class="no">No</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="highlight" style="margin-top:16px">
+      Abyss no recopila datos de ubicación, no usa publicidad, no comparte datos con fines comerciales y permite al usuario eliminar su cuenta y todos sus datos desde la aplicación.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>TERCEROS CON ACCESO A TUS DATOS</h2>
+    <p>Trabajamos con los siguientes proveedores para operar Abyss. Todos operan como <strong>encargados del tratamiento</strong> bajo nuestras instrucciones:</p>
+    <ul>
+      <li><strong>Cloudinary</strong> — almacenamiento y entrega de imágenes y audios</li>
+      <li><strong>MongoDB Atlas</strong> — base de datos (usuarios, posts, mensajes)</li>
+      <li><strong>Railway</strong> — servidor backend, API y websockets</li>
+      <li><strong>Vercel</strong> — alojamiento del frontend web</li>
+      <li><strong>Google OAuth</strong> — autenticación opcional con Google</li>
+    </ul>
+    <div class="highlight">
+      Ninguno de estos proveedores tiene autorización para usar tus datos con fines propios. No vendemos, alquilamos, ni compartimos tu información con anunciantes o terceros comerciales.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>COOKIES Y ALMACENAMIENTO LOCAL</h2>
+    <p>Abyss <strong>no usa cookies de rastreo ni publicidad</strong>. Usamos:</p>
+    <ul>
+      <li><strong>AsyncStorage</strong> (app móvil) — para guardar tu token de sesión localmente en tu dispositivo</li>
+      <li><strong>localStorage</strong> (versión web) — para guardar tu token de sesión en el navegador</li>
+    </ul>
+    <p>Este token nunca se comparte con terceros y solo sirve para mantenerte autenticado.</p>
+  </div>
+
+  <div class="section">
+    <h2>NO VENDEMOS TUS DATOS</h2>
+    <div class="highlight">
+      Abyss no vende, alquila, intercambia ni monetiza tu información personal. La plataforma no tiene publicidad y no hay anunciantes con acceso a tus datos. Nunca.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>ELIMINACIÓN DE DATOS</h2>
+    <p>Puedes eliminar tu cuenta desde <strong>Ajustes → Eliminar cuenta</strong>. Al hacerlo se eliminan de forma <strong>permanente e irreversible</strong>:</p>
+    <ul>
+      <li>Tu perfil y toda tu información personal</li>
+      <li>Todos tus posts, comentarios y reacciones</li>
+      <li>Tus conversaciones en chats privados</li>
+    </ul>
+    <p>Los archivos almacenados en Cloudinary (imágenes, audios) se eliminan en un plazo máximo de <strong>30 días</strong>.</p>
+    <div class="highlight">
+      Los mensajes enviados en grupos pueden permanecer visibles para otros miembros marcados como "mensaje eliminado" si los borras individualmente. Si eliminas tu cuenta completa, también se eliminan del servidor.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>SOLICITUDES DE DATOS</h2>
+    <p>Tienes derecho a solicitar:</p>
+    <ul>
+      <li><strong>Copia de tus datos</strong> — te la enviamos en formato JSON</li>
+      <li><strong>Eliminación manual</strong> — si prefieres que lo hagamos nosotros</li>
+      <li><strong>Corrección</strong> — de datos incorrectos que no puedas editar desde la app</li>
+    </ul>
+    <p>Escríbenos a <a href="mailto:legal@abyss.social">legal@abyss.social</a>. Respondemos en un máximo de <strong>15 días hábiles</strong>.</p>
+  </div>
+
+  <p class="updated">Última actualización: Abril 2026</p>
+</div>
+
+</body>
+</html>

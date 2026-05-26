@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "Abyss",
+    "slug": "abyss",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#020509"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#0A0614"
+      },
+      "package": "com.abyss.app",
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "pan",
+      "userInterfaceStyle": "light",
+      "edgeToEdgeEnabled": false,
+      "navigationBarColor": "#020509",
+      "navigationBarStyle": "light",
+      "backgroundColor": "#020509",
+      "androidStatusBar": {
+        "barStyle": "light-content",
+        "backgroundColor": "#020509",
+        "translucent": false
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "template": "./web/index.html"
+    },
+    "newArchEnabled": true,
+    "plugins": [
+      "react-native-edge-to-edge",
+      "expo-audio",
+      ["expo-notifications", {
+        "icon": "./assets/icon.png",
+        "color": "#00e5cc",
+        "defaultChannel": "default"
+      }]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d78a617e-08c4-4798-ad2c-1a1bdff1a95a"
+      }
+    }
+  }
+}

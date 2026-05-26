@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "691701168457",
+    "project_id": "abyss-cb14f",
+    "storage_bucket": "abyss-cb14f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:691701168457:android:0d5f170f988da629020298",
+        "android_client_info": {
+          "package_name": "com.abyss.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtqNWLSToCnvyxkqArQ3h2TXoERlPKqNo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

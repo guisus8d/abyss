@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Abyss — Política de Privacidad</title>
+  <meta name="description" content="Política de privacidad de Abyss. Cómo recopilamos, usamos y protegemos tu información personal." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #020509; --surface: #0b1521; --border: rgba(255,255,255,0.07);
+      --accent: #00e5cc; --textHi: #e6f0ff;
+      --textMid: rgba(230,240,255,0.65); --textDim: rgba(230,240,255,0.35);
+    }
+    body { background: var(--bg); color: var(--textMid); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.7; }
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(2,5,9,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 14px 24px; }
+    nav .logo { font-size: 18px; font-weight: 800; letter-spacing: 3px; color: var(--accent); text-decoration: none; }
+    nav .tabs { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+    nav .tabs a { color: var(--textDim); font-size: 12px; font-weight: 600; letter-spacing: 1px; text-decoration: none; padding: 6px 14px; border-radius: 20px; border: 1px solid transparent; transition: all .2s; }
+    nav .tabs a:hover, nav .tabs a.active { color: var(--accent); border-color: rgba(0,229,204,0.3); background: rgba(0,229,204,0.07); }
+    .hero { text-align: center; padding: 72px 24px 48px; max-width: 720px; margin: 0 auto; }
+    .hero h1 { font-size: 28px; font-weight: 800; color: var(--textHi); letter-spacing: 1px; margin-bottom: 10px; }
+    .hero p { color: var(--textDim); font-size: 13px; }
+    .content { max-width: 760px; margin: 0 auto; padding: 0 24px 80px; }
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 28px 32px; margin-bottom: 16px; }
+    .section h2 { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .section h2::before { content: ''; display: block; width: 3px; height: 16px; background: var(--accent); border-radius: 2px; }
+    .section h3 { font-size: 14px; font-weight: 700; color: var(--textHi); margin: 20px 0 8px; }
+    .section p { margin-bottom: 10px; }
+    .section ul { padding-left: 20px; margin-bottom: 10px; }
+    .section ul li { margin-bottom: 6px; }
+    .highlight { background: rgba(0,229,204,0.06); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; }
+    .updated { text-align: center; color: var(--textDim); font-size: 11px; padding: 20px 0 40px; }
+    a { color: var(--accent); }
+    @media (max-width: 600px) { .section { padding: 20px 18px; } .hero h1 { font-size: 22px; } nav .tabs a { font-size: 11px; padding: 5px 10px; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="https://abyss.social">ABYSS</a>
+  <div class="tabs">
+    <a href="/privacidad" class="active">Privacidad</a>
+    <a href="/terminos">Términos</a>
+    <a href="/datos">Datos</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Política de Privacidad</h1>
+  <p>Cómo Abyss recopila, usa y protege tu información personal.</p>
+</div>
+
+<div class="content">
+
+  <div class="section">
+    <h2>QUIÉNES SOMOS</h2>
+    <p><strong>Abyss</strong> (<a href="https://abyss.social">abyss.social</a>) es una red social diseñada para que las personas se conecten, compartan contenido y se comuniquen en tiempo real. El responsable del tratamiento de datos es el operador de abyss.social, con domicilio en <strong>México</strong>. Para contacto directo: <a href="mailto:legal@abyss.social">legal@abyss.social</a></p>
+  </div>
+
+  <div class="section">
+    <h2>INFORMACIÓN QUE RECOPILAMOS</h2>
+    <h3>Información que tú nos proporcionas</h3>
+    <ul>
+      <li>Nombre de usuario y contraseña (almacenada con hash bcrypt — nunca en texto plano)</li>
+      <li>Correo electrónico</li>
+      <li>Foto de perfil, banner e imágenes publicadas</li>
+      <li>Contenido que publicas: posts, comentarios, reacciones, mensajes</li>
+      <li>Audios enviados en chats privados y grupos</li>
+    </ul>
+    <h3>Información que recopilamos automáticamente</h3>
+    <ul>
+      <li>Token de autenticación JWT (almacenado localmente en tu dispositivo)</li>
+      <li>Conexiones de socket para mensajería en tiempo real</li>
+      <li>Interacciones dentro de la plataforma (likes, follows, reacciones)</li>
+    </ul>
+    <h3>Información de terceros</h3>
+    <ul>
+      <li>Si usas <strong>Google OAuth</strong>, recibimos únicamente tu nombre, correo y foto pública de Google</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>BASE LEGAL DEL TRATAMIENTO</h2>
+    <p>Tratamos tus datos bajo las siguientes bases legales:</p>
+    <ul>
+      <li><strong>Consentimiento</strong> — al registrarte aceptas esta política de forma expresa</li>
+      <li><strong>Ejecución de contrato</strong> — necesitamos tus datos para prestarte el servicio (crear cuenta, enviar mensajes, mostrar contenido)</li>
+      <li><strong>Interés legítimo</strong> — seguridad de la plataforma, prevención de fraude y abuso</li>
+      <li><strong>Obligación legal</strong> — cuando las autoridades competentes lo requieran conforme a la ley aplicable</li>
+    </ul>
+    <div class="highlight">
+      Esta plataforma se rige por las leyes de <strong>México</strong>. Si eres usuario de la Unión Europea, también aplicamos los principios del RGPD (GDPR) como estándar de referencia para la protección de tus datos.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>CÓMO USAMOS TU INFORMACIÓN</h2>
+    <ul>
+      <li>Para crear y mantener tu cuenta</li>
+      <li>Para mostrar tu perfil y contenido a otros usuarios</li>
+      <li>Para enviar y recibir mensajes en tiempo real</li>
+      <li>Para calcular tu XP y mostrar rankings dentro de la plataforma</li>
+      <li>Para enviarte notificaciones sobre actividad relevante</li>
+      <li>Para detectar y prevenir comportamientos abusivos o fraudulentos</li>
+    </ul>
+    <div class="highlight">
+      No usamos tus datos para publicidad. No hay anunciantes en Abyss.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>CIFRADO Y SEGURIDAD</h2>
+    <ul>
+      <li>Toda comunicación entre tu dispositivo y nuestros servidores va cifrada mediante <strong>HTTPS / TLS</strong></li>
+      <li>Las contraseñas se almacenan con hash <strong>bcrypt</strong> — nunca en texto plano</li>
+      <li>Los tokens de sesión se almacenan únicamente en tu dispositivo</li>
+      <li>Los archivos multimedia se alojan en <strong>Cloudinary</strong> con acceso restringido</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>RETENCIÓN Y ELIMINACIÓN DE DATOS</h2>
+    <p>Conservamos tus datos mientras tu cuenta esté activa. Al eliminar tu cuenta se eliminan de forma <strong>permanente e irreversible</strong>:</p>
+    <ul>
+      <li>Tu perfil y toda tu información personal</li>
+      <li>Todos tus posts, comentarios y reacciones</li>
+      <li>Tus conversaciones en chats privados</li>
+    </ul>
+    <p>Los archivos en Cloudinary se eliminan en un plazo máximo de <strong>30 días</strong> tras la baja de la cuenta.</p>
+    <div class="highlight">
+      Los mensajes que hayas enviado en grupos pueden permanecer visibles para otros miembros según la configuración del grupo, marcados como "mensaje eliminado" si los borras individualmente.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>TUS DERECHOS</h2>
+    <p>Tienes derecho a:</p>
+    <ul>
+      <li><strong>Acceder</strong> a tus datos — solicitar una copia de toda tu información</li>
+      <li><strong>Rectificar</strong> — corregir datos incorrectos desde tu perfil</li>
+      <li><strong>Eliminar</strong> — borrar tu cuenta y todos tus datos</li>
+      <li><strong>Portabilidad</strong> — recibir tus datos en formato legible</li>
+      <li><strong>Oponerte</strong> al tratamiento en ciertos casos</li>
+    </ul>
+    <p>Para ejercer cualquiera de estos derechos escríbenos a <a href="mailto:legal@abyss.social">legal@abyss.social</a>. Respondemos en un máximo de <strong>15 días hábiles</strong>.</p>
+  </div>
+
+  <div class="section">
+    <h2>MENORES DE EDAD</h2>
+    <p>Abyss no está dirigida a personas menores de <strong>13 años</strong>. Si eres menor de edad según las leyes de tu país, necesitas el consentimiento de tus padres o tutores legales para usar la plataforma.</p>
+    <p>Si tienes conocimiento de que un menor ha creado una cuenta sin el consentimiento correspondiente, contáctanos a <a href="mailto:legal@abyss.social">legal@abyss.social</a> para eliminarla de inmediato.</p>
+  </div>
+
+  <div class="section">
+    <h2>CAMBIOS A ESTA POLÍTICA</h2>
+    <p>Podemos actualizar esta política en cualquier momento. Cuando los cambios sean significativos, lo notificaremos dentro de la aplicación. Continuar usando Abyss después de los cambios implica su aceptación.</p>
+  </div>
+
+  <div class="section">
+    <h2>CONTACTO</h2>
+    <p>Para cualquier consulta sobre privacidad o protección de datos: <a href="mailto:legal@abyss.social">legal@abyss.social</a></p>
+  </div>
+
+  <p class="updated">Última actualización: Abril 2026</p>
+</div>
+
+</body>
+</html>

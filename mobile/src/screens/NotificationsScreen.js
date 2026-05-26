@@ -1,0 +1,362 @@
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, TouchableOpacity, FlatList, Image,
+  StyleSheet, StatusBar, ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
+import api from '../services/api';
+import { connectSocket } from '../services/socket';
+
+const TABS = [
+  { key: 'all',            label: 'Todo' },
+  { key: 'like',           label: 'Reacciones' },
+  { key: 'comment',        label: 'Comentarios' },
+  { key: 'follow',         label: 'Seguidores' },
+  { key: 'admin_transfer', label: 'Administración' },
+];
+
+function timeAgo(date) {
+  const diff = Date.now() - new Date(date);
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'ahora';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+function notifText(n) {
+  switch (n.type) {
+    case 'like':
+      return n.text && n.text !== '❤️'
+        ? `reaccionó con ${n.text} a tu post`
+        : 'le dio ❤️ a tu post';
+    case 'comment':
+      return n.text === 'comentó en tu post'
+        ? 'comentó en tu post'
+        : n.text?.startsWith('↩')
+          ? 'respondió a tu comentario'
+          : 'comentó en tu post';
+    case 'follow':        return 'empezó a seguirte';
+    case 'chat_accepted': return 'aceptó tu solicitud de chat';
+    case 'mention':       return 'te mencionó en un mensaje';
+    case 'group_invite':            return `te invitó al grupo "${n.groupName || 'un grupo'}"`;
+    case 'admin_transfer':          return `te ofrece la administración del grupo "${n.groupName || 'un grupo'}"`;
+    case 'admin_transfer_declined': return n.text || 'rechazó la transferencia de admin';
+    default:                        return '';
+  }
+}
+
+export default function NotificationsScreen({ navigation }) {
+  const [tab, setTab]         = useState('all');
+  const [notifs, setNotifs]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage]       = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    load(1, tab, true);
+    api.patch('/notifications/read', { type: 'all' }).catch(() => {});
+
+    let socket = null;
+    connectSocket().then(s => {
+      socket = s;
+      s.off('notification:new');
+      s.on('notification:new', () => load(1, tab, true));
+    });
+
+    return () => { if (socket) socket.off('notification:new'); };
+  }, [tab]));
+
+  async function load(p, t, reset = false) {
+    if (reset) setLoading(true);
+    try {
+      const { data } = await api.get(`/notifications?type=${t}&page=${p}&limit=20`);
+      setNotifs(prev => reset ? data.notifs : [...prev, ...data.notifs]);
+      setPage(p);
+      setHasMore(p < data.pages);
+    } catch(e) { console.log(e); }
+    finally { setLoading(false); setLoadingMore(false); }
+  }
+
+  function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    load(page + 1, tab);
+  }
+
+  async function handleInvite(groupId, action) {
+    try {
+      await api.post(`/groups/${groupId}/invite/${action}`);
+      load(1, tab, true);
+    } catch (e) { console.log(e); }
+  }
+
+  async function handleTransfer(groupId, action) {
+    try {
+      await api.post(`/groups/${groupId}/transfer-admin/${action}`);
+      load(1, tab, true);
+    } catch (e) { console.log(e); }
+  }
+
+  function renderNotif({ item }) {
+    const isRead = item.read;
+    return (
+      <View>
+        <TouchableOpacity
+          style={[s.item, !isRead && s.itemUnread]}
+          onPress={() => {
+            if (item.post && (item.type === 'comment' || item.type === 'like' || item.type === 'mention')) {
+              const postId = item.post?._id || item.post;
+              navigation.navigate('PostDetail', { postId });
+            } else if (item.type === 'follow') {
+              navigation.navigate('PublicProfile', { username: item.from?.username });
+            }
+          }}
+        >
+          {/* Avatar */}
+          <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: item.from?.username })}>
+            <View style={s.avatar}>
+              {item.from?.avatarUrl
+                ? <Image source={{ uri: item.from.avatarUrl }} style={s.avatarImg} />
+                : <Text style={s.avatarTxt}>{item.from?.username?.[0]?.toUpperCase()}</Text>
+              }
+            </View>
+          </TouchableOpacity>
+
+          {/* Texto */}
+          <View style={{ flex: 1 }}>
+            <Text style={s.notifTxt}>
+              <Text style={s.username}>{item.from?.username} </Text>
+              <Text>{notifText(item)}</Text>
+            </Text>
+            <Text style={s.time}>{timeAgo(item.createdAt)}</Text>
+          </View>
+
+          {/* Thumbnail del post si aplica */}
+          {item.post?.imageUrl && (
+            <Image source={{ uri: item.post.imageUrl }} style={s.thumb} />
+          )}
+
+          {/* Punto no leído */}
+          {!isRead && item.type !== 'group_invite' && <View style={s.dot} />}
+        </TouchableOpacity>
+
+        {/* Card expandida de invitación a grupo */}
+        {item.type === 'group_invite' && item.groupId && (
+          <View style={s.inviteCard}>
+            <View style={s.inviteCardHeader}>
+              {item.groupImageUrl
+                ? <Image source={{ uri: item.groupImageUrl }} style={s.inviteGroupImg} />
+                : <View style={s.inviteGroupImgPlaceholder}>
+                    <Text style={s.inviteGroupImgLetter}>
+                      {item.groupName?.[0]?.toUpperCase() || 'G'}
+                    </Text>
+                  </View>
+              }
+              <View style={{ flex: 1 }}>
+                <Text style={s.inviteGroupName}>{item.groupName}</Text>
+                {item.groupDescription ? (
+                  <Text style={s.inviteGroupDesc} numberOfLines={2}>
+                    {item.groupDescription}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+
+            <View style={s.inviteActions}>
+              <TouchableOpacity
+                style={s.btnAccept}
+                onPress={() => handleInvite(item.groupId, 'accept')}
+              >
+                <Text style={s.btnAcceptTxt}>Unirme</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.btnDecline}
+                onPress={() => handleInvite(item.groupId, 'decline')}
+              >
+                <Text style={s.btnDeclineTxt}>Rechazar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Card expandida de transferencia de admin */}
+        {item.type === 'admin_transfer' && item.groupId && (
+          <View style={s.inviteCard}>
+            <View style={s.inviteCardHeader}>
+              {item.groupImageUrl
+                ? <Image source={{ uri: item.groupImageUrl }} style={s.inviteGroupImg} />
+                : <View style={s.inviteGroupImgPlaceholder}>
+                    <Text style={s.inviteGroupImgLetter}>
+                      {item.groupName?.[0]?.toUpperCase() || 'G'}
+                    </Text>
+                  </View>
+              }
+              <View style={{ flex: 1 }}>
+                <Text style={s.inviteGroupName}>{item.groupName}</Text>
+                <Text style={s.inviteGroupDesc} numberOfLines={2}>
+                  {item.from?.username} quiere cederte la administración
+                </Text>
+              </View>
+            </View>
+
+            <View style={s.inviteActions}>
+              <TouchableOpacity
+                style={s.btnAccept}
+                onPress={() => handleTransfer(item.groupId, 'accept')}
+              >
+                <Text style={s.btnAcceptTxt}>Aceptar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.btnDecline}
+                onPress={() => handleTransfer(item.groupId, 'decline')}
+              >
+                <Text style={s.btnDeclineTxt}>Rechazar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      <SafeAreaView edges={['top']}>
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={20} color="#ffffff" />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>NOTIFICACIONES</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* Tabs */}
+        <FlatList
+          horizontal
+          data={TABS}
+          keyExtractor={t => t.key}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.tabs}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[s.tab, tab === item.key && s.tabActive]}
+              onPress={() => setTab(item.key)}
+            >
+              <Text style={[s.tabTxt, tab === item.key && s.tabTxtActive]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          )}
+        />
+      </SafeAreaView>
+
+      {loading ? (
+        <ActivityIndicator color={colors.c1} style={{ marginTop: 40 }} />
+      ) : notifs.length === 0 ? (
+        <View style={s.empty}>
+          <Text style={s.emptyTxt}>Sin notificaciones</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={notifs}
+          keyExtractor={n => n._id}
+          renderItem={renderNotif}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore
+            ? <ActivityIndicator color={colors.c1} style={{ padding: 16 }} />
+            : null}
+        />
+      )}
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  root:        { flex: 1, backgroundColor: colors.black },
+  header:      {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  headerTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1, color: '#ffffff' },
+  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+
+  tabs:        { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  tab:         {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1, borderColor: colors.border,
+  },
+  tabActive:   { backgroundColor: 'rgba(0,229,204,0.1)', borderColor: colors.borderC },
+  tabTxt:      { color: colors.textDim, fontSize: 12 },
+  tabTxtActive:{ color: colors.c1, fontWeight: '700' },
+
+  item:        {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  itemUnread:  { backgroundColor: 'rgba(0,229,204,0.03)' },
+  avatar:      {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: colors.borderC,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  avatarImg:   { width: 44, height: 44, borderRadius: 22 },
+  avatarTxt:   { color: colors.c1, fontWeight: 'bold', fontSize: 16 },
+  notifTxt:    { color: colors.textMid, fontSize: 13, lineHeight: 19 },
+  username:    { color: colors.textHi, fontWeight: '700' },
+  time:        { color: colors.textDim, fontSize: 11, marginTop: 3 },
+  thumb:       { width: 44, height: 44, borderRadius: 8 },
+  dot:         {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: colors.c1, marginLeft: 4,
+  },
+  empty:          { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyTxt:       { color: colors.textDim, fontSize: 14 },
+
+  inviteCard: {
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: 'rgba(0,229,204,0.04)',
+    borderWidth: 1, borderColor: 'rgba(0,229,204,0.15)',
+    borderRadius: 14, overflow: 'hidden',
+  },
+  inviteCardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14,
+  },
+  inviteGroupImg: { width: 46, height: 46, borderRadius: 12 },
+  inviteGroupImgPlaceholder: {
+    width: 46, height: 46, borderRadius: 12,
+    backgroundColor: 'rgba(0,229,204,0.12)',
+    borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  inviteGroupImgLetter: { color: colors.c1, fontWeight: '800', fontSize: 20 },
+  inviteGroupName:      { color: colors.textHi, fontWeight: '700', fontSize: 14 },
+  inviteGroupDesc:      { color: colors.textDim, fontSize: 12, marginTop: 3, lineHeight: 17 },
+
+  inviteActions:  {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: 14, paddingBottom: 14,
+  },
+  btnAccept:      {
+    flex: 1, paddingVertical: 9, borderRadius: 10,
+    backgroundColor: 'rgba(0,229,204,0.15)', borderWidth: 1, borderColor: colors.borderC,
+    alignItems: 'center',
+  },
+  btnAcceptTxt:   { color: colors.c1, fontWeight: '700', fontSize: 13 },
+  btnDecline:     {
+    flex: 1, paddingVertical: 9, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center',
+  },
+  btnDeclineTxt:  { color: colors.textDim, fontSize: 13 },
+});

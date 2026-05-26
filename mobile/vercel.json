@@ -1,0 +1,29 @@
+{
+  "headers": [
+    {
+      "source": "/_expo/static/js/web/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/post/:id",        "destination": "/index.html" },
+    { "source": "/user/:username",  "destination": "/index.html" },
+    { "source": "/mod",        "destination": "/mod.html" },
+    { "source": "/privacidad", "destination": "/privacidad.html" },
+    { "source": "/terminos",   "destination": "/terminos.html" },
+    { "source": "/datos",      "destination": "/datos.html" },
+    { "source": "/reset-password", "destination": "/reset-password.html" },
+    { "source": "/verify-email",          "destination": "/verify-email.html" },
+    { "source": "/confirm-email-change", "destination": "/confirm-email-change.html" },
+    { "source": "/download",             "destination": "/download.html" },
+    { "source": "/(.*)",                 "destination": "/index.html" }
+  ],
+  "buildCommand": "bash deploy.sh",
+  "outputDirectory": "dist",
+  "installCommand": "npm install"
+}
