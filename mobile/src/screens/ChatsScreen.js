@@ -54,7 +54,6 @@ export default function ChatsScreen({ navigation }) {
       socket = s;
       s.off('chat:read_ack');
       s.off('chat:notification');
-      s.off('chat:accepted');
       s.off('group:notification');
 
       s.on('chat:read_ack', ({ chatId }) =>
@@ -63,12 +62,6 @@ export default function ChatsScreen({ navigation }) {
       s.on('chat:notification', () =>
         api.get('/chats').then(r => setChats(r.data.chats)).catch(() => {})
       );
-      s.on('chat:accepted', ({ chat: newChat }) => {
-        if (!newChat) { loadAll(); return; }
-        setChats(prev =>
-          prev.find(c => c._id === newChat._id) ? prev : [newChat, ...prev]
-        );
-      });
       s.on('group:notification', () =>
         api.get('/groups').then(r => setGroups(r.data.groups || [])).catch(() => {})
       );
@@ -78,7 +71,6 @@ export default function ChatsScreen({ navigation }) {
       if (socket) {
         socket.off('chat:read_ack');
         socket.off('chat:notification');
-        socket.off('chat:accepted');
         socket.off('group:notification');
       }
     };
