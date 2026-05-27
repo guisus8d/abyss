@@ -59,12 +59,33 @@ export default function ChatsScreen({ navigation }) {
       s.on('chat:read_ack', ({ chatId }) =>
         setChats(prev => prev.map(c => c._id === chatId ? { ...c, unread: 0 } : c))
       );
-      s.on('chat:notification', () =>
-        api.get('/chats').then(r => setChats(r.data.chats)).catch(() => {})
-      );
-      s.on('group:notification', () =>
-        api.get('/groups').then(r => setGroups(r.data.groups || [])).catch(() => {})
-      );
+      s.on('chat:notification', ({ chatId, lastMessageText, lastMessage }) => {
+        setChats(prev => {
+          const next = prev.map(c =>
+            c._id?.toString() === chatId?.toString()
+              ? { ...c, lastMessageText, lastMessage, unread: (c.unread || 0) + 1 }
+              : c
+          );
+          return next.sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage));
+        });
+      });
+      s.on('group:notification', ({ groupId, lastMessageText, lastMessage, lastMessageSender }) => {
+        setGroups(prev => {
+          const myIdStr = user._id?.toString();
+          const next = prev.map(g => {
+            if (g._id?.toString() !== groupId?.toString()) return g;
+            const prevCount = g.unreadCounts?.[myIdStr] || 0;
+            return {
+              ...g,
+              lastMessageText,
+              lastMessage,
+              lastMessageSender,
+              unreadCounts: { ...(g.unreadCounts || {}), [myIdStr]: prevCount + 1 },
+            };
+          });
+          return next.sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage));
+        });
+      });
     });
 
     return () => {
@@ -120,13 +141,10 @@ export default function ChatsScreen({ navigation }) {
     setTab(key);
   }
 
-  const privateItems = [...chats]
-    .sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage))
-    .map(c => ({ type: 'chat', data: c }));
-
-  const groupItems = [...groups].sort((a, b) =>
-    new Date(b.lastMessage || b.createdAt) - new Date(a.lastMessage || a.createdAt)
-  );
+  const allPrivateItems = [
+    ...[...chats].map(c => ({ type: 'chat', data: c, _t: new Date(c.lastMessage || 0).getTime() })),
+    ...[...groups].map(g => ({ type: 'group', data: g, _t: new Date(g.lastMessage || g.createdAt || 0).getTime() })),
+  ].sort((a, b) => b._t - a._t);
 
   function renderChatItem({ item }) {
     const chat  = item.data;
@@ -143,7 +161,7 @@ export default function ChatsScreen({ navigation }) {
         </View>
         <View style={{ flex:1, minWidth:0 }}>
           <Text style={s.chatUser} numberOfLines={1}>{other?.username}</Text>
-          <Text style={unread > 0 ? [s.chatPreview, s.chatPreviewUnread] : s.chatPreview} numberOfLines={1}>
+          <Text numberOfLines={1} style={{ color: unread > 0 ? '#ffffff' : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>
             {chat.lastMessageText || 'Toca para chatear'}
           </Text>
         </View>
@@ -162,16 +180,24 @@ export default function ChatsScreen({ navigation }) {
   function renderGroupItem({ item: g }) {
     const unread = Number(g.unreadCounts?.[user._id]) || 0;
     return (
-      <TouchableOpacity style={s.groupItem} onPress={() => navigation.navigate('GroupRoom', { group: g })}>
-        {g.imageUrl
-          ? <Image source={{ uri: g.imageUrl }} style={s.groupImg} />
-          : <View style={s.groupImgPlaceholder}><Ionicons name="people" size={20} color={colors.c1} /></View>}
+      <TouchableOpacity style={s.chatItem} onPress={() => navigation.navigate('GroupRoom', { group: g })}>
+        <View style={s.avatarSlot}>
+          {g.imageUrl
+            ? <Image source={{ uri: g.imageUrl }} style={s.groupImg} />
+            : <View style={s.groupImgPlaceholder}><Ionicons name="people" size={20} color={colors.c1} /></View>}
+        </View>
         <View style={{ flex:1, minWidth:0 }}>
-          <View style={{ flexDirection:'row', alignItems:'center', gap:6, marginBottom:2 }}>
-            <Text style={s.chatUser} numberOfLines={1}>{g.name}</Text>
-            <View style={s.groupBadge}><Text style={s.groupBadgeTxt}>GRUPO</Text></View>
-          </View>
-          <Text style={s.chatPreview} numberOfLines={1}>{g.lastMessageText || g.description || 'Grupo privado'}</Text>
+          <Text style={s.chatUser} numberOfLines={1}>{g.name}</Text>
+          {g.lastMessageSender ? (
+            <Text numberOfLines={1}>
+              <Text style={{ color: unread > 0 ? colors.c1 : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>{g.lastMessageSender}:{' '}</Text>
+              <Text style={{ color: unread > 0 ? '#ffffff' : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>{g.lastMessageText || ''}</Text>
+            </Text>
+          ) : (
+            <Text numberOfLines={1} style={{ color: unread > 0 ? '#ffffff' : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>
+              {g.lastMessageText || g.description || 'Grupo privado'}
+            </Text>
+          )}
         </View>
         <View style={{ alignItems:'flex-end', gap:4, flexShrink:0 }}>
           <Text style={s.chatDate}>{chatDate(g.lastMessage)}</Text>
@@ -183,6 +209,11 @@ export default function ChatsScreen({ navigation }) {
         </View>
       </TouchableOpacity>
     );
+  }
+
+  function renderPrivadoItem({ item }) {
+    if (item.type === 'group') return renderGroupItem({ item: item.data });
+    return renderChatItem({ item });
   }
 
   function renderEmpty(icon, title, subtitle) {
@@ -217,13 +248,13 @@ export default function ChatsScreen({ navigation }) {
         </TouchableOpacity>
       );
     }
-    if (privateItems.length === 0) return renderEmpty('chatbubble', 'Sin chats todavía', 'Visita el perfil de alguien y envíale un mensaje');
+    if (allPrivateItems.length === 0) return renderEmpty('chatbubble', 'Sin mensajes todavía', 'Visita el perfil de alguien o crea un grupo');
     return (
       <FlatList
         style={{ backgroundColor: colors.black }}
-        data={privateItems}
-        keyExtractor={(item, i) => item.data._id || String(i)}
-        renderItem={renderChatItem}
+        data={allPrivateItems}
+        keyExtractor={(item) => `${item.type}_${item.data._id}`}
+        renderItem={renderPrivadoItem}
         contentContainerStyle={[s.listContent, { paddingBottom: 90 + insets.bottom }]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
@@ -233,9 +264,7 @@ export default function ChatsScreen({ navigation }) {
   }
 
   function renderCirculos() {
-    if (loading) return <ActivityIndicator color={colors.c1} style={{ marginTop:40 }} />;
-    if (groupItems.length === 0) return renderEmpty('people', 'Sin círculos', 'Crea un grupo o únete a uno para empezar');
-    return <FlatList style={{ backgroundColor: colors.black }} data={groupItems} keyExtractor={g => g._id} renderItem={renderGroupItem} contentContainerStyle={[s.listContent, { paddingBottom: 90 + insets.bottom }]} />;
+    return renderComingSoon('people', 'Círculos');
   }
 
   return (
@@ -298,8 +327,8 @@ const s = StyleSheet.create({
   unreadBadge: { backgroundColor:colors.c1, borderRadius:10, minWidth:20, height:20, alignItems:'center', justifyContent:'center', paddingHorizontal:5 },
   unreadBadgeTxt: { color:colors.black, fontSize:10, fontWeight:'800' },
   groupItem: { flexDirection:'row', alignItems:'center', paddingVertical:10, gap:12, backgroundColor:'rgba(255,255,255,0.03)', paddingHorizontal:8, borderRadius:12, marginBottom:4, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
-  groupImg: { width:48, height:48, borderRadius:12, flexShrink:0 },
-  groupImgPlaceholder: { width:48, height:48, borderRadius:12, flexShrink:0, backgroundColor:colors.surface, borderWidth:1, borderColor:colors.borderC, alignItems:'center', justifyContent:'center' },
+  groupImg: { width:48, height:48, borderRadius:12, flexShrink:0, borderWidth:1, borderColor:'rgba(255,255,255,0.3)' },
+  groupImgPlaceholder: { width:48, height:48, borderRadius:12, flexShrink:0, backgroundColor:colors.surface, borderWidth:1, borderColor:'rgba(255,255,255,0.3)', alignItems:'center', justifyContent:'center' },
   groupBadge: { backgroundColor:'rgba(0,229,204,0.1)', borderRadius:6, paddingHorizontal:6, paddingVertical:2, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', flexShrink:0 },
   groupBadgeTxt: { color:colors.c1, fontSize:8, fontWeight:'800', letterSpacing:1 },
   emptyTab: { flex:1, alignItems:'center', justifyContent:'center', paddingHorizontal:40, gap:12 },

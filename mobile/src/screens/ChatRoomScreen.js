@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
-  View, Animated, LayoutAnimation, ActivityIndicator, Text, TextInput, TouchableOpacity,
+  View, Animated, LayoutAnimation, ActivityIndicator, Alert, Text, TextInput, TouchableOpacity,
   FlatList, Image, ImageBackground, Keyboard, Modal, Platform,
   Pressable, StyleSheet, StatusBar, Linking, ScrollView,
 } from 'react-native';
@@ -53,7 +53,7 @@ function renderRichText(text, navigation) {
     if (part.startsWith('@')) {
       const username = part.slice(1);
       return (
-        <Text key={i} style={{ fontWeight:'700', color:'#fff' }}
+        <Text key={i} style={{ fontWeight:'700', color: colors.c1 }}
           onPress={() => navigation.navigate('PublicProfile', { username })}>
           {part}
         </Text>
@@ -162,6 +162,7 @@ const MessageBubble = memo(function MessageBubble({
   const showAvatar  = !sameAsOlder;
   const isPostType  = item.type === 'shared_post' || item.type === 'shared_profile';
   const isGiftType  = item.type === 'gift';
+  const isImageType = item.type === 'image' && !!item.mediaUrl;
 
   const senderAvatar   = item.sender?.avatarUrl       ?? (isMe ? user.avatarUrl       : other.avatarUrl);
   const senderName     = item.sender?.username        ?? (isMe ? user.username        : other.username);
@@ -178,11 +179,11 @@ const MessageBubble = memo(function MessageBubble({
           )}
         </View>
   <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.8}
-  style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost, isGiftType && s.bubbleGift]}>
+  style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost, isGiftType && s.bubbleGift, isImageType && s.bubbleImage]}>
 
   {item.replyTo?.text && (
     <TouchableOpacity style={s.replyPreview} onPress={() => onScrollToMsg(item.replyTo.messageId)}>
-      <Text style={s.replyUser}>↩ {item.replyTo.senderUsername}</Text>
+      <Text style={s.replyUser}>{item.replyTo.senderUsername}</Text>
       <Text style={s.replyText} numberOfLines={1}>{item.replyTo.text}</Text>
     </TouchableOpacity>
   )}
@@ -199,16 +200,24 @@ const MessageBubble = memo(function MessageBubble({
     ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
     : item.type === 'image' && item.mediaUrl
     ? (
-      <TouchableOpacity onPress={() => onFullImg(item.mediaUrl)} activeOpacity={0.9}>
+      <TouchableOpacity
+        onPress={() => onFullImg(item.mediaUrl)}
+        activeOpacity={0.9}
+        style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', marginRight: isMe ? 12 : 0, marginLeft: isMe ? 0 : 12 }}
+      >
         <Image source={{ uri: item.mediaUrl }}
-          style={{ width:200, height:200, borderRadius:10, marginBottom:4 }} resizeMode="cover" />
+          style={{ width:220, height:220, borderRadius:12 }} resizeMode="contain" />
       </TouchableOpacity>
     )
     : <RichMessage text={item.text} navigation={navigation}
         textStyle={s.bubbleTxt} onLongPress={onLongPress} />
   }
 
-  {!isPostType && !isGiftType && <Text style={s.bubbleTime}>{timeStr(item.createdAt)}</Text>}
+  {!isPostType && !isGiftType && (
+    <Text style={[s.bubbleTime, isImageType && { textAlign: isMe ? 'right' : 'left', marginTop:2 }]}>
+      {timeStr(item.createdAt)}
+    </Text>
+  )}
 
   {item.reactions?.length > 0 && (
     <View style={s.msgReactions}>
@@ -313,7 +322,7 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (!chat?._id) return;
     let mounted = true;
 
-    api.get(`/chats/${chat._id}/messages`).then(({ data }) => {
+    api.get(`/chats/${chat._id}/messages?limit=50`).then(({ data }) => {
       setMessages(data.messages || []);
     }).catch(() => {});
 
@@ -354,6 +363,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 
     return () => {
       mounted = false;
+      if (recTimerRef.current) clearInterval(recTimerRef.current);
       socketRef.current?.off('chat:message');
       socketRef.current?.off('chat:typing');
       socketRef.current?.off('gift:update');
@@ -698,18 +708,6 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
 
-        {replyTo && (
-          <View style={s.replyBar}>
-            <View style={{ flex:1 }}>
-              <Text style={s.replyBarUser}>↩ {replyTo.sender?.username || 'usuario'}</Text>
-              <Text style={s.replyBarTxt} numberOfLines={1}>{replyTo.text}</Text>
-            </View>
-            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding:8 }}>
-              <Text style={{ color:'#888', fontSize:16 }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {typing && (
           <View style={s.typingBar}>
             <Text style={s.typingBarTxt}>{other.username} está escribiendo...</Text>
@@ -724,6 +722,17 @@ export default function ChatRoomScreen({ route, navigation }) {
           end={{ x: 0, y: 1 }}
           style={[s.inputContainer, { paddingBottom: insets.bottom }]}
         >
+        {replyTo && (
+          <View style={s.replyBar}>
+            <View style={{ flex:1 }}>
+              <Text style={s.replyBarUser}>{replyTo.sender?.username || 'usuario'}</Text>
+              <Text style={s.replyBarTxt} numberOfLines={1}>{replyTo.text}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding:8 }}>
+              <Text style={{ color:'#888', fontSize:16 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {audioPreview ? (
           <View style={s.audioPreviewRow}>
             <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -759,11 +768,9 @@ export default function ChatRoomScreen({ route, navigation }) {
                 <TouchableOpacity
                   onPress={handleSend}
                   disabled={!text.trim()}
-                  style={{ opacity: text.length > 0 ? 1 : 0.3 }}
+                  style={[s.sendBtn, { opacity: text.length > 0 ? 1 : 0.3 }]}
                 >
-                  <LinearGradient colors={['#006b63','#00e5cc']} style={s.sendBtn}>
-                    <Ionicons name="send" size={18} color={colors.black} />
-                  </LinearGradient>
+                  <Ionicons name="send" size={18} color="#020509" />
                 </TouchableOpacity>
               )}
             </View>
@@ -815,7 +822,7 @@ export default function ChatRoomScreen({ route, navigation }) {
               ))}
             </View>
             {menuMsg?.type !== 'shared_post' && (
-              <TouchableOpacity style={s.menuItem} onPress={() => { setReplyTo(menuMsg); setMenuMsg(null); }}>
+              <TouchableOpacity style={s.menuItem} onPress={() => { setReplyTo(menuMsg); setText('@' + (menuMsg.sender?.username || '') + ' '); setMenuMsg(null); }}>
                 <Text style={s.menuItemTxt}>↩ Responder</Text>
               </TouchableOpacity>
             )}
@@ -970,7 +977,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 
 const s = StyleSheet.create({
   root:         { flex:1, backgroundColor: colors.black, overflow:'hidden', maxWidth:'100%' },
-  header:       { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:10, borderBottomWidth:1, borderBottomColor: colors.border, gap:12 },
+  header:       { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:10, gap:12 },
   backBtn:      { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.08)', alignItems:'center', justifyContent:'center' },
   headerName:   { color: colors.textHi, fontWeight:'700', fontSize:15 },
   typingBar:    { paddingHorizontal:16, paddingVertical:4 },
@@ -980,10 +987,11 @@ const s = StyleSheet.create({
   msgRowMe:     { flexDirection:'row-reverse' },
   msgSenderName:{ color:'rgba(255,255,255,0.7)', fontSize:11, fontWeight:'700', marginLeft: AVATAR_SLOT + 8, marginBottom:2 },
   bubble:       { maxWidth:'75%', borderRadius:10, padding:12, borderWidth:1 },
-  bubbleMe:     { backgroundColor:'#00a896', borderColor:'rgba(0,229,204,0.4)' },
-  bubbleThem:   { backgroundColor: colors.card, borderColor: colors.border },
+  bubbleMe:     { backgroundColor:'#0d2137', borderWidth:0 },
+  bubbleThem:   { backgroundColor: colors.card, borderWidth:0 },
   bubblePost:   { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
   bubbleGift:   { padding:0, backgroundColor:'transparent', borderColor:'transparent', maxWidth:'90%' },
+  bubbleImage:  { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
   bubbleTxt:    { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:   { color: colors.textDim, fontSize:9, marginTop:4, textAlign:'right' },
   inputContainer:     { paddingTop: 20, paddingHorizontal: 12 },
@@ -1000,7 +1008,7 @@ const s = StyleSheet.create({
   inputWrap:    { flex:1, minWidth:0, flexDirection:'row', alignItems:'center', position:'relative' },
   input:        { flex:1, backgroundColor:'#080f18', borderWidth:1, borderColor: colors.border, borderRadius:12, paddingHorizontal:16, paddingRight:40, paddingVertical:10, color: colors.textHi, fontSize:14 },
   stickerBtn:   { position:'absolute', right:10, top:0, bottom:0, justifyContent:'center', alignItems:'center', width:28 },
-  sendBtn:      { width:42, height:42, minWidth:42, maxWidth:42, borderRadius:21, alignItems:'center', justifyContent:'center', flexShrink:0 },
+  sendBtn:      { width:42, height:42, borderRadius:12, backgroundColor:colors.c1, alignItems:'center', justifyContent:'center', flexShrink:0 },
   blockedBanner:    { flexDirection:'row', alignItems:'center', gap:8, margin:12, padding:12, backgroundColor:'rgba(239,68,68,0.07)', borderRadius:12, borderWidth:1, borderColor:'rgba(239,68,68,0.25)' },
   blockedBannerTxt: { flex:1, color:'rgba(239,68,68,0.8)', fontSize:12 },
   datePill:     { alignSelf:'center', backgroundColor:'rgba(2,5,9,0.55)', borderRadius:10, paddingHorizontal:14, paddingVertical:4, marginVertical:10, borderWidth:1, borderColor:'rgba(255,255,255,0.08)' },
@@ -1012,19 +1020,19 @@ const s = StyleSheet.create({
   emojiBtn:     { padding:6 },
   menuItem:     { paddingVertical:12, borderTopWidth:1, borderTopColor: colors.border },
   menuItemTxt:  { color: colors.textHi, fontSize:15, textAlign:'center' },
-  replyBar:     { flexDirection:'row', alignItems:'center', backgroundColor:'#1a1a1a', paddingHorizontal:12, paddingVertical:8, borderTopWidth:1, borderTopColor:'#333' },
+  replyBar:     { flexDirection:'row', alignItems:'center', backgroundColor:'transparent', paddingHorizontal:12, paddingVertical:8, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' },
   replyBarUser: { color:'#aaa', fontSize:11, fontWeight:'700' },
   replyBarTxt:  { color:'#666', fontSize:12 },
-  replyPreview: { backgroundColor:'rgba(255,255,255,0.06)', borderLeftWidth:2, borderLeftColor:'#555', paddingLeft:8, paddingVertical:4, marginBottom:6, borderRadius:4 },
-  replyUser:    { color:'#aaa', fontSize:10, fontWeight:'700' },
-  replyText:    { color:'#666', fontSize:11 },
+  replyPreview: { backgroundColor:'rgba(0,229,204,0.08)', borderLeftWidth:3, borderLeftColor:colors.c1, borderRadius:8, paddingHorizontal:10, paddingVertical:6, marginBottom:6 },
+  replyUser:    { color:colors.c1, fontSize:10, fontWeight:'700' },
+  replyText:    { color:'rgba(255,255,255,0.55)', fontSize:11 },
   msgReactions:     { flexDirection:'row', gap:2, marginTop:4 },
   msgReactionEmoji: { fontSize:16 },
   mentionDropdown:  { backgroundColor:'#1a1a1a', borderTopWidth:1, borderTopColor:'#333' },
   mentionItem:      { flexDirection:'row', alignItems:'center', paddingVertical:10, paddingHorizontal:16, gap:4, borderBottomWidth:1, borderBottomColor:'#222' },
   mentionAt:        { color:'#666', fontSize:14 },
   mentionName:      { color:'#eee', fontSize:14, fontWeight:'600' },
-  scrollDownBtn:    { position:'absolute', bottom:200, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
+  scrollDownBtn:    { position:'absolute', bottom:260, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
 
   // Gift modal
   giftOverlay:      { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  Image, FlatList, StatusBar, ActivityIndicator,
+  View, Animated, Text, StyleSheet, TouchableOpacity, TextInput,
+  Image, ImageBackground, FlatList, StatusBar, ActivityIndicator,
   Modal, Pressable, Linking, Alert, ScrollView, Dimensions,
   KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
@@ -54,7 +55,7 @@ function renderRichText(text, navigation) {
   return parts.map((part, i) => {
     if (part.startsWith('@')) {
       const username = part.slice(1);
-      return <Text key={i} style={{ fontWeight:'700', color:'#fff' }} onPress={() => navigation.navigate('PublicProfile', { username })}>{part}</Text>;
+      return <Text key={i} style={{ fontWeight:'700', color: colors.c1 }} onPress={() => navigation.navigate('PublicProfile', { username })}>{part}</Text>;
     }
     if (/^https?:\/\//.test(part)) {
       const postId = part.match(/abyss\.social\/post\/([a-f0-9]{24})/i)?.[1];
@@ -163,7 +164,7 @@ const MessageBubble = memo(function MessageBubble({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost, msg.type === 'gift' && s.bubbleGift]}
+            style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost, msg.type === 'gift' && s.bubbleGift, msg.type === 'image' && !!msg.mediaUrl && s.bubbleImage]}
             delayLongPress={350}
             onLongPress={() => !isDeleted && onOpenMenu(msg)}
             activeOpacity={0.85}
@@ -176,7 +177,7 @@ const MessageBubble = memo(function MessageBubble({
               <>
                 {msg.replyTo?.text && (
                   <View style={s.replyPreview}>
-                    <Text style={s.replyUser}>↩ {msg.replyTo.senderUsername}</Text>
+                    <Text style={s.replyUser}>{msg.replyTo.senderUsername}</Text>
                     <Text style={s.replyText} numberOfLines={1}>{msg.replyTo.text}</Text>
                   </View>
                 )}
@@ -190,8 +191,12 @@ const MessageBubble = memo(function MessageBubble({
                   ? <AudioMessage uri={msg.mediaUrl} isMe={isMe} duration={msg.audioDuration || 0} />
                   : msg.type === 'image' && msg.mediaUrl
                   ? (
-                    <TouchableOpacity onPress={() => onFullImg(msg.mediaUrl)} activeOpacity={0.9}>
-                      <Image source={{ uri: msg.mediaUrl }} style={{ width:200, height:200, borderRadius:10, marginBottom:4 }} resizeMode="cover" />
+                    <TouchableOpacity
+                      onPress={() => onFullImg(msg.mediaUrl)}
+                      activeOpacity={0.9}
+                      style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', marginRight: isMe ? 12 : 0, marginLeft: isMe ? 0 : 12 }}
+                    >
+                      <Image source={{ uri: msg.mediaUrl }} style={{ width:220, height:220, borderRadius:12 }} resizeMode="contain" />
                     </TouchableOpacity>
                   )
                   : (
@@ -203,7 +208,9 @@ const MessageBubble = memo(function MessageBubble({
               </>
             )}
             {!isPostType && msg.type !== 'gift' && !isDeleted && (
-              <Text style={s.bubbleTime}>{timeStr(msg.createdAt)}</Text>
+              <Text style={[s.bubbleTime, msg.type === 'image' && msg.mediaUrl && { textAlign: isMe ? 'right' : 'left', marginTop:2 }]}>
+                {timeStr(msg.createdAt)}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -241,6 +248,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [isBanned,         setIsBanned]          = useState(false);
   const [showWelcomeBanner,setShowWelcomeBanner] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [kbVisible,          setKbVisible]          = useState(false);
 
   // ── Regalo ─────────────────────────────────────────────────────────────────
   const [giftModal,   setGiftModal]   = useState(false);
@@ -255,8 +263,9 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [sendingGift, setSendingGift] = useState(false);
   const [giftErr,     setGiftErr]     = useState('');
 
-  const flatRef      = useRef(null);
-  const socketRef    = useRef(null);
+  const flatRef        = useRef(null);
+  const socketRef      = useRef(null);
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
   const recordingRef = useRef(null);
   const recTimerRef  = useRef(null);
   const recSecsRef   = useRef(0);
@@ -301,6 +310,20 @@ export default function GroupRoomScreen({ route, navigation }) {
       })
       .catch(() => {});
   }, [group._id]));
+
+  useEffect(() => {
+    const eventShow = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const eventHide = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(eventShow, (e) => {
+      setKbVisible(true);
+      Animated.timing(keyboardOffset, { toValue: e.endCoordinates.height, duration: e.duration || 250, useNativeDriver: false }).start();
+    });
+    const hide = Keyboard.addListener(eventHide, (e) => {
+      setKbVisible(false);
+      Animated.timing(keyboardOffset, { toValue: 0, duration: e.duration || 250, useNativeDriver: false }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     loadGroup();
@@ -745,10 +768,8 @@ export default function GroupRoomScreen({ route, navigation }) {
   const renderMessage = useCallback(({ item, index }) => {
     if (item.type === 'date_separator') {
       return (
-        <View style={s.dateSep}>
-          <View style={s.dateLine} />
-          <Text style={s.dateLabel}>{item.label}</Text>
-          <View style={s.dateLine} />
+        <View style={s.datePill}>
+          <Text style={s.datePillTxt}>{item.label}</Text>
         </View>
       );
     }
@@ -795,9 +816,7 @@ export default function GroupRoomScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
-
-      {/* ── Modal preview imagen ─────────────────────────────────────────────── */}
+        {/* ── Modal preview imagen ─────────────────────────────────────────────── */}
       <Modal visible={!!imagePreview} transparent animationType="fade" onRequestClose={() => setImagePreview(null)}>
         <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding:20 }}>
           {imagePreview && <Image source={{ uri: imagePreview }} style={{ width:'100%', height:'60%', borderRadius:16 }} resizeMode="contain" />}
@@ -934,6 +953,14 @@ export default function GroupRoomScreen({ route, navigation }) {
         </Pressable>
       </Modal>
 
+      <ImageBackground
+        source={require('../../assets/chat-bg.jpeg')}
+        style={{ flex: 1, backgroundColor: '#050c14' }}
+        resizeMode="cover"
+      >
+        <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(2,5,9,0.6)' }} pointerEvents="none" />
+        <StatusBar barStyle="light-content" backgroundColor="transparent" />
+
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <SafeAreaView edges={['top']}>
         <View style={s.header}>
@@ -951,13 +978,13 @@ export default function GroupRoomScreen({ route, navigation }) {
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
-            <Ionicons name="settings" size={20} color={colors.textDim} />
+            <Ionicons name="settings" size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
 
       {/* ── Cuerpo ───────────────────────────────────────────────────────────── */}
-      <View style={{ flex: 1, backgroundColor: '#080f18' }}>
+      <View style={{ flex: 1 }}>
         {loading ? (
           <View style={{ flex:1, alignItems:'center', justifyContent:'center' }}>
             <ActivityIndicator color={colors.c1} size="large" />
@@ -977,22 +1004,10 @@ export default function GroupRoomScreen({ route, navigation }) {
             initialNumToRender={20}
             updateCellsBatchingPeriod={50}
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
             onScroll={(e) => setShowScrollBtn(e.nativeEvent.contentOffset.y > 150)}
             scrollEventThrottle={32}
           />
-        )}
-
-        {/* ── Reply bar ── */}
-        {replyTo && (
-          <View style={s.replyBar}>
-            <View style={{ flex:1 }}>
-              <Text style={s.replyBarUser}>↩ {replyTo.sender?.username || 'usuario'}</Text>
-              <Text style={s.replyBarTxt} numberOfLines={1}>{replyTo.text}</Text>
-            </View>
-            <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding:8 }}>
-              <Text style={{ color:'#888', fontSize:16 }}>✕</Text>
-            </TouchableOpacity>
-          </View>
         )}
 
         {/* ── Banner expulsado ── */}
@@ -1082,7 +1097,25 @@ export default function GroupRoomScreen({ route, navigation }) {
                 />
               </View>
             )}
-            <View style={{ paddingBottom: insets.bottom }}>
+            <Animated.View style={{ marginBottom: keyboardOffset }}>
+            <LinearGradient
+              colors={kbVisible ? ['rgba(2,5,9,0.95)', '#050c14'] : ['transparent', 'rgba(2,5,9,0.85)', '#050c14']}
+              locations={kbVisible ? [0, 1] : [0, 0.5, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={[s.inputContainer, { paddingBottom: insets.bottom }]}
+            >
+            {replyTo && (
+              <View style={s.replyBar}>
+                <View style={{ flex:1 }}>
+                  <Text style={s.replyBarUser}>{replyTo.sender?.username || 'usuario'}</Text>
+                  <Text style={s.replyBarTxt} numberOfLines={1}>{replyTo.text}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setReplyTo(null)} style={{ padding:8 }}>
+                  <Text style={{ color:'#888', fontSize:16 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {audioPreview ? (
               <View style={s.audioPreviewRow}>
                 <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
@@ -1094,51 +1127,59 @@ export default function GroupRoomScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
             ) : (
-              <View style={s.inputRow}>
-                <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
-                  {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
-                </TouchableOpacity>
-                <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
-                  <Ionicons name="gift" size={20} color={colors.c2} />
-                </TouchableOpacity>
-                {isRecording ? (
-                  <View style={s.recRow}>
-                    <View style={s.recDot} />
-                    <Text style={s.recTimer}>
-                      {String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}
-                    </Text>
-                    <TouchableOpacity onPress={stopRecording} style={s.recStop}>
-                      <Ionicons name="stop" size={14} color={colors.c1} />
-                    </TouchableOpacity>
+              <>
+                <View style={s.inputRow}>
+                  <View style={s.inputWrap}>
+                    <TextInput
+                      style={s.input}
+                      value={text}
+                      onChangeText={handleTextChange}
+                      placeholder="Mensaje..."
+                      placeholderTextColor={colors.textDim}
+                      multiline
+                      maxLength={2000}
+                      blurOnSubmit={false}
+                      onSubmitEditing={sendMessage}
+                    />
                   </View>
-                ) : (
-                  <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
-                    <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+                  <TouchableOpacity
+                    style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
+                    onPress={sendMessage}
+                    disabled={!text.trim() || sending}>
+                    <Ionicons name="send" size={16} color="#020509" />
                   </TouchableOpacity>
-                )}
-                <TextInput
-                  style={s.input}
-                  value={text}
-                  onChangeText={handleTextChange}
-                  placeholder="Mensaje..."
-                  placeholderTextColor={colors.textDim}
-                  multiline
-                  maxLength={2000}
-                  blurOnSubmit={false}
-                  onSubmitEditing={sendMessage}
-                />
-                <TouchableOpacity
-                  style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
-                  onPress={sendMessage}
-                  disabled={!text.trim() || sending}>
-                  <Ionicons name="send" size={16} color={colors.black} />
-                </TouchableOpacity>
-              </View>
+                </View>
+                <View style={s.mediaBtnRow}>
+                  <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
+                    {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={22} color={colors.textDim} />}
+                  </TouchableOpacity>
+                  {isRecording ? (
+                    <View style={s.recRow}>
+                      <View style={s.recDot} />
+                      <Text style={s.recTimer}>
+                        {String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}
+                      </Text>
+                      <TouchableOpacity onPress={stopRecording} style={s.recStop}>
+                        <Ionicons name="stop" size={14} color={colors.c1} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
+                      <Ionicons name="mic-outline" size={22} color={colors.textDim} />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
+                    <Ionicons name="gift" size={22} color={colors.c2} />
+                  </TouchableOpacity>
+                </View>
+              </>
             )}
-            </View>
+            </LinearGradient>
+            </Animated.View>
           </View>
         )}
       </View>
+      </ImageBackground>
 
       {showScrollBtn && (
         <TouchableOpacity style={s.scrollDownBtn} onPress={() => flatRef.current?.scrollToOffset({ offset:0, animated:true })}>
@@ -1390,7 +1431,7 @@ export default function GroupRoomScreen({ route, navigation }) {
 const s = StyleSheet.create({
   root:       { flex:1, backgroundColor: colors.black },
 
-  header:      { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:12, borderBottomWidth:1, borderBottomColor: colors.border, gap:12 },
+  header:      { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:12, gap:12 },
   backBtn:     { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.08)', alignItems:'center', justifyContent:'center' },
   settingsBtn: { padding:6 },
   headerInfo:  { flex:1, flexDirection:'row', alignItems:'center', gap:10 },
@@ -1414,25 +1455,28 @@ const s = StyleSheet.create({
   platformCollabBadge:    { backgroundColor:'rgba(167,139,250,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(167,139,250,0.35)', paddingHorizontal:4, paddingVertical:1 },
   platformCollabBadgeTxt: { color:'#a78bfa', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
 
-  bubble:      { maxWidth:'75%', borderRadius:16, padding:10, gap:4 },
-  bubbleMe:    { backgroundColor:'#00a896', borderBottomRightRadius:4 },
-  bubbleThem:  { backgroundColor: colors.surface, borderBottomLeftRadius:4, borderWidth:1, borderColor: colors.border },
+  bubble:      { maxWidth:'75%', borderRadius:10, padding:12, borderWidth:1, gap:4 },
+  bubbleMe:    { backgroundColor:'#0d2137', borderWidth:0 },
+  bubbleThem:  { backgroundColor: colors.surface, borderWidth:0 },
   bubblePost:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0 },
-  bubbleGift:  { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0, maxWidth:'90%' },
+  bubbleGift:  { backgroundColor:'rgba(2,5,9,0.75)', borderRadius:16, padding:12, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', maxWidth:'90%' },
+  bubbleImage: { padding:0, backgroundColor:'transparent', borderColor:'transparent', borderWidth:0 },
   bubbleText:  { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:  { color:'rgba(255,255,255,0.4)', fontSize:9, alignSelf:'flex-end' },
 
-  sysRow: { alignItems:'center', marginVertical:8 },
-  sysTxt: { color:'rgba(255,255,255,0.45)', fontSize:11, backgroundColor:'rgba(255,255,255,0.06)', paddingHorizontal:12, paddingVertical:4, borderRadius:20, overflow:'hidden', textAlign:'center' },
+  sysRow: { alignItems:'center', marginVertical:4 },
+  sysTxt: { color:'rgba(255,255,255,0.7)', fontSize:11, backgroundColor:'rgba(2,5,9,0.65)', borderRadius:12, paddingHorizontal:12, paddingVertical:5, alignSelf:'center', textAlign:'center' },
 
-  dateSep:   { flexDirection:'row', alignItems:'center', marginVertical:10, paddingHorizontal:8 },
-  dateLine:  { flex:1, height:1, backgroundColor: colors.border },
-  dateLabel: { color: colors.textDim, fontSize:11, marginHorizontal:10 },
+  datePill:    { alignSelf:'center', backgroundColor:'rgba(2,5,9,0.55)', borderRadius:10, paddingHorizontal:14, paddingVertical:4, marginVertical:10, borderWidth:1, borderColor:'rgba(255,255,255,0.08)' },
+  datePillTxt: { color:'rgba(255,255,255,0.6)', fontSize:11, fontWeight:'500' },
 
-  inputRow:        { flexDirection:'row', alignItems:'center', paddingHorizontal:12, paddingVertical:10, borderTopWidth:1, borderTopColor: colors.border, gap:8 },
+  inputContainer:  { paddingTop: 20, paddingHorizontal: 12 },
+  inputRow:        { flexDirection:'row', alignItems:'center', paddingHorizontal:0, paddingVertical:6, gap:8 },
+  inputWrap:       { flex:1, flexDirection:'row', alignItems:'center', backgroundColor:'#080f18', borderRadius:12, borderWidth:1, borderColor: colors.border },
+  mediaBtnRow:     { flexDirection:'row', gap:12, paddingVertical:10, paddingHorizontal:4 },
   mediaBtn:        { padding:8, justifyContent:'center', alignItems:'center' },
-  input:           { flex:1, backgroundColor: colors.surface, borderRadius:16, borderWidth:1, borderColor: colors.border, paddingHorizontal:14, paddingVertical:10, color: colors.textHi, fontSize:14, maxHeight:100 },
-  sendBtn:         { width:36, height:36, borderRadius:18, backgroundColor: colors.c1, alignItems:'center', justifyContent:'center' },
+  input:           { flex:1, paddingHorizontal:14, paddingVertical:10, color: colors.textHi, fontSize:14, maxHeight:100 },
+  sendBtn:         { width:42, height:42, borderRadius:12, backgroundColor: colors.c1, alignItems:'center', justifyContent:'center', flexShrink:0 },
   sendBtnDisabled: { opacity:0.4 },
 
   recRow:  { flexDirection:'row', alignItems:'center', gap:6, paddingHorizontal:8 },
@@ -1440,17 +1484,17 @@ const s = StyleSheet.create({
   recTimer:{ color: colors.c1, fontSize:13, fontWeight:'700', minWidth:38 },
   recStop: { width:28, height:28, borderRadius:14, backgroundColor:'rgba(239,68,68,0.8)', alignItems:'center', justifyContent:'center' },
 
-  replyBar:     { flexDirection:'row', alignItems:'center', backgroundColor:'rgba(255,255,255,0.05)', paddingHorizontal:12, paddingVertical:8, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.08)' },
-  replyBarUser: { color:'rgba(0,229,204,0.8)', fontSize:11, fontWeight:'700' },
+  replyBar:     { flexDirection:'row', alignItems:'center', backgroundColor:'transparent', paddingHorizontal:12, paddingVertical:8, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' },
+  replyBarUser: { color: colors.c1, fontSize:11, fontWeight:'700' },
   replyBarTxt:  { color:'rgba(255,255,255,0.4)', fontSize:12 },
-  replyPreview: { backgroundColor:'rgba(255,255,255,0.06)', borderLeftWidth:2, borderLeftColor:'rgba(0,229,204,0.5)', paddingLeft:8, paddingVertical:4, marginBottom:6, borderRadius:4 },
-  replyUser:    { color:'rgba(0,229,204,0.8)', fontSize:10, fontWeight:'700' },
-  replyText:    { color:'rgba(255,255,255,0.4)', fontSize:11 },
+  replyPreview: { backgroundColor:'rgba(0,229,204,0.08)', borderLeftWidth:3, borderLeftColor:colors.c1, borderRadius:8, paddingHorizontal:10, paddingVertical:6, marginBottom:6 },
+  replyUser:    { color: colors.c1, fontSize:10, fontWeight:'700' },
+  replyText:    { color:'rgba(255,255,255,0.55)', fontSize:11 },
 
   audioPreviewRow:    { flexDirection:'row', alignItems:'center', justifyContent:'center', paddingHorizontal:16, paddingVertical:10, gap:12, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
   audioPreviewCancel: { width:36, height:36, borderRadius:18, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)', alignItems:'center', justifyContent:'center' },
   audioPreviewSend:   { width:36, height:36, borderRadius:18, backgroundColor:'rgba(0,229,204,0.8)', alignItems:'center', justifyContent:'center' },
-  scrollDownBtn:      { position:'absolute', bottom:130, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
+  scrollDownBtn:      { position:'absolute', bottom:260, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
 
   menuOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.65)', justifyContent:'flex-end' },
   menuBox:     { backgroundColor: colors.surface, borderTopLeftRadius:20, borderTopRightRadius:20, paddingBottom:24, borderWidth:1, borderColor: colors.borderC, overflow:'hidden' },
