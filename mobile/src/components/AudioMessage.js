@@ -1,129 +1,167 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import { Audio } from 'expo-av';
 
-const BARS = 26;
-const BAR_HEIGHTS = Array.from({ length: BARS }, (_, i) => {
-  const v = Math.sin(i * 0.9) * 0.3 + Math.sin(i * 1.8) * 0.2 + Math.sin(i * 0.4) * 0.15 + 0.4;
-  return Math.max(0.15, Math.min(1, v));
-});
+const BAR_HEIGHTS = [14, 20, 16, 22, 12];
 
-function fmtTime(secs) {
-  if (!secs || isNaN(secs) || !isFinite(secs) || secs < 0) return '0:00';
-  const s = Math.floor(secs);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+// ── Un solo audio activo en toda la app ───────────────────────────────────────
+// Cuando un mensaje empieza a reproducirse, llama a _activeDeactivate() del
+// mensaje que estaba sonando antes para pausarlo y detener su animación.
+let _activeDeactivate = null;
+
+function fmtSecs(secs) {
+  if (secs == null || isNaN(secs) || !isFinite(secs) || secs < 0) return '0"';
+  return `${Math.round(secs)}"`;
 }
 
-export default function AudioMessage({ uri, isMe, duration = 0 }) {
-  const player = useAudioPlayer({ uri });
-  const status = useAudioPlayerStatus(player);
+export default function AudioMessage({ uri, isMe, duration = 0, onLongPress }) {
+  const barAnims = useRef(
+    Array.from({ length: 5 }, () => new Animated.Value(0.3))
+  ).current;
 
-  const playing  = status.playing ?? false;
-  const elapsed  = status.currentTime ?? 0;
-  const totalDur = status.duration > 0 ? status.duration : (duration > 0 ? duration : 0);
-  const progress = totalDur > 0 ? elapsed / totalDur : 0;
+  const soundRef = useRef(null);
 
-  const barAnims  = useRef(BAR_HEIGHTS.map(h => new Animated.Value(h))).current;
-  const animLoops = useRef([]);
-  const wasPlaying = useRef(false);
+  const [playing,   setPlaying]   = useState(false);
+  const [totalSecs, setTotalSecs] = useState(duration || 0);
+  const [remaining, setRemaining] = useState(duration || 0);
 
-  // Habilitar audio en silencio iOS
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
+    return () => {
+      soundRef.current?.unloadAsync();
+      soundRef.current = null;
+      if (_activeDeactivate === myDeactivate) _activeDeactivate = null;
+    };
   }, []);
 
-  // Arrancar/parar animación según estado
-  useEffect(() => {
-    if (playing && !wasPlaying.current) {
-      startBarAnim();
-      wasPlaying.current = true;
-    } else if (!playing && wasPlaying.current) {
-      stopBarAnim();
-      wasPlaying.current = false;
-    }
-  }, [playing]);
-
-  function startBarAnim() {
-    stopBarAnim();
-    animLoops.current = barAnims.map((anim, i) => {
-      anim.setValue(BAR_HEIGHTS[i]);
-      const minH = 0.15 + Math.random() * 0.1;
-      const maxH = 0.5  + Math.random() * 0.5;
-      const dur  = 200  + (i % 5) * 60;
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, { toValue: maxH, duration: dur,      useNativeDriver: false }),
-          Animated.timing(anim, { toValue: minH, duration: dur + 40, useNativeDriver: false }),
-        ])
-      );
-      loop.start();
-      return loop;
-    });
+  // La función de desactivación de ESTE mensaje, captura sus propios refs/state
+  function myDeactivate() {
+    soundRef.current?.pauseAsync().catch(() => {});
+    setPlaying(false);
+    stopAnimation();
   }
 
-  function stopBarAnim() {
-    animLoops.current.forEach(l => l?.stop());
-    animLoops.current = [];
+  function startAnimation() {
     barAnims.forEach((anim, i) => {
-      Animated.timing(anim, { toValue: BAR_HEIGHTS[i], duration: 150, useNativeDriver: false }).start();
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue:  1,
+            duration: 300 + i * 100,
+            easing:   Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue:  0.2,
+            duration: 300 + i * 80,
+            easing:   Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
     });
   }
 
-  function togglePlay() {
-    if (playing) {
-      player.pause();
-    } else {
-      if (totalDur > 0 && elapsed >= totalDur - 0.5) {
-        player.seekTo(0);
+  function stopAnimation() {
+    barAnims.forEach(anim => {
+      anim.stopAnimation();
+      Animated.timing(anim, {
+        toValue:  0.3,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    });
+  }
+
+  async function handlePress() {
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, allowsRecordingIOS: false });
+
+      if (!playing) {
+        // Detener el audio que esté sonando en otro mensaje
+        if (_activeDeactivate && _activeDeactivate !== myDeactivate) {
+          _activeDeactivate();
+        }
+
+        if (!soundRef.current) {
+          const { sound } = await Audio.Sound.createAsync(
+            { uri },
+            { shouldPlay: true },
+          );
+          soundRef.current = sound;
+
+          sound.setOnPlaybackStatusUpdate((status) => {
+            if (!status.isLoaded) return;
+
+            if (status.durationMillis > 0) {
+              const total = status.durationMillis / 1000;
+              const pos   = status.positionMillis  / 1000;
+              setTotalSecs(total);
+              setRemaining(Math.max(0, total - pos));
+            }
+
+            if (status.didJustFinish) {
+              const total = status.durationMillis > 0
+                ? status.durationMillis / 1000
+                : duration;
+              setPlaying(false);
+              setRemaining(total);
+              stopAnimation();
+              soundRef.current?.unloadAsync();
+              soundRef.current = null;
+              if (_activeDeactivate === myDeactivate) _activeDeactivate = null;
+            }
+          });
+        } else {
+          if (remaining <= 0.3) await soundRef.current.setPositionAsync(0);
+          await soundRef.current.playAsync();
+        }
+
+        _activeDeactivate = myDeactivate;
+        setPlaying(true);
+        startAnimation();
+      } else {
+        await soundRef.current?.pauseAsync();
+        setPlaying(false);
+        stopAnimation();
+        if (_activeDeactivate === myDeactivate) _activeDeactivate = null;
       }
-      player.play();
+    } catch (e) {
+      console.log('AudioMessage error:', e.message);
     }
   }
 
-  const accent    = isMe ? colors.c1 : 'rgba(160,190,255,0.9)';
-  const dimmed    = isMe ? 'rgba(0,229,204,0.18)' : 'rgba(160,190,255,0.12)';
-  const btnBg     = isMe ? 'rgba(0,229,204,0.12)' : 'rgba(160,190,255,0.1)';
-  const remaining = totalDur > 0 ? Math.max(0, totalDur - elapsed) : 0;
-  const display   = playing ? fmtTime(remaining) : fmtTime(totalDur || duration);
+  const displaySecs = playing ? remaining : duration;
 
   return (
-    <View style={s.wrap}>
-      <TouchableOpacity onPress={togglePlay} activeOpacity={0.7}
-        style={[s.playBtn, { backgroundColor: btnBg, borderColor: accent }]}>
-        <Ionicons
-          name={playing ? 'pause' : 'play'}
-          size={15} color={accent}
-          style={!playing ? { marginLeft: 2 } : {}}
-        />
-      </TouchableOpacity>
+    <TouchableOpacity
+      onPress={handlePress}
+      onLongPress={onLongPress}
+      activeOpacity={0.8}
+      style={s.wrap}
+    >
+      <Text style={s.dur}>{fmtSecs(displaySecs)}</Text>
 
-      <View style={s.waveWrap}>
-        {BAR_HEIGHTS.map((h, i) => {
-          const filled = progress > 0 && (i / BARS) <= progress;
-          return (
-            <Animated.View key={i} style={{
-              width: 2.5,
-              borderRadius: 2,
-              backgroundColor: filled ? accent : dimmed,
-              height: barAnims[i].interpolate({
-                inputRange:  [0, 1],
-                outputRange: [3, 26],
-              }),
-            }} />
-          );
-        })}
+      <View style={s.barsWrap}>
+        {barAnims.map((anim, i) => (
+          <Animated.View
+            key={i}
+            style={{
+              width:            3,
+              height:           BAR_HEIGHTS[i],
+              backgroundColor:  '#ffffff',
+              borderRadius:     2,
+              marginHorizontal: 1,
+              transform: [{ scaleY: anim }],
+            }}
+          />
+        ))}
       </View>
-
-      <Text style={[s.timer, { color: accent }]}>{display}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 const s = StyleSheet.create({
-  wrap:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2, minWidth: 190, maxWidth: 220 },
-  playBtn:  { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  waveWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 28, gap: 1 },
-  timer:    { fontSize: 10, fontWeight: '700', minWidth: 32, textAlign: 'right', flexShrink: 0 },
+  wrap:     { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 90, paddingVertical: 2 },
+  dur:      { fontSize: 13, color: '#ffffff', fontWeight: '600', minWidth: 32 },
+  barsWrap: { flexDirection: 'row', alignItems: 'center', height: 26, gap: 2 },
 });

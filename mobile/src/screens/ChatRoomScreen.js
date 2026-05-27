@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
-  View, Animated, LayoutAnimation, ActivityIndicator, Alert, Text, TextInput, TouchableOpacity,
+  View, Animated, Easing, LayoutAnimation, ActivityIndicator, Alert, Text, TextInput, TouchableOpacity,
   FlatList, Image, ImageBackground, Keyboard, Modal, Platform,
   Pressable, StyleSheet, StatusBar, Linking, ScrollView,
 } from 'react-native';
@@ -139,6 +139,8 @@ const sp = StyleSheet.create({
 });
 
 const AVATAR_SLOT = 36;
+const _imgDimCache = {};
+const REC_BAR_HEIGHTS = [16, 24, 20, 30, 18, 28, 22, 14];
 
 // ─── MessageBubble — React.memo: solo re-renderiza si sus props cambian ───────
 // Esta es la clave del fix: antes, al llegar 1 mensaje nuevo, las 50 burbujas
@@ -157,6 +159,10 @@ const MessageBubble = memo(function MessageBubble({
   user,
   other,
 }) {
+  const [imgSize, setImgSize] = useState(() =>
+    item.mediaUrl ? (_imgDimCache[item.mediaUrl] ?? null) : null
+  );
+
   const olderIsMe   = !!myId && !!olderMsg && getSenderId(olderMsg.sender) === myId;
   const sameAsOlder = olderMsg && (isMe ? olderIsMe : !olderIsMe);
   const showAvatar  = !sameAsOlder;
@@ -169,6 +175,33 @@ const MessageBubble = memo(function MessageBubble({
   const senderFrame    = item.sender?.profileFrame    ?? (isMe ? user.profileFrame    : other.profileFrame);
   const senderFrameUrl = item.sender?.profileFrameUrl ?? (isMe ? user.profileFrameUrl : other.profileFrameUrl);
 
+  useEffect(() => {
+    if (!isImageType || imgSize) return;
+    Image.getSize(
+      item.mediaUrl,
+      (w, h) => {
+        const dim = { w, h };
+        _imgDimCache[item.mediaUrl] = dim;
+        setImgSize(dim);
+      },
+      () => setImgSize({ w: 4, h: 3 }),
+    );
+  }, [item.mediaUrl]);
+
+  const IMG_MAX_W = 180;
+  const IMG_MAX_H = 260;
+  let imgDispW = 120;
+  let imgDispH = 90;
+  if (imgSize) {
+    const natRatio = imgSize.w / imgSize.h;
+    imgDispW = IMG_MAX_W;
+    imgDispH = IMG_MAX_W / natRatio;
+    if (imgDispH > IMG_MAX_H) {
+      imgDispH = IMG_MAX_H;
+      imgDispW = IMG_MAX_H * natRatio;
+    }
+  }
+
   return (
     <>
       <View style={[s.msgRow, isMe && s.msgRowMe]}>
@@ -178,8 +211,17 @@ const MessageBubble = memo(function MessageBubble({
               profileFrame={senderFrame} frameUrl={senderFrameUrl} banned={!isMe && !!other?.banned} />
           )}
         </View>
-  <TouchableOpacity onLongPress={onLongPress} activeOpacity={0.8}
-  style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem, isPostType && s.bubblePost, isGiftType && s.bubbleGift, isImageType && s.bubbleImage]}>
+  <TouchableOpacity
+    onLongPress={onLongPress}
+    onPress={isImageType ? () => onFullImg(item.mediaUrl) : undefined}
+    activeOpacity={0.8}
+    style={[
+      s.bubble,
+      isMe ? s.bubbleMe : s.bubbleThem,
+      isPostType && s.bubblePost,
+      isGiftType && s.bubbleGift,
+      isImageType && { backgroundColor:'transparent', padding:0, borderRadius:0, borderWidth:0, maxWidth: IMG_MAX_W },
+    ]}>
 
   {item.replyTo?.text && (
     <TouchableOpacity style={s.replyPreview} onPress={() => onScrollToMsg(item.replyTo.messageId)}>
@@ -197,24 +239,23 @@ const MessageBubble = memo(function MessageBubble({
     ? <SharedPostBubble sharedPost={item.sharedPost} navigation={navigation}
         isMe={isMe} onLongPress={onLongPress} />
     : item.type === 'audio' && item.mediaUrl
-    ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} />
+    ? <AudioMessage uri={item.mediaUrl} isMe={isMe} duration={item.audioDuration || 0} onLongPress={onLongPress} />
     : item.type === 'image' && item.mediaUrl
-    ? (
-      <TouchableOpacity
-        onPress={() => onFullImg(item.mediaUrl)}
-        activeOpacity={0.9}
-        style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', marginRight: isMe ? 12 : 0, marginLeft: isMe ? 0 : 12 }}
-      >
-        <Image source={{ uri: item.mediaUrl }}
-          style={{ width:220, height:220, borderRadius:12 }} resizeMode="contain" />
-      </TouchableOpacity>
-    )
+    ? imgSize
+      ? <Image
+          source={{ uri: item.mediaUrl }}
+          style={{ width: imgDispW, height: imgDispH }}
+          resizeMode="cover"
+        />
+      : <View style={{ width: 120, height: 90, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="small" color={colors.textDim} />
+        </View>
     : <RichMessage text={item.text} navigation={navigation}
         textStyle={s.bubbleTxt} onLongPress={onLongPress} />
   }
 
-  {!isPostType && !isGiftType && (
-    <Text style={[s.bubbleTime, isImageType && { textAlign: isMe ? 'right' : 'left', marginTop:2 }]}>
+  {!isPostType && !isGiftType && !isImageType && (
+    <Text style={s.bubbleTime}>
       {timeStr(item.createdAt)}
     </Text>
   )}
@@ -277,10 +318,14 @@ export default function ChatRoomScreen({ route, navigation }) {
   const socketRef      = useRef(null);
   const recordingRef   = useRef(null);
   const recTimerRef    = useRef(null);
+  const recSecondsRef  = useRef(0);
   const typingTimer    = useRef(null);
   const sendingRef     = useRef(false);
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const sendAnim       = useRef(new Animated.Value(0)).current;
+  const recBarAnims    = useRef(Array.from({ length: 8 }, () => new Animated.Value(0.3))).current;
+  const micPulseAnim   = useRef(new Animated.Value(1)).current;
+  const pendingAudioDurationsRef = useRef({});
 
   // Mensajes más recientes primero, con separadores de fecha como items propios
   const flatListData = useMemo(() => {
@@ -337,10 +382,18 @@ export default function ChatRoomScreen({ route, navigation }) {
 
       s.on('chat:message', ({ chatId, message }) => {
         if (chatId.toString() !== chat._id.toString()) return;
+        let msg = message;
+        if (msg.type === 'audio' && msg.mediaUrl && !msg.audioDuration) {
+          const stored = pendingAudioDurationsRef.current[msg.mediaUrl];
+          if (stored) {
+            msg = { ...msg, audioDuration: stored };
+            delete pendingAudioDurationsRef.current[message.mediaUrl];
+          }
+        }
         setMessages(prev => {
-          const msgId = message._id?.toString();
+          const msgId = msg._id?.toString();
           if (msgId && prev.some(m => m._id?.toString() === msgId)) return prev;
-          return [...prev, message];
+          return [...prev, msg];
         });
         s.emit('chat:read', { chatId: chat._id.toString() });
       });
@@ -370,6 +423,32 @@ export default function ChatRoomScreen({ route, navigation }) {
       socketRef.current?.emit('chat:leave', { chatId: chat._id.toString() });
     };
   }, []);
+
+  useEffect(() => {
+    if (isRecording) {
+      recBarAnims.forEach((anim, i) => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(anim, { toValue: 1,   duration: 250 + i * 70, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(anim, { toValue: 0.2, duration: 250 + i * 55, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ])
+        ).start();
+      });
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(micPulseAnim, { toValue: 0.4, duration: 600, useNativeDriver: true }),
+          Animated.timing(micPulseAnim, { toValue: 1,   duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      recBarAnims.forEach(anim => {
+        anim.stopAnimation();
+        Animated.timing(anim, { toValue: 0.3, duration: 150, useNativeDriver: true }).start();
+      });
+      micPulseAnim.stopAnimation();
+      Animated.timing(micPulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+    }
+  }, [isRecording]);
 
   async function openGiftModal() {
     setGiftModal(true);
@@ -500,8 +579,12 @@ export default function ChatRoomScreen({ route, navigation }) {
       );
       recordingRef.current = recording;
       setIsRecording(true);
+      recSecondsRef.current = 0;
       setRecSeconds(0);
-      recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+      recTimerRef.current = setInterval(() => {
+        recSecondsRef.current += 1;
+        setRecSeconds(recSecondsRef.current);
+      }, 1000);
     } catch (e) { console.log('startRecording error:', e.message); }
   }
 
@@ -509,7 +592,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     try {
       setIsRecording(false);
       clearInterval(recTimerRef.current);
-      const secs = recSeconds;
+      const secs = recSecondsRef.current;
+      recSecondsRef.current = 0;
       setRecSeconds(0);
       await recordingRef.current?.stopAndUnloadAsync();
       const uri = recordingRef.current?.getURI();
@@ -537,6 +621,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
+      pendingAudioDurationsRef.current[data.url] = preview.duration;
       socketRef.current?.emit('chat:send', { chatId: chat._id.toString(), text: '', type: 'audio', mediaUrl: data.url, audioDuration: preview.duration });
     } catch (e) { console.log('sendAudioPreview error:', e.message); }
     finally { setUploading(false); }
@@ -734,13 +819,41 @@ export default function ChatRoomScreen({ route, navigation }) {
           </View>
         )}
         {audioPreview ? (
-          <View style={s.audioPreviewRow}>
-            <TouchableOpacity onPress={cancelAudioPreview} style={s.audioPreviewCancel}>
-              <Ionicons name="trash-outline" size={18} color="rgba(239,68,68,0.8)" />
-            </TouchableOpacity>
-            <AudioMessage uri={audioPreview.uri} isMe duration={audioPreview.duration} />
-            <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.audioPreviewSend}>
-              {uploading ? <ActivityIndicator size={16} color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+          <View style={s.recPreviewContainer}>
+            <View style={{ alignItems: 'center' }}>
+              <AudioMessage uri={audioPreview.uri} isMe duration={audioPreview.duration} />
+            </View>
+            <View style={s.recPreviewBtns}>
+              <TouchableOpacity onPress={cancelAudioPreview} style={s.recPreviewCancel}>
+                <Text style={s.recPreviewCancelTxt}>✕ Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={sendAudioPreview} disabled={uploading} style={s.recPreviewSend}>
+                {uploading
+                  ? <ActivityIndicator size={16} color="#020509" />
+                  : <Text style={s.recPreviewSendTxt}>➤ Enviar</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : isRecording ? (
+          <View style={s.recContainer}>
+            <Animated.View style={{ opacity: micPulseAnim }}>
+              <Ionicons name="mic" size={32} color="rgba(239,68,68,0.9)" />
+            </Animated.View>
+            <Text style={s.recTimerLarge}>
+              {String(Math.floor(recSeconds / 60)).padStart(2, '0')}:{String(recSeconds % 60).padStart(2, '0')}
+            </Text>
+            <Text style={s.recGrabandoTxt}>Grabando...</Text>
+            <View style={s.recBarsWrap}>
+              {recBarAnims.map((anim, i) => (
+                <Animated.View
+                  key={i}
+                  style={{ width: 3, height: REC_BAR_HEIGHTS[i], backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 2, marginHorizontal: 1, transform: [{ scaleY: anim }] }}
+                />
+              ))}
+            </View>
+            <TouchableOpacity onPress={stopRecording} style={s.recStopBtnNew}>
+              <Ionicons name="stop-circle-outline" size={32} color={colors.c1} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -775,23 +888,13 @@ export default function ChatRoomScreen({ route, navigation }) {
               )}
             </View>
             <View style={s.mediaBtnRow}>
-              <TouchableOpacity onPress={sendImage} disabled={uploading || isRecording} style={s.mediaBtn}>
+              <TouchableOpacity onPress={sendImage} disabled={uploading} style={s.mediaBtn}>
                 {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
               </TouchableOpacity>
-              {isRecording ? (
-                <View style={s.recRow}>
-                  <View style={s.recDot} />
-                  <Text style={s.recTimer}>{String(Math.floor(recSeconds/60)).padStart(2,'0')}:{String(recSeconds%60).padStart(2,'0')}</Text>
-                  <TouchableOpacity onPress={stopRecording} style={s.recStop}>
-                    <Ionicons name="stop" size={14} color={colors.c1} />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
-                  <Ionicons name="mic-outline" size={20} color={colors.textDim} />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
+              <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
+                <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={openGiftModal} disabled={uploading} style={s.mediaBtn}>
                 <Ionicons name="gift" size={20} color={colors.c2} />
               </TouchableOpacity>
             </View>
@@ -991,19 +1094,22 @@ const s = StyleSheet.create({
   bubbleThem:   { backgroundColor: colors.card, borderWidth:0 },
   bubblePost:   { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
   bubbleGift:   { padding:0, backgroundColor:'transparent', borderColor:'transparent', maxWidth:'90%' },
-  bubbleImage:  { padding:0, backgroundColor:'transparent', borderColor:'transparent' },
   bubbleTxt:    { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:   { color: colors.textDim, fontSize:9, marginTop:4, textAlign:'right' },
   inputContainer:     { paddingTop: 20, paddingHorizontal: 12 },
   mediaBtnRow:        { flexDirection:'row', gap:12, paddingVertical:10, paddingHorizontal:12 },
   mediaBtn:           { padding:8, justifyContent:'center', alignItems:'center' },
-  recRow:             { flexDirection:'row', alignItems:'center', gap:6, paddingHorizontal:8 },
-  recDot:             { width:8, height:8, borderRadius:4, backgroundColor:'rgba(239,68,68,0.9)' },
-  recTimer:           { color: colors.c1, fontSize:13, fontWeight:'700', minWidth:38 },
-  recStop:            { width:28, height:28, borderRadius:14, backgroundColor:'rgba(239,68,68,0.8)', alignItems:'center', justifyContent:'center' },
-  audioPreviewRow:    { flexDirection:'row', alignItems:'center', justifyContent:'center', paddingHorizontal:16, paddingVertical:10, gap:12, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.06)', backgroundColor: colors.surface },
-  audioPreviewCancel: { width:36, height:36, borderRadius:18, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)', alignItems:'center', justifyContent:'center' },
-  audioPreviewSend:   { width:36, height:36, borderRadius:18, backgroundColor:'rgba(0,229,204,0.8)', alignItems:'center', justifyContent:'center' },
+  recContainer:       { alignItems:'center', paddingVertical:20, backgroundColor:'rgba(2,5,9,0.95)', borderRadius:20, marginBottom:10, gap:10 },
+  recTimerLarge:      { fontSize:32, fontWeight:'700', color:'#fff' },
+  recGrabandoTxt:     { color:'rgba(255,255,255,0.4)', fontSize:12 },
+  recBarsWrap:        { flexDirection:'row', alignItems:'center', height:36, gap:2 },
+  recStopBtnNew:      { marginTop:4, padding:6 },
+  recPreviewContainer:{ paddingHorizontal:4, paddingVertical:14, gap:12 },
+  recPreviewBtns:     { flexDirection:'row', gap:12 },
+  recPreviewCancel:   { flex:1, borderRadius:12, paddingVertical:12, alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:'rgba(239,68,68,0.5)', backgroundColor:'transparent' },
+  recPreviewCancelTxt:{ color:'rgba(239,68,68,0.9)', fontWeight:'700', fontSize:14 },
+  recPreviewSend:     { flex:1, borderRadius:12, paddingVertical:12, alignItems:'center', justifyContent:'center', backgroundColor:colors.c1 },
+  recPreviewSendTxt:  { color:'#020509', fontWeight:'800', fontSize:14 },
   inputRow:     { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:0, paddingVertical:6 },
   inputWrap:    { flex:1, minWidth:0, flexDirection:'row', alignItems:'center', position:'relative' },
   input:        { flex:1, backgroundColor:'#080f18', borderWidth:1, borderColor: colors.border, borderRadius:12, paddingHorizontal:16, paddingRight:40, paddingVertical:10, color: colors.textHi, fontSize:14 },
