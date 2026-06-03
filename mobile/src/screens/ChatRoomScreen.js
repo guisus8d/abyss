@@ -300,7 +300,9 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [isBlocked,          setIsBlocked]          = useState(other?.blocked ?? false);
   const [kbVisible,          setKbVisible]          = useState(false);
-  const [isFocused,          setIsFocused]          = useState(false);
+  const [hasMore,            setHasMore]            = useState(false);
+  const [loadingMore,        setLoadingMore]        = useState(false);
+  const [newMsgIndicator,    setNewMsgIndicator]    = useState(false);
 
   // ── Regalo ────────────────────────────────────────────────────────────────
   const [giftModal,     setGiftModal]     = useState(false);
@@ -326,6 +328,9 @@ export default function ChatRoomScreen({ route, navigation }) {
   const recBarAnims    = useRef(Array.from({ length: 8 }, () => new Animated.Value(0.3))).current;
   const micPulseAnim   = useRef(new Animated.Value(1)).current;
   const pendingAudioDurationsRef = useRef({});
+  const msgSkipRef      = useRef(0);
+  const loadingMoreRef  = useRef(false);
+  const scrollOffsetRef = useRef(0);
 
   // Mensajes más recientes primero, con separadores de fecha como items propios
   const flatListData = useMemo(() => {
@@ -369,6 +374,8 @@ export default function ChatRoomScreen({ route, navigation }) {
 
     api.get(`/chats/${chat._id}/messages?limit=50`).then(({ data }) => {
       setMessages(data.messages || []);
+      setHasMore(data.hasMore ?? false);
+      msgSkipRef.current = 50;
     }).catch(() => {});
 
     connectSocket().then(s => {
@@ -396,6 +403,12 @@ export default function ChatRoomScreen({ route, navigation }) {
           return [...prev, msg];
         });
         s.emit('chat:read', { chatId: chat._id.toString() });
+        const isOwnMsg = getSenderId(msg.sender) === myId;
+        if (isOwnMsg || scrollOffsetRef.current < 100) {
+          setTimeout(() => flatRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
+        } else {
+          setNewMsgIndicator(true);
+        }
       });
 
       s.on('chat:typing', ({ userId, isTyping }) => {
@@ -502,6 +515,8 @@ export default function ChatRoomScreen({ route, navigation }) {
         },
       });
       setGiftModal(false);
+      flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+      setNewMsgIndicator(false);
     } catch (e) {
       setGiftErr(e.response?.data?.error || 'Error al enviar regalo');
     } finally { setSendingGift(false); }
@@ -524,11 +539,31 @@ export default function ChatRoomScreen({ route, navigation }) {
     }
   }, []);
 
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const { data } = await api.get(`/chats/${chat._id}/messages?limit=50&skip=${msgSkipRef.current}`);
+      if (data.messages?.length) {
+        setMessages(prev => [...data.messages, ...prev]);
+      }
+      setHasMore(data.hasMore ?? false);
+      msgSkipRef.current += 50;
+    } catch {}
+    finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore]);
+
   async function handleSend() {
     const msgText = text.trim();
     if (!msgText || sendingRef.current) return;
     sendingRef.current = true;
     setText('');
+    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setNewMsgIndicator(false);
     try {
       socketRef.current?.emit('chat:send', {
         chatId: chat._id.toString(), text: msgText,
@@ -550,6 +585,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (!imagePreview) return;
     const uri = imagePreview;
     setImagePreview(null);
+    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setNewMsgIndicator(false);
     try {
       setUploading(true);
       const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
@@ -607,6 +644,8 @@ export default function ChatRoomScreen({ route, navigation }) {
     if (!audioPreview) return;
     const preview = audioPreview;
     setAudioPreview(null);
+    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setNewMsgIndicator(false);
     try {
       setUploading(true);
       const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
@@ -770,8 +809,20 @@ export default function ChatRoomScreen({ route, navigation }) {
               maxToRenderPerBatch={10}
               initialNumToRender={15}
               updateCellsBatchingPeriod={50}
-              onScroll={e => setShowScrollBtn(e.nativeEvent.contentOffset.y > 150)}
+              onScroll={e => {
+                const y = e.nativeEvent.contentOffset.y;
+                scrollOffsetRef.current = y;
+                setShowScrollBtn(y > 150);
+                if (y < 100) setNewMsgIndicator(false);
+              }}
               scrollEventThrottle={32}
+              onEndReached={loadMoreMessages}
+              onEndReachedThreshold={0.2}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              ListFooterComponent={loadingMore
+                ? <View style={{ paddingVertical: 12, alignItems: 'center' }}><ActivityIndicator size="small" color={colors.c1} /></View>
+                : null
+              }
             />
           </View>
 
@@ -866,8 +917,6 @@ export default function ChatRoomScreen({ route, navigation }) {
                   placeholderTextColor={colors.textDim}
                   value={text}
                   onChangeText={handleTyping}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
                   onSubmitEditing={Platform.OS !== 'web' ? handleSend : undefined}
                   returnKeyType="send"
                   onKeyPress={Platform.OS === 'web' ? (e) => { if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); handleSend(); } } : undefined}
@@ -877,15 +926,13 @@ export default function ChatRoomScreen({ route, navigation }) {
                   <Ionicons name="happy-outline" size={20} color={colors.textDim} />
                 </TouchableOpacity>
               </View>
-              {isFocused && (
-                <TouchableOpacity
-                  onPress={handleSend}
-                  disabled={!text.trim()}
-                  style={[s.sendBtn, { opacity: text.length > 0 ? 1 : 0.3 }]}
-                >
-                  <Ionicons name="send" size={18} color="#020509" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={handleSend}
+                disabled={!text.trim()}
+                style={[s.sendBtn, { opacity: text.length > 0 ? 1 : 0.3 }]}
+              >
+                <Ionicons name="send" size={18} color="#020509" />
+              </TouchableOpacity>
             </View>
             <View style={s.mediaBtnRow}>
               <TouchableOpacity onPress={sendImage} disabled={uploading} style={s.mediaBtn}>
@@ -905,9 +952,13 @@ export default function ChatRoomScreen({ route, navigation }) {
       </View>
       </ImageBackground>
 
-      {showScrollBtn && (
-        <TouchableOpacity style={s.scrollDownBtn} onPress={() => flatRef.current?.scrollToOffset({ offset:0, animated:true })}>
+      {(showScrollBtn || newMsgIndicator) && (
+        <TouchableOpacity style={s.scrollDownBtn} onPress={() => {
+          flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+          setNewMsgIndicator(false);
+        }}>
           <Ionicons name="chevron-down" size={20} color={colors.c1} />
+          {newMsgIndicator && <View style={s.newMsgDot} />}
         </TouchableOpacity>
       )}
 
@@ -1139,6 +1190,7 @@ const s = StyleSheet.create({
   mentionAt:        { color:'#666', fontSize:14 },
   mentionName:      { color:'#eee', fontSize:14, fontWeight:'600' },
   scrollDownBtn:    { position:'absolute', bottom:260, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
+  newMsgDot:        { position:'absolute', top:6, right:6, width:8, height:8, borderRadius:4, backgroundColor: colors.c1 },
 
   // Gift modal
   giftOverlay:      { flex:1, backgroundColor:'rgba(0,0,0,0.72)', justifyContent:'flex-end' },

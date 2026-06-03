@@ -2,8 +2,9 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, Image,
   StyleSheet, StatusBar, ActivityIndicator,
-  Platform, ScrollView,
+  Platform, ScrollView, Modal, Pressable, Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,13 @@ import { connectSocket } from '../services/socket';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CustomTabBar from '../components/CustomTabBar';
 
+// ── AsyncStorage keys ──────────────────────────────────────────────────────
+const SK_PINNED = 'pinnedChats';
+const SK_MUTED  = 'mutedChats';
+const SK_UNREAD = 'unreadOverride';
+const SK_HIDDEN = 'hiddenChats';
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 function chatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -25,17 +33,29 @@ function chatDate(dateStr) {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
+async function loadSet(key) {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return new Set(JSON.parse(raw || '[]'));
+  } catch { return new Set(); }
+}
+
+async function saveSet(key, set) {
+  try { await AsyncStorage.setItem(key, JSON.stringify([...set])); } catch {}
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
 const TABS = [
   { key: 'privado',  label: 'Privado'  },
   { key: 'circulos', label: 'Círculos' },
   { key: 'game',     label: 'Game'     },
 ];
-
 const AVATAR_SIZE = 48;
 
+// ──────────────────────────────────────────────────────────────────────────
 export default function ChatsScreen({ navigation }) {
-  const { user }     = useAuthStore();
-  const insets       = useSafeAreaInsets();
+  const { user } = useAuthStore();
+  const insets   = useSafeAreaInsets();
 
   const [tab,         setTab]         = useState('privado');
   const [chats,       setChats]       = useState([]);
@@ -46,19 +66,23 @@ export default function ChatsScreen({ navigation }) {
   const [hasMore,     setHasMore]     = useState(true);
   const [error,       setError]       = useState(null);
 
+  const [pinnedIds,      setPinnedIds]      = useState(new Set());
+  const [mutedIds,       setMutedIds]       = useState(new Set());
+  const [unreadOverride, setUnreadOverride] = useState(new Set());
+  const [hiddenIds,      setHiddenIds]      = useState(new Set());
+  const [actionSheet,    setActionSheet]    = useState(null); // { type:'chat'|'group', item }
+
+  // ── Load & sockets ────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
     loadAll();
+    loadStorageState();
     let socket = null;
 
     connectSocket().then(s => {
       socket = s;
-      s.off('chat:read_ack');
       s.off('chat:notification');
       s.off('group:notification');
 
-      s.on('chat:read_ack', ({ chatId }) =>
-        setChats(prev => prev.map(c => c._id === chatId ? { ...c, unread: 0 } : c))
-      );
       s.on('chat:notification', ({ chatId, lastMessageText, lastMessage }) => {
         setChats(prev => {
           const next = prev.map(c =>
@@ -76,10 +100,7 @@ export default function ChatsScreen({ navigation }) {
             if (g._id?.toString() !== groupId?.toString()) return g;
             const prevCount = g.unreadCounts?.[myIdStr] || 0;
             return {
-              ...g,
-              lastMessageText,
-              lastMessage,
-              lastMessageSender,
+              ...g, lastMessageText, lastMessage, lastMessageSender,
               unreadCounts: { ...(g.unreadCounts || {}), [myIdStr]: prevCount + 1 },
             };
           });
@@ -90,12 +111,24 @@ export default function ChatsScreen({ navigation }) {
 
     return () => {
       if (socket) {
-        socket.off('chat:read_ack');
         socket.off('chat:notification');
         socket.off('group:notification');
       }
     };
   }, []));
+
+  async function loadStorageState() {
+    const [pinned, muted, unread, hidden] = await Promise.all([
+      loadSet(SK_PINNED),
+      loadSet(SK_MUTED),
+      loadSet(SK_UNREAD),
+      loadSet(SK_HIDDEN),
+    ]);
+    setPinnedIds(pinned);
+    setMutedIds(muted);
+    setUnreadOverride(unread);
+    setHiddenIds(hidden);
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -137,39 +170,149 @@ export default function ChatsScreen({ navigation }) {
     );
   }
 
-  function switchTab(key) {
-    setTab(key);
+  // ── Acciones persistidas ──────────────────────────────────────────────────
+  async function togglePin(id) {
+    const next = new Set(pinnedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setPinnedIds(next);
+    await saveSet(SK_PINNED, next);
+    setActionSheet(null);
   }
 
+  async function toggleMute(id) {
+    const next = new Set(mutedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setMutedIds(next);
+    await saveSet(SK_MUTED, next);
+    setActionSheet(null);
+  }
+
+  async function markUnread(id) {
+    const next = new Set(unreadOverride);
+    next.add(id);
+    setUnreadOverride(next);
+    await saveSet(SK_UNREAD, next);
+    setActionSheet(null);
+  }
+
+  async function clearUnread(id) {
+    if (!unreadOverride.has(id)) return;
+    const next = new Set(unreadOverride);
+    next.delete(id);
+    setUnreadOverride(next);
+    await saveSet(SK_UNREAD, next);
+  }
+
+  function confirmDeleteChat(id) {
+    Alert.alert(
+      'Eliminar conversación',
+      'Se eliminará de tu lista. El otro usuario no será notificado.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => hideChat(id) },
+      ]
+    );
+  }
+
+  async function hideChat(id) {
+    const next = new Set(hiddenIds);
+    next.add(id);
+    setHiddenIds(next);
+    await saveSet(SK_HIDDEN, next);
+  }
+
+  function confirmLeaveGroup(group) {
+    setActionSheet(null);
+    Alert.alert(
+      'Salir del grupo',
+      `Quieres salir de "${group.name}"? Ya no podras ver los mensajes de este grupo.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Salir', style: 'destructive', onPress: () => leaveGroup(group) },
+      ]
+    );
+  }
+
+  async function leaveGroup(group) {
+    try {
+      await api.post(`/groups/${group._id}/leave`);
+      setGroups(prev => prev.filter(g => g._id?.toString() !== group._id?.toString()));
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo salir del grupo');
+    }
+  }
+
+  // ── Unread / badge logic ──────────────────────────────────────────────────
+  function getUnreadCount(item, type) {
+    const real = type === 'chat'
+      ? (Number(item.unread) || 0)
+      : (Number(item.unreadCounts?.[user._id?.toString()]) || 0);
+    if (unreadOverride.has(item._id?.toString())) return Math.max(1, real);
+    return real;
+  }
+
+  function showUnreadBadge(item, type) {
+    if (mutedIds.has(item._id?.toString())) return false;
+    return getUnreadCount(item, type) > 0;
+  }
+
+  // ── List data (pinned section + regular) ──────────────────────────────────
   const allPrivateItems = [
-    ...[...chats].map(c => ({ type: 'chat', data: c, _t: new Date(c.lastMessage || 0).getTime() })),
+    ...[...chats].map(c  => ({ type: 'chat',  data: c, _t: new Date(c.lastMessage || 0).getTime() })),
     ...[...groups].map(g => ({ type: 'group', data: g, _t: new Date(g.lastMessage || g.createdAt || 0).getTime() })),
   ].sort((a, b) => b._t - a._t);
 
-  function renderChatItem({ item }) {
-    const chat  = item.data;
-    const other = getOther(chat);
-    const unread = Number(chat.unread) || 0;
+  function buildListData() {
+    const visible = allPrivateItems.filter(i => !hiddenIds.has(i.data._id?.toString()));
+    const pinned  = visible.filter(i =>  pinnedIds.has(i.data._id?.toString()));
+    const regular = visible.filter(i => !pinnedIds.has(i.data._id?.toString()));
+    return [...pinned, ...regular];
+  }
+
+  // ── Renderizado de filas ──────────────────────────────────────────────────
+  function renderChatRow(chat) {
+    const other    = getOther(chat);
+    const id       = chat._id?.toString();
+    const isPinned = pinnedIds.has(id);
+    const isMuted  = mutedIds.has(id);
+    const badge    = showUnreadBadge(chat, 'chat');
+    const count    = badge ? getUnreadCount(chat, 'chat') : 0;
 
     return (
       <TouchableOpacity
         style={s.chatItem}
-        onPress={() => navigation.navigate('ChatRoom', { chat, other })}
+        activeOpacity={0.75}
+        onPress={() => {
+          setChats(prev => prev.map(c => c._id?.toString() === id ? { ...c, unread: 0 } : c));
+          clearUnread(id);
+          navigation.navigate('ChatRoom', { chat, other });
+        }}
+        onLongPress={() => setActionSheet({ type: 'chat', item: chat })}
+        delayLongPress={380}
       >
         <View style={s.avatarSlot}>
-          <AvatarWithFrame size={AVATAR_SIZE} avatarUrl={other?.avatarUrl} username={other?.username} profileFrame={other?.profileFrame} frameUrl={other?.profileFrameUrl} banned={!!other?.banned} />
+          <AvatarWithFrame
+            size={AVATAR_SIZE}
+            avatarUrl={other?.avatarUrl}
+            username={other?.username}
+            profileFrame={other?.profileFrame}
+            frameUrl={other?.profileFrameUrl}
+            banned={!!other?.banned}
+          />
+          {isPinned && <View style={s.pinIndicator}><Ionicons name="pin" size={8} color="#fff" /></View>}
+          {isMuted  && <View style={s.muteIndicator}><Ionicons name="notifications-off" size={7} color="rgba(255,255,255,0.8)" /></View>}
         </View>
-        <View style={{ flex:1, minWidth:0 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.chatUser} numberOfLines={1}>{other?.username}</Text>
-          <Text numberOfLines={1} style={{ color: unread > 0 ? '#ffffff' : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>
+          <Text numberOfLines={1} style={{ color: badge ? '#ffffff' : colors.textDim, fontWeight: badge ? '700' : '400', fontSize: 12 }}>
             {chat.lastMessageText || 'Toca para chatear'}
           </Text>
         </View>
-        <View style={{ alignItems:'flex-end', gap:4, flexShrink:0 }}>
+        <View style={{ alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
           <Text style={s.chatDate}>{chatDate(chat.lastMessage)}</Text>
-          {unread > 0 && (
+          {badge && (
             <View style={s.unreadBadge}>
-              <Text style={s.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text>
+              <Text style={s.unreadBadgeTxt}>{count > 99 ? '99+' : count}</Text>
             </View>
           )}
         </View>
@@ -177,33 +320,51 @@ export default function ChatsScreen({ navigation }) {
     );
   }
 
-  function renderGroupItem({ item: g }) {
-    const unread = Number(g.unreadCounts?.[user._id]) || 0;
+  function renderGroupRow(g) {
+    const id       = g._id?.toString();
+    const isPinned = pinnedIds.has(id);
+    const isMuted  = mutedIds.has(id);
+    const badge    = showUnreadBadge(g, 'group');
+    const count    = badge ? getUnreadCount(g, 'group') : 0;
+
     return (
-      <TouchableOpacity style={s.chatItem} onPress={() => navigation.navigate('GroupRoom', { group: g })}>
+      <TouchableOpacity
+        style={s.chatItem}
+        activeOpacity={0.75}
+        onPress={() => {
+          setGroups(prev => prev.map(g2 => g2._id?.toString() === id ? { ...g2, unreadCounts: { ...(g2.unreadCounts || {}), [user._id?.toString()]: 0 } } : g2));
+          clearUnread(id);
+          navigation.navigate('GroupRoom', { group: g });
+        }}
+        onLongPress={() => setActionSheet({ type: 'group', item: g })}
+        delayLongPress={380}
+      >
         <View style={s.avatarSlot}>
           {g.imageUrl
             ? <Image source={{ uri: g.imageUrl }} style={s.groupImg} />
-            : <View style={s.groupImgPlaceholder}><Ionicons name="people" size={20} color={colors.c1} /></View>}
+            : <View style={s.groupImgPlaceholder}><Ionicons name="people" size={20} color={colors.c1} /></View>
+          }
+          {isPinned && <View style={s.pinIndicator}><Ionicons name="pin" size={8} color="#fff" /></View>}
+          {isMuted  && <View style={s.muteIndicator}><Ionicons name="notifications-off" size={7} color="rgba(255,255,255,0.8)" /></View>}
         </View>
-        <View style={{ flex:1, minWidth:0 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.chatUser} numberOfLines={1}>{g.name}</Text>
           {g.lastMessageSender ? (
             <Text numberOfLines={1}>
-              <Text style={{ color: unread > 0 ? colors.c1 : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>{g.lastMessageSender}:{' '}</Text>
-              <Text style={{ color: unread > 0 ? '#ffffff' : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>{g.lastMessageText || ''}</Text>
+              <Text style={{ color: badge ? colors.c1 : colors.textDim, fontWeight: badge ? '700' : '400', fontSize: 12 }}>{g.lastMessageSender}: </Text>
+              <Text style={{ color: badge ? '#ffffff' : colors.textDim, fontWeight: badge ? '700' : '400', fontSize: 12 }}>{g.lastMessageText || ''}</Text>
             </Text>
           ) : (
-            <Text numberOfLines={1} style={{ color: unread > 0 ? '#ffffff' : colors.textDim, fontWeight: unread > 0 ? '700' : '400', fontSize:12 }}>
+            <Text numberOfLines={1} style={{ color: badge ? '#ffffff' : colors.textDim, fontWeight: badge ? '700' : '400', fontSize: 12 }}>
               {g.lastMessageText || g.description || 'Grupo privado'}
             </Text>
           )}
         </View>
-        <View style={{ alignItems:'flex-end', gap:4, flexShrink:0 }}>
+        <View style={{ alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
           <Text style={s.chatDate}>{chatDate(g.lastMessage)}</Text>
-          {unread > 0 && (
+          {badge && (
             <View style={s.unreadBadge}>
-              <Text style={s.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text>
+              <Text style={s.unreadBadgeTxt}>{count > 99 ? '99+' : count}</Text>
             </View>
           )}
         </View>
@@ -211,11 +372,100 @@ export default function ChatsScreen({ navigation }) {
     );
   }
 
-  function renderPrivadoItem({ item }) {
-    if (item.type === 'group') return renderGroupItem({ item: item.data });
-    return renderChatItem({ item });
+  function renderListItem({ item }) {
+    if (item.type === 'header') {
+      return (
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionHeaderTxt}>{item.label}</Text>
+        </View>
+      );
+    }
+    if (item.type === 'group') return renderGroupRow(item.data);
+    return renderChatRow(item.data);
   }
 
+  // ── Bottom sheet ──────────────────────────────────────────────────────────
+  function renderActionSheet() {
+    if (!actionSheet) return null;
+    const { type, item } = actionSheet;
+    const id       = item._id?.toString();
+    const isPinned = pinnedIds.has(id);
+    const isMuted  = mutedIds.has(id);
+    const title    = type === 'chat' ? (getOther(item)?.username || 'Chat') : item.name;
+
+    const options = type === 'chat'
+      ? [
+          {
+            icon:    isPinned ? 'pin' : 'pin-outline',
+            label:   isPinned ? 'Quitar de fijados' : 'Fijar conversación',
+            onPress: () => togglePin(id),
+          },
+          {
+            icon:    'ellipse-outline',
+            label:   'Marcar como no leído',
+            onPress: () => markUnread(id),
+          },
+          {
+            icon:    'trash-outline',
+            label:   'Eliminar conversación',
+            danger:  true,
+            onPress: () => { setActionSheet(null); confirmDeleteChat(id); },
+          },
+        ]
+      : [
+          {
+            icon:    isPinned ? 'pin' : 'pin-outline',
+            label:   isPinned ? 'Quitar de fijados' : 'Fijar grupo',
+            onPress: () => togglePin(id),
+          },
+          {
+            icon:    isMuted ? 'notifications-outline' : 'notifications-off-outline',
+            label:   isMuted ? 'Activar notificaciones' : 'Silenciar notificaciones',
+            onPress: () => toggleMute(id),
+          },
+          {
+            icon:    'exit-outline',
+            label:   'Salir del grupo',
+            danger:  true,
+            onPress: () => confirmLeaveGroup(item),
+          },
+        ];
+
+    return (
+      <Modal
+        visible
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setActionSheet(null)}
+      >
+        <Pressable style={s.bsOverlay} onPress={() => setActionSheet(null)}>
+          <Pressable style={s.bsSheet} onPress={() => {}}>
+            <View style={s.bsHandle} />
+            <Text style={s.bsTitle} numberOfLines={1}>{title}</Text>
+            {options.map((opt, i) => (
+              <React.Fragment key={opt.label}>
+                {i > 0 && <View style={s.bsDivider} />}
+                <TouchableOpacity style={s.bsOption} onPress={opt.onPress} activeOpacity={0.7}>
+                  <Ionicons
+                    name={opt.icon}
+                    size={20}
+                    color={opt.danger ? 'rgba(239,68,68,0.85)' : colors.textMid}
+                  />
+                  <Text style={[s.bsOptionTxt, opt.danger && s.bsOptionDanger]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
+            <View style={{ height: Math.max(insets.bottom, 12) }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  }
+
+  // ── Tab content ───────────────────────────────────────────────────────────
   function renderEmpty(icon, title, subtitle) {
     return (
       <View style={s.emptyTab}>
@@ -231,14 +481,18 @@ export default function ChatsScreen({ navigation }) {
       <View style={s.emptyTab}>
         <View style={s.comingSoonIcon}><Ionicons name={icon} size={36} color={colors.c1} /></View>
         <Text style={s.emptyTitle}>{label}</Text>
-        <View style={s.comingSoonBadge}><Text style={s.comingSoonTxt}>PRÓXIMAMENTE</Text></View>
+        <View style={s.comingSoonBadge}><Text style={s.comingSoonTxt}>PROXIMAMENTE</Text></View>
         <Text style={s.emptySubtitle}>Esta función estará disponible pronto</Text>
       </View>
     );
   }
 
+  function renderCirculos() {
+    return renderComingSoon('people', 'Círculos');
+  }
+
   function renderPrivado() {
-    if (loading) return <ActivityIndicator color={colors.c1} style={{ marginTop:40 }} />;
+    if (loading) return <ActivityIndicator color={colors.c1} style={{ marginTop: 40 }} />;
     if (error) {
       return (
         <TouchableOpacity style={s.emptyTab} onPress={loadAll}>
@@ -248,25 +502,25 @@ export default function ChatsScreen({ navigation }) {
         </TouchableOpacity>
       );
     }
-    if (allPrivateItems.length === 0) return renderEmpty('chatbubble', 'Sin mensajes todavía', 'Visita el perfil de alguien o crea un grupo');
+    const listData = buildListData();
+    if (listData.length === 0) {
+      return renderEmpty('chatbubble', 'Sin mensajes todavía', 'Visita el perfil de alguien o crea un grupo');
+    }
     return (
       <FlatList
         style={{ backgroundColor: colors.black }}
-        data={allPrivateItems}
-        keyExtractor={(item) => `${item.type}_${item.data._id}`}
-        renderItem={renderPrivadoItem}
+        data={listData}
+        keyExtractor={item => item.type === 'header' ? item.key : `${item.type}_${item.data._id}`}
+        renderItem={renderListItem}
         contentContainerStyle={[s.listContent, { paddingBottom: 90 + insets.bottom }]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
-        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.c1} style={{ marginVertical:12 }} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.c1} style={{ marginVertical: 12 }} /> : null}
       />
     );
   }
 
-  function renderCirculos() {
-    return renderComingSoon('people', 'Círculos');
-  }
-
+  // ── Root ──────────────────────────────────────────────────────────────────
   return (
     <View style={s.root}>
       {Platform.OS !== 'web' && <StatusBar barStyle="light-content" backgroundColor={colors.black} />}
@@ -284,17 +538,19 @@ export default function ChatsScreen({ navigation }) {
 
       <View style={s.tabBar}>
         {TABS.map(t => (
-          <TouchableOpacity key={t.key} style={s.tabBtn} onPress={() => switchTab(t.key)} activeOpacity={1}>
+          <TouchableOpacity key={t.key} style={s.tabBtn} onPress={() => setTab(t.key)} activeOpacity={1}>
             <Text style={tab === t.key ? [s.tabLabel, s.tabLabelActive] : s.tabLabel}>{t.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={{ flex:1 }}>
-        {tab === 'privado'  ? renderPrivado()                                     : null}
-        {tab === 'circulos' ? renderCirculos()                                    : null}
-        {tab === 'game'     ? renderComingSoon('game-controller','Game Sessions') : null}
+      <View style={{ flex: 1 }}>
+        {tab === 'privado'  ? renderPrivado()                                      : null}
+        {tab === 'circulos' ? renderCirculos()                                     : null}
+        {tab === 'game'     ? renderComingSoon('game-controller', 'Game Sessions') : null}
       </View>
+
+      {renderActionSheet()}
 
       <CustomTabBar
         navigation={navigation}
@@ -305,37 +561,58 @@ export default function ChatsScreen({ navigation }) {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root: { flex:1, backgroundColor:colors.black },
-  header: { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:14, justifyContent:'space-between' },
-  backBtn: { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.08)', borderWidth:1, alignItems:'center', justifyContent:'center' },
-  headerTitle: { color:colors.textHi, fontSize:13, fontWeight:'800', letterSpacing:2.5 },
-  addBtn: { width:36, height:36, borderRadius:10, backgroundColor:'rgba(255,255,255,0.08)', borderWidth:1, alignItems:'center', justifyContent:'center' },
-  tabBar: { flexDirection:'row', justifyContent:'space-around', marginBottom:8, paddingVertical:10, paddingHorizontal:16 },
-  tabBtn: { alignItems:'center', justifyContent:'center', paddingHorizontal:6 },
-  tabLabel: { color:colors.textDim, fontSize:13, fontWeight:'500' },
-  tabLabelActive: { color:colors.textHi, fontWeight:'700' },
-  tabBadge: { position:'absolute', top:-5, right:-10, backgroundColor:'rgba(239,68,68,0.95)', borderRadius:6, minWidth:13, height:13, alignItems:'center', justifyContent:'center', paddingHorizontal:2 },
-  tabBadgeTxt: { color:'#fff', fontSize:7, fontWeight:'800' },
-  listContent: { paddingHorizontal:16, paddingTop:4, paddingBottom:90 },
-  avatarSlot: { width:AVATAR_SIZE+8, height:AVATAR_SIZE+8, alignItems:'center', justifyContent:'center', marginRight:10, flexShrink:0 },
-  chatItem: { flexDirection:'row', alignItems:'center', paddingVertical:10, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
-  chatUser: { color:colors.textHi, fontWeight:'600', fontSize:14, marginBottom:3 },
-  chatDate: { color:colors.textDim, fontSize:10 },
-  chatPreview: { color:colors.textDim, fontSize:12 },
-  chatPreviewUnread: { color:colors.textMid, fontWeight:'600' },
-  unreadBadge: { backgroundColor:colors.c1, borderRadius:10, minWidth:20, height:20, alignItems:'center', justifyContent:'center', paddingHorizontal:5 },
-  unreadBadgeTxt: { color:colors.black, fontSize:10, fontWeight:'800' },
-  groupItem: { flexDirection:'row', alignItems:'center', paddingVertical:10, gap:12, backgroundColor:'rgba(255,255,255,0.03)', paddingHorizontal:8, borderRadius:12, marginBottom:4, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.04)' },
-  groupImg: { width:48, height:48, borderRadius:12, flexShrink:0, borderWidth:1, borderColor:'rgba(255,255,255,0.3)' },
-  groupImgPlaceholder: { width:48, height:48, borderRadius:12, flexShrink:0, backgroundColor:colors.surface, borderWidth:1, borderColor:'rgba(255,255,255,0.3)', alignItems:'center', justifyContent:'center' },
-  groupBadge: { backgroundColor:'rgba(0,229,204,0.1)', borderRadius:6, paddingHorizontal:6, paddingVertical:2, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', flexShrink:0 },
-  groupBadgeTxt: { color:colors.c1, fontSize:8, fontWeight:'800', letterSpacing:1 },
-  emptyTab: { flex:1, alignItems:'center', justifyContent:'center', paddingHorizontal:40, gap:12 },
-  emptyIconWrap: { width:68, height:68, borderRadius:34, backgroundColor:'rgba(0,229,204,0.06)', borderWidth:1, borderColor:'rgba(0,229,204,0.15)', alignItems:'center', justifyContent:'center' },
-  emptyTitle: { color:colors.textHi, fontSize:16, fontWeight:'700', textAlign:'center' },
-  emptySubtitle: { color:colors.textDim, fontSize:13, textAlign:'center', lineHeight:18 },
-  comingSoonIcon: { width:72, height:72, borderRadius:36, backgroundColor:'rgba(0,229,204,0.08)', borderWidth:1, borderColor:'rgba(0,229,204,0.2)', alignItems:'center', justifyContent:'center' },
-  comingSoonBadge: { backgroundColor:'rgba(0,229,204,0.08)', borderRadius:8, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', paddingHorizontal:12, paddingVertical:4 },
-  comingSoonTxt: { color:colors.c1, fontSize:10, fontWeight:'800', letterSpacing:2 },
+  root:        { flex: 1, backgroundColor: colors.black },
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'space-between' },
+  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
+  addBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+
+  tabBar:        { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8, paddingVertical: 10, paddingHorizontal: 16 },
+  tabBtn:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  tabLabel:      { color: colors.textDim, fontSize: 13, fontWeight: '500' },
+  tabLabelActive:{ color: colors.textHi, fontWeight: '700' },
+  tabBadge:      { position: 'absolute', top: -5, right: -10, backgroundColor: 'rgba(239,68,68,0.95)', borderRadius: 6, minWidth: 13, height: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
+  tabBadgeTxt:   { color: '#fff', fontSize: 7, fontWeight: '800' },
+
+  listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 90 },
+
+  sectionHeader:    { paddingHorizontal: 4, paddingVertical: 6, marginTop: 4 },
+  sectionHeaderTxt: { color: colors.textDim, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
+
+  avatarSlot:  { width: AVATAR_SIZE + 8, height: AVATAR_SIZE + 8, alignItems: 'center', justifyContent: 'center', marginRight: 10, flexShrink: 0 },
+  chatItem:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
+  chatUser:    { color: colors.textHi, fontWeight: '600', fontSize: 14, marginBottom: 3 },
+  chatDate:    { color: colors.textDim, fontSize: 10 },
+  chatPreview: { color: colors.textDim, fontSize: 12 },
+
+  unreadBadge:    { backgroundColor: colors.c1, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  unreadBadgeTxt: { color: colors.black, fontSize: 10, fontWeight: '800' },
+
+  pinIndicator:  { position: 'absolute', top: 0, right: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.c1, alignItems: 'center', justifyContent: 'center' },
+  muteIndicator: { position: 'absolute', bottom: 0, right: 0, width: 15, height: 15, borderRadius: 8, backgroundColor: 'rgba(100,100,120,0.9)', alignItems: 'center', justifyContent: 'center' },
+
+  groupImg:            { width: 48, height: 48, borderRadius: 12, flexShrink: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  groupImgPlaceholder: { width: 48, height: 48, borderRadius: 12, flexShrink: 0, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
+  groupBadge:          { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', flexShrink: 0 },
+  groupBadgeTxt:       { color: colors.c1, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
+
+  // Bottom sheet
+  bsOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  bsSheet:      { backgroundColor: '#0d1821', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingHorizontal: 0, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  bsHandle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center', marginBottom: 16 },
+  bsTitle:      { color: colors.textDim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4, paddingHorizontal: 20, marginBottom: 8 },
+  bsDivider:    { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 20 },
+  bsOption:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 20 },
+  bsOptionTxt:  { color: colors.textHi, fontSize: 15, fontWeight: '500' },
+  bsOptionDanger:{ color: 'rgba(239,68,68,0.9)' },
+
+  emptyTab:       { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 12 },
+  emptyIconWrap:  { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(0,229,204,0.06)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.15)', alignItems: 'center', justifyContent: 'center' },
+  emptyTitle:     { color: colors.textHi, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  emptySubtitle:  { color: colors.textDim, fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  comingSoonIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },
+  comingSoonBadge:{ backgroundColor: 'rgba(0,229,204,0.08)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', paddingHorizontal: 12, paddingVertical: 4 },
+  comingSoonTxt:  { color: colors.c1, fontSize: 10, fontWeight: '800', letterSpacing: 2 },
 });

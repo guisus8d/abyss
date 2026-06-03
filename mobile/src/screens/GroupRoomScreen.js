@@ -249,6 +249,9 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [showWelcomeBanner,setShowWelcomeBanner] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [kbVisible,          setKbVisible]          = useState(false);
+  const [hasMore,            setHasMore]            = useState(false);
+  const [loadingMore,        setLoadingMore]        = useState(false);
+  const [newMsgIndicator,    setNewMsgIndicator]    = useState(false);
 
   // ── Regalo ─────────────────────────────────────────────────────────────────
   const [giftModal,   setGiftModal]   = useState(false);
@@ -269,7 +272,10 @@ export default function GroupRoomScreen({ route, navigation }) {
   const recordingRef = useRef(null);
   const recTimerRef  = useRef(null);
   const recSecsRef   = useRef(0);
-  const sendingRef   = useRef(false);
+  const sendingRef      = useRef(false);
+  const msgSkipRef      = useRef(0);
+  const loadingMoreRef  = useRef(false);
+  const scrollOffsetRef = useRef(0);
 
   const isAdmin = group?.members?.some(
     m => ((m.user?._id || m.user)?.toString()) === user?._id?.toString() && m.role === 'admin'
@@ -304,7 +310,6 @@ export default function GroupRoomScreen({ route, navigation }) {
       .then(({ data }) => {
         setGroup(data.group);
         if (!data.isPending) {
-          setMessages(data.group.messages || []);
           api.post(`/groups/${group._id}/read`).catch(() => {});
         }
       })
@@ -347,7 +352,10 @@ export default function GroupRoomScreen({ route, navigation }) {
       const { data } = await api.get(`/groups/${group._id}`);
       setGroup(data.group);
       if (!data.isPending) {
-        setMessages(data.group.messages || []);
+        const { data: msgData } = await api.get(`/groups/${group._id}/messages?limit=50`);
+        setMessages(msgData.messages || []);
+        setHasMore(msgData.hasMore ?? false);
+        msgSkipRef.current = 50;
         api.post(`/groups/${group._id}/read`).catch(() => {});
         // Mostrar banner si fue añadido recientemente (< 24h), no es admin, y no lo aceptó antes
         const myMember = data.group.members?.find(
@@ -386,6 +394,12 @@ export default function GroupRoomScreen({ route, navigation }) {
         prev.some(m => m._id?.toString() === message._id?.toString()) ? prev : [...prev, message]
       );
       api.post(`/groups/${group._id}/read`).catch(() => {});
+      const isOwnMsg = (message.sender?._id || message.sender)?.toString() === user?._id?.toString();
+      if (isOwnMsg || scrollOffsetRef.current < 100) {
+        setTimeout(() => flatRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
+      } else {
+        setNewMsgIndicator(true);
+      }
     });
 
     socket.on('group:message_deleted', ({ groupId, msgId }) => {
@@ -516,7 +530,10 @@ export default function GroupRoomScreen({ route, navigation }) {
     try {
       const { data } = await api.post(`/groups/${group._id}/invite/accept`);
       setGroup(data.group);
-      setMessages(data.group.messages || []);
+      const { data: msgData } = await api.get(`/groups/${group._id}/messages?limit=50`);
+      setMessages(msgData.messages || []);
+      setHasMore(msgData.hasMore ?? false);
+      msgSkipRef.current = 50;
       api.post(`/groups/${group._id}/read`).catch(() => {});
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'No se pudo aceptar la invitación');
@@ -625,6 +642,8 @@ export default function GroupRoomScreen({ route, navigation }) {
       });
       Keyboard.dismiss();
       setGiftModal(false);
+      flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+      setNewMsgIndicator(false);
     } catch (e) {
       setGiftErr(e.response?.data?.error || 'Error al enviar regalo');
     } finally { setSendingGift(false); }
@@ -652,10 +671,30 @@ export default function GroupRoomScreen({ route, navigation }) {
     }
   }, [group._id, user._id]);
 
+  const loadMoreGroupMessages = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const { data } = await api.get(`/groups/${group._id}/messages?limit=50&skip=${msgSkipRef.current}`);
+      if (data.messages?.length) {
+        setMessages(prev => [...data.messages, ...prev]);
+      }
+      setHasMore(data.hasMore ?? false);
+      msgSkipRef.current += 50;
+    } catch {}
+    finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore]);
+
   function sendMessage() {
     if (!text.trim() || sendingRef.current) return;
     sendingRef.current = true;
     setText('');
+    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setNewMsgIndicator(false);
     socketRef.current?.emit('group:message', {
       groupId: group._id,
       text:    text.trim(),
@@ -682,6 +721,8 @@ export default function GroupRoomScreen({ route, navigation }) {
     if (!imagePreview) return;
     const uri = imagePreview;
     setImagePreview(null);
+    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setNewMsgIndicator(false);
     try {
       setUploading(true);
       const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
@@ -742,6 +783,8 @@ export default function GroupRoomScreen({ route, navigation }) {
     if (!audioPreview) return;
     const preview = { ...audioPreview };
     setAudioPreview(null);
+    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setNewMsgIndicator(false);
     try {
       setUploading(true);
       const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
@@ -1005,8 +1048,20 @@ export default function GroupRoomScreen({ route, navigation }) {
             updateCellsBatchingPeriod={50}
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets={true}
-            onScroll={(e) => setShowScrollBtn(e.nativeEvent.contentOffset.y > 150)}
+            onScroll={e => {
+              const y = e.nativeEvent.contentOffset.y;
+              scrollOffsetRef.current = y;
+              setShowScrollBtn(y > 150);
+              if (y < 100) setNewMsgIndicator(false);
+            }}
             scrollEventThrottle={32}
+            onEndReached={loadMoreGroupMessages}
+            onEndReachedThreshold={0.2}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            ListFooterComponent={loadingMore
+              ? <View style={{ paddingVertical: 12, alignItems: 'center' }}><ActivityIndicator size="small" color={colors.c1} /></View>
+              : null
+            }
           />
         )}
 
@@ -1181,9 +1236,13 @@ export default function GroupRoomScreen({ route, navigation }) {
       </View>
       </ImageBackground>
 
-      {showScrollBtn && (
-        <TouchableOpacity style={s.scrollDownBtn} onPress={() => flatRef.current?.scrollToOffset({ offset:0, animated:true })}>
+      {(showScrollBtn || newMsgIndicator) && (
+        <TouchableOpacity style={s.scrollDownBtn} onPress={() => {
+          flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+          setNewMsgIndicator(false);
+        }}>
           <Ionicons name="chevron-down" size={20} color={colors.c1} />
+          {newMsgIndicator && <View style={s.newMsgDot} />}
         </TouchableOpacity>
       )}
 
@@ -1495,6 +1554,7 @@ const s = StyleSheet.create({
   audioPreviewCancel: { width:36, height:36, borderRadius:18, backgroundColor:'rgba(239,68,68,0.1)', borderWidth:1, borderColor:'rgba(239,68,68,0.3)', alignItems:'center', justifyContent:'center' },
   audioPreviewSend:   { width:36, height:36, borderRadius:18, backgroundColor:'rgba(0,229,204,0.8)', alignItems:'center', justifyContent:'center' },
   scrollDownBtn:      { position:'absolute', bottom:260, right:16, width:38, height:38, borderRadius:19, backgroundColor: colors.surface, borderWidth:1, borderColor: colors.borderC, alignItems:'center', justifyContent:'center', elevation:5 },
+  newMsgDot:          { position:'absolute', top:6, right:6, width:8, height:8, borderRadius:4, backgroundColor: colors.c1 },
 
   menuOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.65)', justifyContent:'flex-end' },
   menuBox:     { backgroundColor: colors.surface, borderTopLeftRadius:20, borderTopRightRadius:20, paddingBottom:24, borderWidth:1, borderColor: colors.borderC, overflow:'hidden' },

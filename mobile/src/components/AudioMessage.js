@@ -9,9 +9,9 @@ const BAR_HEIGHTS = [14, 20, 16, 22, 12];
 // mensaje que estaba sonando antes para pausarlo y detener su animación.
 let _activeDeactivate = null;
 
-function fmtSecs(secs) {
-  if (secs == null || isNaN(secs) || !isFinite(secs) || secs < 0) return '0"';
-  return `${Math.round(secs)}"`;
+function fmtNum(secs) {
+  if (secs == null || isNaN(secs) || !isFinite(secs) || secs < 0) return '0';
+  return `${Math.round(secs)}`;
 }
 
 export default function AudioMessage({ uri, isMe, duration = 0, onLongPress }) {
@@ -139,7 +139,8 @@ export default function AudioMessage({ uri, isMe, duration = 0, onLongPress }) {
       activeOpacity={0.8}
       style={s.wrap}
     >
-      <Text style={s.dur}>{fmtSecs(displaySecs)}</Text>
+      <Text style={s.durNum}>{fmtNum(displaySecs)}</Text>
+      <Text style={s.durQuote}>"</Text>
 
       <View style={s.barsWrap}>
         {barAnims.map((anim, i) => (
@@ -162,6 +163,7 @@ export default function AudioMessage({ uri, isMe, duration = 0, onLongPress }) {
 
 const s = StyleSheet.create({
   wrap:     { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 90, paddingVertical: 2 },
-  dur:      { fontSize: 13, color: '#ffffff', fontWeight: '600', minWidth: 32 },
+  durNum:   { fontSize: 13, color: '#ffffff', fontWeight: '600', minWidth: 28, textAlign: 'right' },
+  durQuote: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '600', marginRight: 6 },
   barsWrap: { flexDirection: 'row', alignItems: 'center', height: 26, gap: 2 },
 });
