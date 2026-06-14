@@ -299,7 +299,6 @@ export default function ChatsScreen({ navigation }) {
             frameUrl={other?.profileFrameUrl}
             banned={!!other?.banned}
           />
-          {isPinned && <View style={s.pinIndicator}><Ionicons name="pin" size={8} color="#fff" /></View>}
           {isMuted  && <View style={s.muteIndicator}><Ionicons name="notifications-off" size={7} color="rgba(255,255,255,0.8)" /></View>}
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -344,7 +343,6 @@ export default function ChatsScreen({ navigation }) {
             ? <Image source={{ uri: g.imageUrl }} style={s.groupImg} />
             : <View style={s.groupImgPlaceholder}><Ionicons name="people" size={20} color={colors.c1} /></View>
           }
-          {isPinned && <View style={s.pinIndicator}><Ionicons name="pin" size={8} color="#fff" /></View>}
           {isMuted  && <View style={s.muteIndicator}><Ionicons name="notifications-off" size={7} color="rgba(255,255,255,0.8)" /></View>}
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -465,6 +463,74 @@ export default function ChatsScreen({ navigation }) {
     );
   }
 
+  // ── Pinned shortcuts ─────────────────────────────────────────────────────
+  function renderPinnedShortcuts() {
+    const pinned = allPrivateItems.filter(
+      i => pinnedIds.has(i.data._id?.toString()) && !hiddenIds.has(i.data._id?.toString())
+    );
+    if (pinned.length === 0) return null;
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, marginVertical: 10 }}
+        contentContainerStyle={s.pinnedRow}
+      >
+        {pinned.map(item => {
+          const id = item.data._id?.toString();
+          if (item.type === 'chat') {
+            const chat  = item.data;
+            const other = getOther(chat);
+            return (
+              <TouchableOpacity
+                key={id}
+                style={s.pinnedItem}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setChats(prev => prev.map(c => c._id?.toString() === id ? { ...c, unread: 0 } : c));
+                  clearUnread(id);
+                  navigation.navigate('ChatRoom', { chat, other });
+                }}
+              >
+                {other?.avatarUrl
+                  ? <Image source={{ uri: other.avatarUrl }} style={s.pinnedPrivateImg} />
+                  : <View style={s.pinnedPrivatePlaceholder}>
+                      <Text style={s.pinnedInitial}>{other?.username?.[0]?.toUpperCase()}</Text>
+                    </View>
+                }
+                <Text style={s.pinnedName} numberOfLines={1}>{other?.username}</Text>
+              </TouchableOpacity>
+            );
+          }
+          const g = item.data;
+          return (
+            <TouchableOpacity
+              key={id}
+              style={s.pinnedItem}
+              activeOpacity={0.75}
+              onPress={() => {
+                setGroups(prev => prev.map(g2 =>
+                  g2._id?.toString() === id
+                    ? { ...g2, unreadCounts: { ...(g2.unreadCounts || {}), [user._id?.toString()]: 0 } }
+                    : g2
+                ));
+                clearUnread(id);
+                navigation.navigate('GroupRoom', { group: g });
+              }}
+            >
+              {g.imageUrl
+                ? <Image source={{ uri: g.imageUrl }} style={s.pinnedGroupImg} />
+                : <View style={s.pinnedGroupPlaceholder}><Ionicons name="people" size={22} color={colors.c1} /></View>
+              }
+              <Text style={s.pinnedName} numberOfLines={1}>{g.name}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    );
+  }
+
   // ── Tab content ───────────────────────────────────────────────────────────
   function renderEmpty(icon, title, subtitle) {
     return (
@@ -529,12 +595,14 @@ export default function ChatsScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color="#ffffff" />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>MENSAJES</Text>
+          
           <TouchableOpacity style={s.addBtn} onPress={() => navigation.navigate('CreateGroup')}>
             <Ionicons name="add" size={22} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+
+      {renderPinnedShortcuts()}
 
       <View style={s.tabBar}>
         {TABS.map(t => (
@@ -564,12 +632,12 @@ export default function ChatsScreen({ navigation }) {
 // ── Styles ────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.black },
-  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'space-between' },
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, justifyContent: 'space-between' },
   backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
   addBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
-  tabBar:        { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8, paddingVertical: 10, paddingHorizontal: 16 },
+  tabBar:        { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 2, paddingVertical: 4, paddingHorizontal: 16 },
   tabBtn:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   tabLabel:      { color: colors.textDim, fontSize: 13, fontWeight: '500' },
   tabLabelActive:{ color: colors.textHi, fontWeight: '700' },
@@ -597,6 +665,16 @@ const s = StyleSheet.create({
   groupImgPlaceholder: { width: 48, height: 48, borderRadius: 12, flexShrink: 0, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
   groupBadge:          { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', flexShrink: 0 },
   groupBadgeTxt:       { color: colors.c1, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
+
+  // Pinned shortcuts
+  pinnedRow:             { paddingHorizontal: 12, paddingVertical: 0, gap: 12, justifyContent: 'flex-start', alignItems: 'center' },
+  pinnedItem:            { alignItems: 'center', width: 58, gap: 4 },
+  pinnedName:            { color: colors.textMid, fontSize: 11, fontWeight: '500', textAlign: 'center', width: 58 },
+  pinnedGroupImg:        { width: 50, height: 50, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  pinnedGroupPlaceholder:{ width: 50, height: 50, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  pinnedPrivateImg:        { width: 50, height: 50, borderRadius: 25 },
+  pinnedPrivatePlaceholder:{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  pinnedInitial:           { color: '#fff', fontSize: 18, fontWeight: '600' },
 
   // Bottom sheet
   bsOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
