@@ -49,11 +49,15 @@
     "plugins": [
       "react-native-edge-to-edge",
       "expo-audio",
-      ["expo-notifications", {
-        "icon": "./assets/icon.png",
-        "color": "#00e5cc",
-        "defaultChannel": "default"
-      }]
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#00e5cc",
+          "defaultChannel": "default"
+        }
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

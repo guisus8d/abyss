@@ -235,21 +235,13 @@ export default function ProfileScreen({ navigation }) {
     }
   }
 
-  if (loading) return (
-    <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 80 }} /></View>
-  );
+  const renderHeader = () => {
+    const hasFrame  = profile?.profileFrame === 'frame_001';
+    const canUnlock = (profile?.xp || 0) >= 10;
+    const TAB_W     = (W - 32) / TABS.length;
 
-  const hasFrame  = profile?.profileFrame === 'frame_001';
-  const canUnlock = (profile?.xp || 0) >= 10;
-  const TAB_W     = (W - 32) / TABS.length;
-  const hasBg     = !!profile?.profileBg;
-  const isImageBg = profile?.profileBgType === 'image';
-
-  return (
-    <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
-
-      <ScrollView showsVerticalScrollIndicator={false}>
+    return (
+      <View>
         {/* ── Hero ── */}
         <View style={[s.heroBanner, { paddingTop: insets.top + 100 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={[s.backBtn, { top: insets.top + 12 }]}>
@@ -338,173 +330,199 @@ export default function ProfileScreen({ navigation }) {
             }],
           }]} />
         </View>
+      </View>
+    );
+  };
 
-        {/* ── Tab: Perfil ── */}
-        {tab === 'profile' && (
-          <View style={{ paddingHorizontal: 0 }}>
-            <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }, !hasBg && s.pageSectionGlass, { borderRadius: 0, borderLeftWidth: 0, borderRightWidth: 0, paddingHorizontal: 20 }]}>
-              {isImageBg && profile?.profileBg
-                ? <>
-                    <Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
-                  </>
-                : null}
-              {!isImageBg && hasBg
-                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
-                : null}
-              <View style={s.blocksContainer}>
-                {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
-                  <View style={s.emptyPage}>
-                    <Ionicons name="brush-outline" size={28} color={colors.textDim} />
-                    <Text style={s.emptyPageTxt}>Página vacía — toca el lápiz para editar</Text>
-                  </View>
-                )}
-                {(profile?.profileBlocks || []).map((block, i) => {
-                  if (block.type === 'text') return (
-                    <Text key={block.id || i} style={{ fontSize: block.fontSize || 14, fontWeight: block.bold ? '700' : '400', textAlign: block.align || 'left', color: colors.textHi, lineHeight: (block.fontSize || 14) * 1.5, marginBottom: 8 }}>
-                      {block.content}
-                    </Text>
-                  );
-                  if (block.type === 'image' && block.imageUrl) return (
-                    <Image key={block.id || i} source={{ uri: block.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 14, marginBottom: 8 }} resizeMode="cover" />
-                  );
-                  if (block.type === 'mention') return (
-                    <TouchableOpacity key={block.id || i} style={s.mentionBlockView}
-                      onPress={() => navigation.navigate('PublicProfile', { username: block.mentionUsername })}>
-                      <View style={s.mentionBlockAv}>
-                        {block.mentionAvatar
-                          ? <Image source={{ uri: block.mentionAvatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
-                          : <Text style={{ color: colors.c1, fontWeight: '700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
-                      </View>
-                      <Text style={s.mentionBlockAt}>{block.mentionUsername}</Text>
-                      <Ionicons name="arrow-forward" size={14} color={colors.c1} />
-                    </TouchableOpacity>
-                  );
-                  return null;
-                })}
-              </View>
-              <TouchableOpacity style={s.editFab} onPress={() => navigation.navigate('EditProfilePage', { profile })}>
-                <Ionicons name="pencil" size={16} color={colors.black} />
-              </TouchableOpacity>
+  const renderItem = ({ item }) => {
+    if (tab === 'posts') {
+      return (
+        <PostCard
+          post={item}
+          currentUserId={user?._id}
+          onReact={handleReact}
+          onComment={handleComment}
+          onDelete={handleDelete}
+          navigation={navigation}
+          openPickerId={openPickerId}
+          setOpenPickerId={setOpenPickerId}
+        />
+      );
+    }
+
+    if (item === 'profile') {
+      const hasBg     = !!profile?.profileBg;
+      const isImageBg = profile?.profileBgType === 'image';
+      return (
+        <View style={{ paddingHorizontal: 0 }}>
+          <View style={[s.pageSection, isImageBg && { overflow: 'hidden' }, !hasBg && s.pageSectionGlass, { borderRadius: 0, borderLeftWidth: 0, borderRightWidth: 0, paddingHorizontal: 20 }]}>
+            {isImageBg && profile?.profileBg
+              ? <>
+                  <Image source={{ uri: profile.profileBg }} style={s.pageBgImage} resizeMode="cover" />
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
+                </>
+              : null}
+            {!isImageBg && hasBg
+              ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
+              : null}
+            <View style={s.blocksContainer}>
+              {(!profile?.profileBlocks || profile.profileBlocks.length === 0) && (
+                <View style={s.emptyPage}>
+                  <Ionicons name="brush-outline" size={28} color={colors.textDim} />
+                  <Text style={s.emptyPageTxt}>Página vacía — toca el lápiz para editar</Text>
+                </View>
+              )}
+              {(profile?.profileBlocks || []).map((block, i) => {
+                if (block.type === 'text') return (
+                  <Text key={block.id || i} style={{ fontSize: block.fontSize || 14, fontWeight: block.bold ? '700' : '400', textAlign: block.align || 'left', color: colors.textHi, lineHeight: (block.fontSize || 14) * 1.5, marginBottom: 8 }}>
+                    {block.content}
+                  </Text>
+                );
+                if (block.type === 'image' && block.imageUrl) return (
+                  <Image key={block.id || i} source={{ uri: block.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 14, marginBottom: 8 }} resizeMode="cover" />
+                );
+                if (block.type === 'mention') return (
+                  <TouchableOpacity key={block.id || i} style={s.mentionBlockView}
+                    onPress={() => navigation.navigate('PublicProfile', { username: block.mentionUsername })}>
+                    <View style={s.mentionBlockAv}>
+                      {block.mentionAvatar
+                        ? <Image source={{ uri: block.mentionAvatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+                        : <Text style={{ color: colors.c1, fontWeight: '700' }}>{block.mentionUsername?.[0]?.toUpperCase()}</Text>}
+                    </View>
+                    <Text style={s.mentionBlockAt}>{block.mentionUsername}</Text>
+                    <Ionicons name="arrow-forward" size={14} color={colors.c1} />
+                  </TouchableOpacity>
+                );
+                return null;
+              })}
             </View>
+            <TouchableOpacity style={s.editFab} onPress={() => navigation.navigate('EditProfilePage', { profile })}>
+              <Ionicons name="pencil" size={16} color={colors.black} />
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
+      );
+    }
 
-        {/* ── Tab: Posts ── */}
-        {tab === 'posts' && (
-          <View>
-            {posts.length === 0 ? (
-              <View style={s.emptyTab}>
-                <Ionicons name="document-text-outline" size={40} color={colors.textDim} />
-                <Text style={s.emptyTxt}>Aún no has publicado nada</Text>
-              </View>
-            ) : posts.map(p => (
-              <PostCard
-                key={p._id}
-                post={p}
-                currentUserId={user?._id}
-                onReact={handleReact}
-                onComment={handleComment}
-                onDelete={handleDelete}
-                navigation={navigation}
-                openPickerId={openPickerId}
-                setOpenPickerId={setOpenPickerId}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* ── Tab: Badges ── */}
-        {tab === 'badges' && (
-          <View style={s.padded}>
-            {!profile?.badges?.length ? (
-              <View style={s.emptyTab}>
-                <Ionicons name="ribbon-outline" size={40} color={colors.textDim} />
-                <Text style={s.emptyTxt}>Aún no tienes emblemas</Text>
-                <Text style={s.emptyHint}>Publica, interactúa y sube de XP</Text>
-              </View>
-            ) : (
-              <View style={s.badgesGrid}>
-                {profile.badges.map((b, i) => (
-                  <View key={i} style={s.badgeCard}>
-                    <Text style={s.badgeIcon}>{b.icon}</Text>
-                    <Text style={s.badgeName}>{b.name}</Text>
-                    <Text style={s.badgeDesc}>{b.description}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── Tab: Ajustes ── */}
-        {tab === 'settings' && (
-          <View style={s.padded}>
-            <View style={s.settingsGroup}>
-              <Text style={s.settingsGroupLabel}>CUENTA</Text>
-
-              <TouchableOpacity style={s.settingsRow} onPress={handlePickAvatar} disabled={uploading}>
-                <Ionicons name="camera-outline" size={20} color={colors.textMid} />
-                <Text style={s.settingsRowTxt}>Cambiar foto de perfil</Text>
-                {uploading ? <ActivityIndicator size="small" color={colors.c1} /> : <Ionicons name="chevron-forward" size={16} color={colors.textDim} />}
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('banner'); setBgModal(true); }}>
-                <Ionicons name="image-outline" size={20} color={colors.textMid} />
-                <Text style={s.settingsRowTxt}>Fondo del hero (banner)</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('card'); setBgModal(true); }}>
-                <Ionicons name="color-palette-outline" size={20} color={colors.textMid} />
-                <Text style={s.settingsRowTxt}>Fondo de la card</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.settingsRow} onPress={() => navigation.navigate('Top')}>
-                <Ionicons name="trophy-outline" size={20} color={colors.textMid} />
-                <Text style={s.settingsRowTxt}>Top Semanal</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
-              </TouchableOpacity>
+    if (item === 'badges') {
+      return (
+        <View style={s.padded}>
+          {!profile?.badges?.length ? (
+            <View style={s.emptyTab}>
+              <Ionicons name="ribbon-outline" size={40} color={colors.textDim} />
+              <Text style={s.emptyTxt}>Aún no tienes emblemas</Text>
+              <Text style={s.emptyHint}>Publica, interactúa y sube de XP</Text>
             </View>
-
-            <View style={[s.settingsGroup, { marginTop: 20 }]}>
-              <Text style={s.settingsGroupLabel}>VISIBILIDAD DEL PERFIL</Text>
-              {[
-                { key: 'showXp',        label: 'Mostrar XP',        icon: 'flash-outline'      },
-                { key: 'showFollowers', label: 'Mostrar seguidores', icon: 'people-outline'     },
-                { key: 'showFollowing', label: 'Mostrar siguiendo',  icon: 'person-add-outline' },
-                { key: 'showPosts',     label: 'Mostrar posts',      icon: 'grid-outline'       },
-              ].map(item => (
-                <TouchableOpacity key={item.key} style={s.settingsRow} onPress={async () => {
-                  const newPrefs = { ...prefs, [item.key]: !prefs[item.key] };
-                  setPrefs(newPrefs);
-                  try {
-                    const { data } = await api.patch('/users/me/profile', { profilePrefs: newPrefs });
-                    if (updateUser) updateUser(data.user);
-                  } catch {}
-                }}>
-                  <Ionicons name={item.icon} size={20} color={colors.textMid} />
-                  <Text style={s.settingsRowTxt}>{item.label}</Text>
-                  <View style={[s.toggle, prefs[item.key] && s.toggleOn]}>
-                    <View style={[s.toggleThumb, prefs[item.key] && s.toggleThumbOn]} />
-                  </View>
-                </TouchableOpacity>
+          ) : (
+            <View style={s.badgesGrid}>
+              {profile.badges.map((b, i) => (
+                <View key={i} style={s.badgeCard}>
+                  <Text style={s.badgeIcon}>{b.icon}</Text>
+                  <Text style={s.badgeName}>{b.name}</Text>
+                  <Text style={s.badgeDesc}>{b.description}</Text>
+                </View>
               ))}
             </View>
+          )}
+        </View>
+      );
+    }
 
-            <View style={[s.settingsGroup, { marginTop: 20 }]}>
-              <Text style={s.settingsGroupLabel}>SESIÓN</Text>
-              <TouchableOpacity style={s.settingsRow} onPress={logout}>
-                <Ionicons name="log-out-outline" size={20} color="rgba(239,68,68,0.8)" />
-                <Text style={[s.settingsRowTxt, { color: 'rgba(239,68,68,0.8)' }]}>Cerrar sesión</Text>
-              </TouchableOpacity>
-            </View>
+    if (item === 'settings') {
+      return (
+        <View style={s.padded}>
+          <View style={s.settingsGroup}>
+            <Text style={s.settingsGroupLabel}>CUENTA</Text>
+
+            <TouchableOpacity style={s.settingsRow} onPress={handlePickAvatar} disabled={uploading}>
+              <Ionicons name="camera-outline" size={20} color={colors.textMid} />
+              <Text style={s.settingsRowTxt}>Cambiar foto de perfil</Text>
+              {uploading ? <ActivityIndicator size="small" color={colors.c1} /> : <Ionicons name="chevron-forward" size={16} color={colors.textDim} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('banner'); setBgModal(true); }}>
+              <Ionicons name="image-outline" size={20} color={colors.textMid} />
+              <Text style={s.settingsRowTxt}>Fondo del hero (banner)</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.settingsRow} onPress={() => { setBgTarget('card'); setBgModal(true); }}>
+              <Ionicons name="color-palette-outline" size={20} color={colors.textMid} />
+              <Text style={s.settingsRowTxt}>Fondo de la card</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.settingsRow} onPress={() => navigation.navigate('Top')}>
+              <Ionicons name="trophy-outline" size={20} color={colors.textMid} />
+              <Text style={s.settingsRowTxt}>Top Semanal</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+            </TouchableOpacity>
           </View>
-        )}
 
-        <View style={{ height: 60 }} />
-      </ScrollView>
+          <View style={[s.settingsGroup, { marginTop: 20 }]}>
+            <Text style={s.settingsGroupLabel}>VISIBILIDAD DEL PERFIL</Text>
+            {[
+              { key: 'showXp',        label: 'Mostrar XP',        icon: 'flash-outline'      },
+              { key: 'showFollowers', label: 'Mostrar seguidores', icon: 'people-outline'     },
+              { key: 'showFollowing', label: 'Mostrar siguiendo',  icon: 'person-add-outline' },
+              { key: 'showPosts',     label: 'Mostrar posts',      icon: 'grid-outline'       },
+            ].map(itemPrefs => (
+              <TouchableOpacity key={itemPrefs.key} style={s.settingsRow} onPress={async () => {
+                const newPrefs = { ...prefs, [itemPrefs.key]: !prefs[itemPrefs.key] };
+                setPrefs(newPrefs);
+                try {
+                  const { data } = await api.patch('/users/me/profile', { profilePrefs: newPrefs });
+                  if (updateUser) updateUser(data.user);
+                } catch {}
+              }}>
+                <Ionicons name={itemPrefs.icon} size={20} color={colors.textMid} />
+                <Text style={s.settingsRowTxt}>{itemPrefs.label}</Text>
+                <View style={[s.toggle, prefs[itemPrefs.key] && s.toggleOn]}>
+                  <View style={[s.toggleThumb, prefs[itemPrefs.key] && s.toggleThumbOn]} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={[s.settingsGroup, { marginTop: 20 }]}>
+            <Text style={s.settingsGroupLabel}>SESIÓN</Text>
+            <TouchableOpacity style={s.settingsRow} onPress={logout}>
+              <Ionicons name="log-out-outline" size={20} color="rgba(239,68,68,0.8)" />
+              <Text style={[s.settingsRowTxt, { color: 'rgba(239,68,68,0.8)' }]}>Cerrar sesión</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  if (loading) return (
+    <View style={s.root}><ActivityIndicator color={colors.c1} style={{ marginTop: 80 }} /></View>
+  );
+
+  const flatListData = tab === 'posts' ? posts : [tab];
+
+  return (
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+
+      <Animated.FlatList
+        data={flatListData}
+        renderItem={renderItem}
+        keyExtractor={(item, index) => tab === 'posts' ? (item._id || index.toString()) : item}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={<View style={{ height: 60 }} />}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        initialNumToRender={5}
+        getItemLayout={tab === 'posts' ? (data, index) => (
+          { length: 400, offset: 400 * index, index }
+        ) : undefined}
+      />
 
       {/* ── Modal Fondo — sin bordes, ancho completo ── */}
       <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>

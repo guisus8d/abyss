@@ -347,7 +347,6 @@ export default function HomeScreen({ navigation }) {
               const active = activeTab === tab.key;
               return (
                 <TouchableOpacity key={tab.key} style={[s.tabBtn, active ? s.tabBtnActive : s.tabBtnInactive]} onPress={() => switchTab(tab.key)} activeOpacity={0.7}>
-                  <Ionicons name={tab.icon} size={14} color={active ? colors.black : colors.textDim} style={{ marginRight: 4 }} />
                   <Text style={[s.tabLabel, active && s.tabLabelActive]}>{tab.label}</Text>
                 </TouchableOpacity>
               );
