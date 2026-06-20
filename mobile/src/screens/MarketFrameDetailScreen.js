@@ -218,7 +218,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             ) : isOwn ? (
               <View style={[s.btnHalf, s.btnDisabled]}>
-                <Ionicons name="person-outline" size={18} color={colors.textDim} />
+                <Ionicons name="person-outline" size={18} color="#e0e0e0" />
                 <Text style={s.btnDisabledTxt}>Tuyo</Text>
               </View>
             ) : canBuy ? (
