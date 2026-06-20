@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, ScrollView, StatusBar,
   ActivityIndicator, Alert, Dimensions, Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import AppOnlyScreen from '../components/AppOnlyScreen';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -49,6 +50,7 @@ export default function CreateFrameScreen({ navigation }) {
   if (Platform.OS === 'web') return <AppOnlyScreen navigation={navigation} />;
 
   const { user, updateUser } = useAuthStore();
+  const insets = useSafeAreaInsets();
   const [tab, setTab]         = useState('preview');  // 'preview' | 'editor' | 'info'
   const [name, setName]       = useState('');
   const [description, setDesc]= useState('');
@@ -64,6 +66,12 @@ export default function CreateFrameScreen({ navigation }) {
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [publishing, setPublishing] = useState(false);
 
+  useFocusEffect(useCallback(() => {
+    api.get('/users/me').then(({ data }) => {
+      if (data.user) updateUser(data.user);
+    }).catch(() => {});
+  }, []));
+
   const selectedPkg = PACKAGES[pkg];
   const canCreate   = (user?.xp || 0) >= 100 && (user?.coins || 0) >= selectedPkg.cost;
   const frameUri    = frameImage?.uri || null;
@@ -74,13 +82,21 @@ export default function CreateFrameScreen({ navigation }) {
     });
     if (!r.canceled) {
       const asset = r.assets[0];
-      setFrameImg({ uri: asset.uri, mimeType: asset.mimeType || 'image/png' });
+      const mime = asset.mimeType || '';
+      if (!mime.includes('png') && !mime.includes('webp')) {
+        Alert.alert(
+          'Formato no compatible',
+          'El marco debe ser PNG o WebP con fondo transparente.\n\nTu imagen no es compatible — exporta como PNG desde tu editor e intenta de nuevo.'
+        );
+        return;
+      }
+      setFrameImg({ uri: asset.uri, mimeType: mime });
     }
   }
 
   async function pickBgImage() {
     const r = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes:['images'], allowsEditing:true, aspect:[1,1], quality:0.8,
+      mediaTypes:['images'], allowsEditing:false, quality:0.8,
     });
     if (!r.canceled) {
       const asset = r.assets[0];
@@ -218,6 +234,11 @@ export default function CreateFrameScreen({ navigation }) {
             <View style={[StyleSheet.absoluteFillObject, {backgroundColor:'rgba(0,0,0,0.15)'}]} />
             {/* Avatar + marco */}
             <View style={s.previewAvatarContainer}>
+              {/* Logo: capa más baja, detrás del avatar y del marco */}
+              {logoImage?.uri && (
+                <ExpoImage source={{uri:logoImage.uri}} contentFit="contain" pointerEvents="none"
+                  style={[StyleSheet.absoluteFillObject, s.previewLogoOverlay]} />
+              )}
               <View style={s.previewCircle}>
                 {avatarUri
                   ? <Image source={{uri:avatarUri}} style={s.previewCircleImg} />
@@ -259,7 +280,7 @@ export default function CreateFrameScreen({ navigation }) {
           </View>
 
           {/* Acciones rápidas */}
-          <View style={s.previewActions}>
+          <View style={[s.previewActions, { paddingBottom: Math.max(insets.bottom + 12, 12) }]}>
             <TouchableOpacity style={s.previewActionBtn} onPress={pickFrame}>
               <Ionicons name="sparkles-outline" size={16} color="rgba(244,114,182,1)" />
               <Text style={[s.previewActionTxt,{color:'rgba(244,114,182,1)'}]}>
@@ -276,7 +297,7 @@ export default function CreateFrameScreen({ navigation }) {
 
       {/* ── TAB EDITOR ── */}
       {tab === 'editor' && (
-        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: Math.max(insets.bottom + 24, 40) }]}>
 
           {!canCreate && (
             <View style={s.reqBanner}>
@@ -454,7 +475,7 @@ export default function CreateFrameScreen({ navigation }) {
 
       {/* ── TAB INFO ── */}
       {tab === 'info' && (
-        <ScrollView style={{ backgroundColor: colors.black }} contentContainerStyle={{padding:20,gap:16}} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ backgroundColor: colors.black }} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: Math.max(insets.bottom + 20, 40) }} showsVerticalScrollIndicator={false}>
           <View style={s.infoCard}>
             <View style={s.infoIcon}><Ionicons name="sparkles" size={22} color="rgba(244,114,182,1)" /></View>
             <Text style={s.infoTitle}>¿Qué es un marco?</Text>
@@ -528,6 +549,7 @@ const s = StyleSheet.create({
   previewCircleImg: { width:100, height:100, borderRadius:50 },
   previewCircleTxt: { fontSize:42, fontWeight:'800' },
   previewFrameOverlay: { position:'absolute', top:0, left:0, width:130, height:130 },
+  previewLogoOverlay:  { opacity:0.45, borderRadius:65 },
   previewLabel: { color:colors.textHi, fontSize:14, fontWeight:'700', marginTop:12, textShadowColor:'rgba(0,0,0,0.8)', textShadowOffset:{width:0,height:1}, textShadowRadius:4 },
   previewHint:  { color:colors.textDim, fontSize:12, marginTop:6 },
 
