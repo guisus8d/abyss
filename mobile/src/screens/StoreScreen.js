@@ -448,8 +448,8 @@ const s = StyleSheet.create({
 
   identity: { alignItems: 'center', marginTop: -44, marginBottom: 16, paddingHorizontal: 16 },
   logoWrap: { marginBottom: 10 },
-  logo:     { width: 88, height: 88, borderRadius: 22, borderWidth: 2, borderColor: colors.border },
-  logoPlaceholder: { width: 88, height: 88, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  logo:     { width: 88, height: 88, borderRadius: 22, borderWidth: 2, borderColor: '#fff' },
+  logoPlaceholder: { width: 88, height: 88, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   storeName: { color: colors.textHi, fontSize: 18, fontWeight: '800', textAlign: 'center' },
   nivelBadge: { alignSelf: 'flex-end', borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
   nivelTxt:   { fontSize: 11, fontWeight: '700' },
