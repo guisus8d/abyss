@@ -90,9 +90,10 @@ export default function StoreScreen({ navigation, route }) {
   const targetUsername = route.params?.username || user?.username;
   const isOwn = targetUsername === user?.username;
 
-  const [store, setStore]     = useState(null);
-  const [frames, setFrames]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [store, setStore]         = useState(null);
+  const [frames, setFrames]       = useState([]);
+  const [storeUser, setStoreUser] = useState(null);
+  const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Publish flow
@@ -117,10 +118,12 @@ export default function StoreScreen({ navigation, route }) {
         if (statsRes.data) { setStore(statsRes.data.store); }
         if (pubRes.data)   { setFrames(pubRes.data.frames || []); if (!statsRes.data) setStore(pubRes.data.store); }
         if (!statsRes.data?.store && !pubRes.data?.store) setStore(null);
+        setStoreUser(user);
       } else {
         const { data } = await api.get(`/store/${targetUsername}`);
         setStore(data.store);
         setFrames(data.frames || []);
+        setStoreUser(data.user || null);
       }
     } catch (e) {
       if (e.response?.status === 404) setStore(null);
@@ -317,7 +320,7 @@ export default function StoreScreen({ navigation, route }) {
           </View>
         )}
         renderItem={({ item }) => (
-          <FrameCard frame={item} onPress={() => navigation.navigate('MarketFrameDetail', { frame: item })} />
+          <FrameCard frame={item} onPress={() => navigation.navigate('MarketFrameDetail', { frame: { ...item, creator: storeUser || item.creator } })} />
         )}
       />
 

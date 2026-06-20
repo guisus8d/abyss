@@ -51,12 +51,12 @@ function FrameCard({ frame, onPress }) {
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}
-        <View style={[s.priceBadge, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
-          <CoinIcon size={9} />
-          <Text style={s.priceTxt}>{frame.price}</Text>
-        </View>
       </View>
       <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
+      <View style={s.cardPriceRow}>
+        <CoinIcon size={9} />
+        <Text style={s.cardPriceTxt}>{frame.price}</Text>
+      </View>
       <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator?.username}</Text>
     </TouchableOpacity>
   );
@@ -251,11 +251,11 @@ const s = StyleSheet.create({
   },
   cardPreview: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   cardImg:    { width: '85%', height: '85%' },
-  cardAvatar: { position: 'absolute' },
-  priceBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(251,191,36,0.18)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)' },
-  priceTxt:   { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800' },
-  cardName:    { color: colors.textHi, fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 2 },
-  cardCreator: { color: colors.textDim, fontSize: 9, paddingHorizontal: 8, paddingBottom: 8 },
+  cardAvatar:   { position: 'absolute' },
+  cardName:     { color: colors.textHi, fontSize: 13, fontWeight: '700', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 2 },
+  cardPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingBottom: 4 },
+  cardPriceTxt: { color: 'rgba(251,191,36,1)', fontSize: 10, fontWeight: '800' },
+  cardCreator:  { color: colors.textDim, fontSize: 9, paddingHorizontal: 8, paddingBottom: 8 },
 
   empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 40, marginTop: 60 },
   emptyIcon:  { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },
