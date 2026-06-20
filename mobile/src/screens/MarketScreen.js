@@ -13,6 +13,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
 import { formatCoins } from '../utils/formatCoins';
+import { presetFromId } from '../utils/framePreset';
 import CustomTabBar from '../components/CustomTabBar';
 
 const { width: W } = Dimensions.get('window');
@@ -42,13 +43,11 @@ function FrameCard({ frame, onPress }) {
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
       <View style={s.cardPreview}>
         <FrameCardBg frame={frame} />
-        {frame.logoUrl ? (
-          <ExpoImage
-            source={{ uri: frame.logoUrl }}
-            style={[s.cardAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
-            contentFit="cover"
-          />
-        ) : null}
+        <ExpoImage
+          source={frame.logoUrl ? { uri: frame.logoUrl } : presetFromId(String(frame._id))}
+          style={[s.cardAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+          contentFit="cover"
+        />
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}

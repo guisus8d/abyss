@@ -48,7 +48,7 @@ export default function AvatarWithFrame({
           overflow: 'hidden',
         }}>
           {avatarUrl
-            ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
+            ? <Image source={typeof avatarUrl === 'string' ? { uri: avatarUrl } : avatarUrl} style={{ width: size, height: size, borderRadius: radius }} />
             : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
                 {username?.[0]?.toUpperCase()}
               </Text>}
@@ -89,7 +89,7 @@ export default function AvatarWithFrame({
         overflow: 'hidden',
       }}>
         {avatarUrl
-          ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: radius }} />
+          ? <Image source={typeof avatarUrl === 'string' ? { uri: avatarUrl } : avatarUrl} style={{ width: size, height: size, borderRadius: radius }} />
           : <Text style={{ color: '#00e5cc', fontWeight: 'bold', fontSize: size * 0.38 }}>
               {username?.[0]?.toUpperCase()}
             </Text>}

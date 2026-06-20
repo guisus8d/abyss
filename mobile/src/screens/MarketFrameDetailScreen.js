@@ -14,6 +14,7 @@ import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
 import GenderIcon from '../components/GenderIcon';
+import { presetFromId } from '../utils/framePreset';
 
 const { width: W } = Dimensions.get('window');
 const AVATAR_SIZE = Math.min(W * 0.38, 150);
@@ -44,7 +45,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
   const isOwn  = String(creator?._id) === String(user?._id);
   const canBuy = !isOwn && frame.status === 'active' && frame.units > 0;
 
-  const previewAvatarUrl = frame.logoUrl || null;
+  const previewAvatarUrl = frame.logoUrl || presetFromId(String(frame._id));
   const displayAvatarUrl = creator?.avatarUrl;
   const displayUsername  = creator?.username;
 
