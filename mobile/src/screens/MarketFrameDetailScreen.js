@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image, ImageBackground,
+  View, Text, StyleSheet, TouchableOpacity, Image,
   StatusBar, ActivityIndicator, Alert,
   Dimensions, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
@@ -115,11 +115,13 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
       <SafeAreaView style={s.safe}>
 
         {/* ── Header (top bar con fondo decorativo) ── */}
-        <ImageBackground
-          source={require('../../assets/market/bg_share_merch_nft.png')}
-          style={s.header}
-          resizeMode="cover"
-        >
+        <View style={s.header}>
+          <ExpoImage
+            source={require('../../assets/market/bg_share_merch_nft.png')}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+          />
+
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.headerBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.textHi} />
           </TouchableOpacity>
@@ -152,7 +154,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
           <TouchableOpacity style={s.headerBtn} onPress={() => setInfoModal(true)}>
             <Image source={require('../../assets/market/icon_notice.png')} style={s.noticeIcon} />
           </TouchableOpacity>
-        </ImageBackground>
+        </View>
 
         {/* ── Main: avatar centrado + botones derecha ── */}
         <View style={s.main}>
