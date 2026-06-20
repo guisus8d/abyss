@@ -51,6 +51,10 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
   const [framesCount,  setFramesCount]  = useState(null);
 
   useEffect(() => {
+    setAvatarUrl(user?.avatarUrl || null);
+  }, [user?.avatarUrl]);
+
+  useEffect(() => {
     if (visible) {
       api.get('/frames/my')
         .then(({ data }) => setFramesCount((data.frames || []).length))

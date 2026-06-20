@@ -59,7 +59,7 @@ const AVATAR_SIZE = 48;
 
 // ──────────────────────────────────────────────────────────────────────────
 export default function ChatsScreen({ navigation }) {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const insets   = useSafeAreaInsets();
 
   const [tab,         setTab]         = useState('privado');
@@ -687,6 +687,8 @@ export default function ChatsScreen({ navigation }) {
       <ProfileDrawer
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        user={user}
+        onLogout={logout}
         onNavigate={(screen, params) => { setDrawerOpen(false); navigation.navigate(screen, params); }}
       />
 
@@ -717,7 +719,7 @@ const s = StyleSheet.create({
 
   tabBar:        { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 2, paddingVertical: 4, paddingHorizontal: 16 },
   tabBtn:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  tabLabel:      { color: colors.textDim, fontSize: 13, fontWeight: '500' },
+  tabLabel:      { color: colors.textDim, fontSize: 15, fontWeight: '800' },
   tabLabelActive:{ color: colors.textHi, fontWeight: '700' },
   tabBadge:      { position: 'absolute', top: -5, right: -10, backgroundColor: 'rgba(239,68,68,0.95)', borderRadius: 6, minWidth: 13, height: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   tabBadgeTxt:   { color: '#fff', fontSize: 7, fontWeight: '800' },

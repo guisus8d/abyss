@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, StatusBar,
+  View, Text, TouchableOpacity, StyleSheet, StatusBar, ScrollView,
   FlatList, TextInput, Image, ActivityIndicator, Modal, Pressable, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,6 +43,7 @@ export default function ModPanelScreen({ navigation, route }) {
   const [usersTotal,      setUsersTotal]      = useState(0);
   const [usersBanned,     setUsersBanned]     = useState(0);
   const [usersMods,       setUsersMods]       = useState(0);
+  const [hideBots,   setHideBots]   = useState(true);
   const [search,     setSearch]     = useState('');
   const [banModal,   setBanModal]   = useState(null);
   const [banReason,  setBanReason]  = useState('');
@@ -57,16 +58,16 @@ export default function ModPanelScreen({ navigation, route }) {
   const [reportStats,    setReportStats]    = useState({ pending:0, reviewed:0, dismissed:0 });
 
   useEffect(() => {
-    if (activeTab === 'users')   loadUsers();
+    if (activeTab === 'users')   loadUsers('', 1, hideBots);
     if (activeTab === 'reports') loadReports();
-  }, [activeTab, reportFilter]);
+  }, [activeTab, reportFilter, hideBots]);
 
   // ─── Users ────────────────────────────────────────────────────────────────
-  async function loadUsers(q = '', page = 1) {
+  async function loadUsers(q = '', page = 1, bots = hideBots) {
     if (page === 1) setUsersLoading(true);
     else            setUsersLoadingMore(true);
     try {
-      const params = new URLSearchParams({ page, limit: 20 });
+      const params = new URLSearchParams({ page, limit: 20, hideBots: bots ? 'true' : 'false' });
       if (q) params.set('q', q);
       const { data } = await api.get(`/users/mod/users?${params}`);
       setUsers(prev => page === 1 ? (data.users || []) : [...prev, ...(data.users || [])]);
@@ -84,7 +85,7 @@ export default function ModPanelScreen({ navigation, route }) {
 
   function loadMoreUsers() {
     if (usersLoadingMore || !usersHasMore) return;
-    loadUsers(search, usersPage + 1);
+    loadUsers(search, usersPage + 1, hideBots);
   }
 
   async function handleBan(user) {
@@ -93,7 +94,7 @@ export default function ModPanelScreen({ navigation, route }) {
     try {
       await api.post(`/users/mod/ban/${user._id}`, { reason: banReason });
       setBanModal(null); setBanReason('');
-      loadUsers(search, 1);
+      loadUsers(search, 1, hideBots);
     } catch (err) { console.log('ban error:', err.message); }
     finally { setActing(false); }
   }
@@ -101,14 +102,14 @@ export default function ModPanelScreen({ navigation, route }) {
   async function handleUnban(userId) {
     try {
       await api.post(`/users/mod/unban/${userId}`);
-      loadUsers(search, 1);
+      loadUsers(search, 1, hideBots);
     } catch (err) { console.log('unban error:', err.message); }
   }
 
   async function handleSetRole(userId, role) {
     try {
       await api.post(`/users/mod/setrole/${userId}`, { role });
-      loadUsers(search, 1);
+      loadUsers(search, 1, hideBots);
     } catch (err) { console.log('setrole error:', err.message); }
   }
 
@@ -355,20 +356,29 @@ export default function ModPanelScreen({ navigation, route }) {
                 </View>
               </View>
 
-              {/* Buscador */}
+              {/* Buscador + toggle bots */}
               <View style={s.searchRow}>
                 <Ionicons name="search" size={16} color={colors.textDim} />
                 <TextInput
                   style={s.searchInput}
                   value={search}
-                  onChangeText={v => { setSearch(v); loadUsers(v, 1); }}
+                  onChangeText={v => { setSearch(v); loadUsers(v, 1, hideBots); }}
                   placeholder="Buscar usuario..."
                   placeholderTextColor={colors.textDim}
                 />
-                {search ? <TouchableOpacity onPress={() => { setSearch(''); loadUsers('', 1); }}>
+                {search ? <TouchableOpacity onPress={() => { setSearch(''); loadUsers('', 1, hideBots); }}>
                   <Ionicons name="close" size={16} color={colors.textDim} />
                 </TouchableOpacity> : null}
               </View>
+              <TouchableOpacity
+                style={[s.botToggle, !hideBots && s.botToggleActive]}
+                onPress={() => setHideBots(v => !v)}
+              >
+                <Ionicons name="hardware-chip-outline" size={13} color={hideBots ? colors.textDim : colors.c1} />
+                <Text style={[s.botToggleTxt, !hideBots && { color: colors.c1 }]}>
+                  {hideBots ? 'Bots ocultos' : 'Mostrando bots'}
+                </Text>
+              </TouchableOpacity>
 
               {usersLoading && <ActivityIndicator color={colors.c1} style={{ marginTop:40 }} />}
             </>
@@ -504,4 +514,8 @@ const s = StyleSheet.create({
   cancelBtnTxt: { color: colors.textDim, fontSize:14 },
   banBtn:       { flex:1, backgroundColor:'rgba(239,68,68,0.8)', borderRadius:12, paddingVertical:12, alignItems:'center' },
   banBtnTxt:    { color:'#fff', fontWeight:'800', fontSize:14 },
+
+  botToggle:     { flexDirection:'row', alignItems:'center', gap:6, alignSelf:'flex-start', marginHorizontal:16, marginBottom:10, paddingHorizontal:12, paddingVertical:6, borderRadius:20, borderWidth:1, borderColor: colors.border, backgroundColor:'rgba(255,255,255,0.03)' },
+  botToggleActive:{ borderColor:'rgba(0,229,204,0.35)', backgroundColor:'rgba(0,229,204,0.07)' },
+  botToggleTxt:  { color: colors.textDim, fontSize:11, fontWeight:'600' },
 });
