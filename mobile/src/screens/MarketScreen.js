@@ -38,7 +38,7 @@ function FrameCardBg({ frame }) {
 }
 
 function FrameCard({ frame, onPress }) {
-  const avatarSize = CARD_W * 0.42;
+  const avatarSize = CARD_W * 0.62;
   return (
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
       <View style={s.cardPreview}>

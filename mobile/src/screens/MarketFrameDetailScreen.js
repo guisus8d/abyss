@@ -17,7 +17,7 @@ import GenderIcon from '../components/GenderIcon';
 import { presetFromId } from '../utils/framePreset';
 
 const { width: W } = Dimensions.get('window');
-const AVATAR_SIZE = Math.min(W * 0.38, 150);
+const AVATAR_SIZE = Math.min(W * 0.50, 200);
 const SIDE_W      = 64;
 
 export default function MarketFrameDetailScreen({ route, navigation }) {
