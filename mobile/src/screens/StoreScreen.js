@@ -321,7 +321,7 @@ export default function StoreScreen({ navigation, route }) {
           </View>
         )}
         renderItem={({ item }) => (
-          <FrameCard frame={item} onPress={() => navigation.navigate('Market')} />
+          <FrameCard frame={item} onPress={() => navigation.navigate('MarketFrameDetail', { frame: item })} />
         )}
       />
 
@@ -443,7 +443,7 @@ const s = StyleSheet.create({
   editBtn:     { padding: 4 },
   headerRight: { alignItems: 'flex-end', gap: 4 },
 
-  banner:        { height: 130, position: 'relative', backgroundColor: colors.deep },
+  banner:        { height: 180, marginHorizontal: -16, position: 'relative', backgroundColor: colors.deep },
   bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,9,0.4)' },
 
   identity: { alignItems: 'center', marginTop: -44, marginBottom: 16, paddingHorizontal: 16 },
