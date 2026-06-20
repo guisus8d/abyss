@@ -46,18 +46,15 @@ function FrameCard({ frame, onPress }) {
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}
-        <View style={[s.priceBadge, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
-          <CoinIcon size={9} />
-          <Text style={s.priceTxt}>{frame.price}</Text>
-        </View>
         <View style={s.unitsBadge}>
           <Text style={s.unitsTxt}>{frame.units} u.</Text>
         </View>
       </View>
       <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
-      {frame.totalSold > 0 && (
-        <Text style={s.cardSold} numberOfLines={1}>{frame.totalSold} vendidos</Text>
-      )}
+      <View style={s.cardPriceRow}>
+        <CoinIcon size={9} />
+        <Text style={s.cardPriceTxt}>{frame.price}</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -247,14 +244,19 @@ export default function StoreScreen({ navigation, route }) {
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>TIENDA</Text>
-          {isOwn ? (
-            <TouchableOpacity
-              style={s.editBtn}
-              onPress={() => navigation.navigate('CreateStore', { store, onCreated: () => loadStore() })}
-            >
-              <Ionicons name="pencil-outline" size={18} color={colors.c1} />
-            </TouchableOpacity>
-          ) : <View style={{ width: 28 }} />}
+          <View style={s.headerRight}>
+            {isOwn ? (
+              <TouchableOpacity
+                style={s.editBtn}
+                onPress={() => navigation.navigate('CreateStore', { store, onCreated: () => loadStore() })}
+              >
+                <Ionicons name="pencil-outline" size={18} color={colors.c1} />
+              </TouchableOpacity>
+            ) : <View style={{ width: 28 }} />}
+            <View style={[s.nivelBadge, { borderColor: nivelColor + '40' }]}>
+              <Text style={[s.nivelTxt, { color: nivelColor }]}>Nv. {nivel} · {NIVEL_LABELS[nivel]}</Text>
+            </View>
+          </View>
         </View>
 
       </SafeAreaView>
@@ -283,14 +285,9 @@ export default function StoreScreen({ navigation, route }) {
               <View style={s.logoWrap}>
                 {store.logo
                   ? <ExpoImage source={{ uri: store.logo }} style={s.logo} contentFit="cover" />
-                  : <View style={s.logoPlaceholder}><Ionicons name="storefront" size={28} color={colors.c1} /></View>}
+                  : <View style={s.logoPlaceholder}><Ionicons name="storefront" size={36} color={colors.c1} /></View>}
               </View>
-              <View style={s.identityInfo}>
-                <Text style={s.storeName}>{store.nombre}</Text>
-                <View style={[s.nivelBadge, { borderColor: nivelColor + '40' }]}>
-                  <Text style={[s.nivelTxt, { color: nivelColor }]}>Nv. {nivel} · {NIVEL_LABELS[nivel]}</Text>
-                </View>
-              </View>
+              <Text style={s.storeName}>{store.nombre}</Text>
             </View>
 
             {store.descripcion ? (
@@ -444,18 +441,18 @@ const s = StyleSheet.create({
   backBtn:     { padding: 4 },
   headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
   editBtn:     { padding: 4 },
+  headerRight: { alignItems: 'flex-end', gap: 4 },
 
   banner:        { height: 130, position: 'relative', backgroundColor: colors.deep },
   bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,9,0.4)' },
 
-  identity: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: -26, marginBottom: 12 },
-  logoWrap: { marginRight: 12 },
-  logo:     { width: 60, height: 60, borderRadius: 16, borderWidth: 2, borderColor: colors.border },
-  logoPlaceholder: { width: 60, height: 60, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  identityInfo: { flex: 1, paddingBottom: 4 },
-  storeName:    { color: colors.textHi, fontSize: 18, fontWeight: '800', marginBottom: 4 },
-  nivelBadge:   { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
-  nivelTxt:     { fontSize: 11, fontWeight: '700' },
+  identity: { alignItems: 'center', marginTop: -44, marginBottom: 16, paddingHorizontal: 16 },
+  logoWrap: { marginBottom: 10 },
+  logo:     { width: 88, height: 88, borderRadius: 22, borderWidth: 2, borderColor: colors.border },
+  logoPlaceholder: { width: 88, height: 88, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  storeName: { color: colors.textHi, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  nivelBadge: { alignSelf: 'flex-end', borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  nivelTxt:   { fontSize: 11, fontWeight: '700' },
 
   desc: { color: colors.textMid, fontSize: 13, lineHeight: 18, paddingHorizontal: 16, marginBottom: 14 },
 
@@ -472,14 +469,13 @@ const s = StyleSheet.create({
     overflow: 'hidden', marginBottom: GAP,
   },
   cardPreview: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  cardImg:     { width: '85%', height: '85%' },
-  cardAvatar:  { position: 'absolute' },
-  priceBadge:  { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(251,191,36,0.15)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' },
-  priceTxt:    { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800' },
-  unitsBadge:  { position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)' },
-  unitsTxt:    { color: colors.c1, fontSize: 8, fontWeight: '700' },
-  cardName:    { color: colors.textHi, fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 2 },
-  cardSold:    { color: colors.textDim, fontSize: 9, paddingHorizontal: 8, paddingBottom: 8 },
+  cardImg:      { width: '85%', height: '85%' },
+  cardAvatar:   { position: 'absolute' },
+  unitsBadge:   { position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)' },
+  unitsTxt:     { color: colors.c1, fontSize: 8, fontWeight: '700' },
+  cardName:     { color: colors.textHi, fontSize: 13, fontWeight: '700', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 2 },
+  cardPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingBottom: 8 },
+  cardPriceTxt: { color: 'rgba(251,191,36,1)', fontSize: 10, fontWeight: '800' },
 
   noStore:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 40 },
   noStoreIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },
