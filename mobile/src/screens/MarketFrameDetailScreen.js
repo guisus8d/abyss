@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image,
+  View, Text, StyleSheet, TouchableOpacity, Image, ImageBackground,
   StatusBar, ActivityIndicator, Alert,
   Dimensions, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
@@ -114,17 +114,26 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
 
       <SafeAreaView style={s.safe}>
 
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.headerBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.textHi} />
-          </TouchableOpacity>
+        {/* ── Panel izquierdo (fondo decorativo) + franja derecha ── */}
+        <View style={s.contentRow}>
 
-          <View style={s.headerMeta}>
+          <ImageBackground
+            source={require('../../assets/market/bg_share_merch_nft.png')}
+            style={s.leftPanel}
+            resizeMode="cover"
+          >
+            {/* 1. Botón salir */}
+            <TouchableOpacity onPress={() => navigation.goBack()} style={s.headerBtn}>
+              <Ionicons name="arrow-back" size={22} color={colors.textHi} />
+            </TouchableOpacity>
+
+            {/* 2+3. Ícono NFT + nombre del marco */}
             <View style={s.headerTitleRow}>
               <Image source={require('../../assets/market/icon_exclusive_nft_1.png')} style={s.nftIcon} />
               <Text style={s.headerTitle} numberOfLines={1}>{frame.name}</Text>
             </View>
+
+            {/* 4. Creador */}
             {creator && (
               <TouchableOpacity
                 style={s.headerCreator}
@@ -143,53 +152,47 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                 }
               </TouchableOpacity>
             )}
-          </View>
 
-          <TouchableOpacity style={s.headerBtn} onPress={() => setInfoModal(true)}>
-            <Image source={require('../../assets/market/icon_notice.png')} style={s.noticeIcon} />
-          </TouchableOpacity>
-        </View>
+            {/* 5. Avatar con marco */}
+            <View style={s.centerCol}>
+              <TouchableOpacity
+                onPress={() => setAvatarModal(true)}
+                activeOpacity={0.9}
+                style={s.avatarWrap}
+              >
+                <AvatarWithFrame
+                  size={AVATAR_SIZE}
+                  avatarUrl={previewAvatarUrl}
+                  username="?"
+                  profileFrame={frame._id}
+                  frameUrl={frameUrl}
+                />
+              </TouchableOpacity>
+              <View style={s.nameWrap} />
+            </View>
+          </ImageBackground>
 
-        {/* ── Main: avatar centrado + botones derecha ── */}
-        <View style={s.main}>
-
-          {/* Espacio izquierdo para equilibrar los botones derechos */}
-          <View style={{ width: SIDE_W }} />
-
-          {/* Columna central: foto del creador con el marco */}
-          <View style={s.centerCol}>
-            <TouchableOpacity
-              onPress={() => setAvatarModal(true)}
-              activeOpacity={0.9}
-              style={s.avatarWrap}
-            >
-              <AvatarWithFrame
-                size={AVATAR_SIZE}
-                avatarUrl={previewAvatarUrl}
-                username="?"
-                profileFrame={frame._id}
-                frameUrl={frameUrl}
-              />
+          {/* Franja derecha: notice + like + comentarios */}
+          <View style={s.rightStrip}>
+            <TouchableOpacity style={s.headerBtn} onPress={() => setInfoModal(true)}>
+              <Image source={require('../../assets/market/icon_notice.png')} style={s.noticeIcon} />
             </TouchableOpacity>
 
-            <View style={s.nameWrap} />
-          </View>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+              <TouchableOpacity style={s.actionBtn} onPress={handleLike} activeOpacity={0.75}>
+                <Ionicons
+                  name={liked ? 'heart' : 'heart-outline'}
+                  size={28}
+                  color={liked ? '#f43f5e' : colors.textDim}
+                />
+                <Text style={[s.actionCount, liked && { color: '#f43f5e' }]}>{likesCount}</Text>
+              </TouchableOpacity>
 
-          {/* Columna derecha: like + comentar */}
-          <View style={s.rightCol}>
-            <TouchableOpacity style={s.actionBtn} onPress={handleLike} activeOpacity={0.75}>
-              <Ionicons
-                name={liked ? 'heart' : 'heart-outline'}
-                size={28}
-                color={liked ? '#f43f5e' : colors.textDim}
-              />
-              <Text style={[s.actionCount, liked && { color: '#f43f5e' }]}>{likesCount}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={s.actionBtn} onPress={openComments} activeOpacity={0.75}>
-              <Ionicons name="chatbubble-outline" size={26} color={colors.textDim} />
-              <Text style={s.actionCount}>{commentsCount}</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={s.actionBtn} onPress={openComments} activeOpacity={0.75}>
+                <Ionicons name="chatbubble-outline" size={26} color={colors.textDim} />
+                <Text style={s.actionCount}>{commentsCount}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -373,12 +376,7 @@ const s = StyleSheet.create({
   root: { flex:1, backgroundColor: colors.black },
   safe: { flex:1 },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12, gap: 8,
-  },
   headerBtn:   { padding: 4 },
-  headerMeta:  { flex: 1, paddingHorizontal: 8, gap: 4 },
   headerTitle: { color: 'rgba(251,191,36,1)', fontSize: 15, fontWeight: '800' },
   headerCreator:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerAvatar:      { width: 20, height: 20, borderRadius: 10 },
@@ -389,12 +387,24 @@ const s = StyleSheet.create({
   nftIcon:        { width: 18, height: 18 },
   noticeIcon:     { width: 32, height: 32 },
 
-  // ── Main area ──
-  main: {
+  // ── Content row ──
+  contentRow: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+  },
+  leftPanel: {
+    flex: 1,
+    paddingTop: 12,
     paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 10,
+    overflow: 'hidden',
+  },
+  rightStrip: {
+    width: SIDE_W + 16,
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 16,
   },
 
   centerCol: {
@@ -417,12 +427,6 @@ const s = StyleSheet.create({
   nameWrap: { alignItems: 'center', minHeight: 28 },
   creatorName: { color: colors.textDim, fontSize: 14, fontWeight: '600' },
 
-  rightCol: {
-    width: SIDE_W,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 28,
-  },
   actionBtn:   { alignItems: 'center', gap: 4 },
   actionCount: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
 
