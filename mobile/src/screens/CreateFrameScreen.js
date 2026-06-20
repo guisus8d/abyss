@@ -67,13 +67,16 @@ export default function CreateFrameScreen({ navigation }) {
   const [publishing, setPublishing] = useState(false);
 
   useFocusEffect(useCallback(() => {
+    console.log('[CF-LOG-1] useFocusEffect fired');
     api.get('/users/me').then(({ data }) => {
+      console.log('[CF-LOG-1] /users/me response — xp:', data.user?.xp, 'coins:', data.user?.coins);
       if (data.user) updateUser(data.user);
-    }).catch(() => {});
+    }).catch((e) => console.log('[CF-LOG-1] /users/me error:', e?.message));
   }, []));
 
   const selectedPkg = PACKAGES[pkg];
   const canCreate   = (user?.xp || 0) >= 100 && (user?.coins || 0) >= selectedPkg.cost;
+  console.log('[CF-LOG-2] render — xp:', user?.xp, 'coins:', user?.coins, 'pkg.cost:', selectedPkg.cost, 'canCreate:', canCreate);
   const frameUri    = frameImage?.uri || null;
 
   async function pickFrame() {
@@ -126,6 +129,7 @@ export default function CreateFrameScreen({ navigation }) {
   }
 
   async function handleCreate() {
+    console.log('[CF-LOG-3] handleCreate CALLED — name:', name.trim(), 'frameUri:', !!frameImage?.uri, 'canCreate:', canCreate, 'publishing:', publishing);
     if (!name.trim())  return Alert.alert('Falta nombre', 'Ponle un nombre a tu marco');
     if (!frameImage?.uri) return Alert.alert('Falta imagen', 'Sube la imagen del marco');
     if (!canCreate)    return Alert.alert('Sin recursos', `Necesitas ${selectedPkg.cost} ✦ y 200 XP`);
