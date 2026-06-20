@@ -34,7 +34,7 @@ function FrameCardBg({ frame }) {
   const grad = typeof frame.bgGradient === 'string' ? JSON.parse(frame.bgGradient || '[]') : (frame.bgGradient || []);
   if (frame.bgType === 'gradient' && grad.length >= 2)
     return <LinearGradient colors={grad} style={StyleSheet.absoluteFill} />;
-  return <View style={[StyleSheet.absoluteFill, { backgroundColor: frame.bgColor || '#0d1f2d' }]} />;
+  return <ExpoImage source={require('../../assets/chat-bg.jpeg')} style={StyleSheet.absoluteFill} contentFit="cover" />;
 }
 
 function FrameCard({ frame, onPress }) {

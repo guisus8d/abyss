@@ -12,6 +12,7 @@ import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
+import { presetFromId } from '../utils/framePreset';
 
 const { width: W } = Dimensions.get('window');
 const COLS   = 3;
@@ -23,17 +24,25 @@ const NIVEL_LABELS = { 1: 'Novato', 2: 'Aprendiz', 3: 'Artesano', 4: 'Experto', 
 const NIVEL_COLORS = { 1: colors.textDim, 2: colors.c5, 3: colors.c1, 4: colors.c2, 5: colors.c3 };
 
 function FrameCardBg({ frame }) {
+  if (frame.bgImageUrl)
+    return <ExpoImage source={{ uri: frame.bgImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />;
   const grad = typeof frame.bgGradient === 'string' ? JSON.parse(frame.bgGradient || '[]') : (frame.bgGradient || []);
   if (frame.bgType === 'gradient' && grad.length >= 2)
     return <LinearGradient colors={grad} style={StyleSheet.absoluteFill} />;
-  return <View style={[StyleSheet.absoluteFill, { backgroundColor: frame.bgColor || '#0d1f2d' }]} />;
+  return <ExpoImage source={require('../../assets/chat-bg.jpeg')} style={StyleSheet.absoluteFill} contentFit="cover" />;
 }
 
 function FrameCard({ frame, onPress }) {
+  const avatarSize = CARD_W * 0.62;
   return (
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
       <View style={s.cardPreview}>
         <FrameCardBg frame={frame} />
+        <ExpoImage
+          source={frame.logoUrl ? { uri: frame.logoUrl } : presetFromId(String(frame._id))}
+          style={[s.cardAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+          contentFit="cover"
+        />
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}
@@ -464,6 +473,7 @@ const s = StyleSheet.create({
   },
   cardPreview: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   cardImg:     { width: '85%', height: '85%' },
+  cardAvatar:  { position: 'absolute' },
   priceBadge:  { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(251,191,36,0.15)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' },
   priceTxt:    { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800' },
   unitsBadge:  { position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)' },

@@ -109,7 +109,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
           ? <LinearGradient colors={frame.bgGradient} style={StyleSheet.absoluteFill} start={{ x:0,y:0 }} end={{ x:1,y:1 }} />
           : hasBgColor
             ? <View style={[StyleSheet.absoluteFill, { backgroundColor: frame.bgColor }]} />
-            : <LinearGradient colors={['#040e0d','#001a18']} style={StyleSheet.absoluteFill} />
+            : <ExpoImage source={require('../../assets/chat-bg.jpeg')} style={StyleSheet.absoluteFill} contentFit="cover" />
       }
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} />
 
