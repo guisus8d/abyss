@@ -183,13 +183,13 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               <Ionicons
                 name={liked ? 'heart' : 'heart-outline'}
                 size={28}
-                color={liked ? '#f43f5e' : colors.textDim}
+                color={liked ? '#f43f5e' : '#fff'}
               />
               <Text style={[s.actionCount, liked && { color: '#f43f5e' }]}>{likesCount}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={s.actionBtn} onPress={openComments} activeOpacity={0.75}>
-              <Ionicons name="chatbubble-outline" size={26} color={colors.textDim} />
+              <Ionicons name="chatbubble-outline" size={26} color="#fff" />
               <Text style={s.actionCount}>{commentsCount}</Text>
             </TouchableOpacity>
           </View>
@@ -387,7 +387,7 @@ const s = StyleSheet.create({
   headerAvatar:      { width: 20, height: 20, borderRadius: 10 },
   headerAvatarPh:    { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },
   headerAvatarLetter:{ color: colors.c1, fontSize: 10, fontWeight: '800' },
-  headerCreatorName: { color: colors.textDim, fontSize: 12, fontWeight: '600' },
+  headerCreatorName: { color: '#fff', fontSize: 12, fontWeight: '600' },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nftIcon:        { width: 18, height: 18 },
   noticeIcon:     { width: 32, height: 32 },
