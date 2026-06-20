@@ -13,6 +13,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import CoinIcon from '../components/CoinIcon';
 import { formatCoins } from '../utils/formatCoins';
+import CustomTabBar from '../components/CustomTabBar';
 
 const { width: W } = Dimensions.get('window');
 const COLS   = 3;
@@ -21,12 +22,14 @@ const CARD_W = (W - 32 - GAP * (COLS - 1)) / COLS;
 
 const SORTS = [
   { key: 'reciente',     label: 'Reciente' },
-  { key: 'precio_asc',   label: 'Precio ↑' },
-  { key: 'precio_desc',  label: 'Precio ↓' },
-  { key: 'populares',    label: '+Vendidos' },
+  { key: 'precio_asc',   label: 'Precio asc' },
+  { key: 'precio_desc',  label: 'Precio desc' },
+  { key: 'populares',    label: 'Más vendidos' },
 ];
 
 function FrameCardBg({ frame }) {
+  if (frame.bgImageUrl)
+    return <ExpoImage source={{ uri: frame.bgImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />;
   const grad = typeof frame.bgGradient === 'string' ? JSON.parse(frame.bgGradient || '[]') : (frame.bgGradient || []);
   if (frame.bgType === 'gradient' && grad.length >= 2)
     return <LinearGradient colors={grad} style={StyleSheet.absoluteFill} />;
@@ -34,10 +37,18 @@ function FrameCardBg({ frame }) {
 }
 
 function FrameCard({ frame, onPress }) {
+  const avatarSize = CARD_W * 0.42;
   return (
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
       <View style={s.cardPreview}>
         <FrameCardBg frame={frame} />
+        {frame.logoUrl ? (
+          <ExpoImage
+            source={{ uri: frame.logoUrl }}
+            style={[s.cardAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+            contentFit="cover"
+          />
+        ) : null}
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}
@@ -45,11 +56,6 @@ function FrameCard({ frame, onPress }) {
           <CoinIcon size={9} />
           <Text style={s.priceTxt}>{frame.price}</Text>
         </View>
-        {frame.units <= 3 && frame.units > 0 && (
-          <View style={s.urgentBadge}>
-            <Text style={s.urgentTxt}>¡{frame.units} left!</Text>
-          </View>
-        )}
       </View>
       <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
       <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator?.username}</Text>
@@ -146,7 +152,7 @@ export default function MarketScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>MERCADO</Text>
+          <Text style={s.headerTitle}>TIENDA</Text>
           <View style={s.coinsBadge}>
             <CoinIcon size={14} />
             <Text style={s.coinsVal}>{formatCoins(user?.coins)}</Text>
@@ -207,6 +213,8 @@ export default function MarketScreen({ navigation }) {
         />
       )}
 
+      <CustomTabBar navigation={navigation} activeTab="market" />
+
     </View>
   );
 }
@@ -235,7 +243,7 @@ const s = StyleSheet.create({
   sortTxt:        { color: colors.textDim, fontSize: 11, fontWeight: '600' },
   sortTxtActive:  { color: colors.c1 },
 
-  grid: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4 },
+  grid: { paddingHorizontal: 16, paddingBottom: 110, paddingTop: 4 },
 
   card: {
     width: CARD_W, backgroundColor: 'rgba(255,255,255,0.03)',
@@ -243,11 +251,10 @@ const s = StyleSheet.create({
     overflow: 'hidden', marginBottom: GAP,
   },
   cardPreview: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  cardImg:     { width: '85%', height: '85%' },
-  priceBadge:  { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(251,191,36,0.18)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)' },
-  priceTxt:    { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800' },
-  urgentBadge: { position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(249,115,22,0.18)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(249,115,22,0.35)' },
-  urgentTxt:   { color: colors.c4, fontSize: 8, fontWeight: '800' },
+  cardImg:    { width: '85%', height: '85%' },
+  cardAvatar: { position: 'absolute' },
+  priceBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(251,191,36,0.18)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)' },
+  priceTxt:   { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800' },
   cardName:    { color: colors.textHi, fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 2 },
   cardCreator: { color: colors.textDim, fontSize: 9, paddingHorizontal: 8, paddingBottom: 8 },
 
