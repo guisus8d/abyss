@@ -121,7 +121,10 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
           </TouchableOpacity>
 
           <View style={s.headerMeta}>
-            <Text style={s.headerTitle} numberOfLines={1}>{frame.name}</Text>
+            <View style={s.headerTitleRow}>
+              <Image source={require('../../assets/market/icon_exclusive_nft_1.png')} style={s.nftIcon} />
+              <Text style={s.headerTitle} numberOfLines={1}>{frame.name}</Text>
+            </View>
             {creator && (
               <TouchableOpacity
                 style={s.headerCreator}
@@ -143,7 +146,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
           </View>
 
           <TouchableOpacity style={s.headerBtn} onPress={() => setInfoModal(true)}>
-            <Ionicons name="information-circle-outline" size={24} color={colors.textDim} />
+            <Image source={require('../../assets/market/icon_notice.png')} style={s.noticeIcon} />
           </TouchableOpacity>
         </View>
 
@@ -382,6 +385,9 @@ const s = StyleSheet.create({
   headerAvatarPh:    { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },
   headerAvatarLetter:{ color: colors.c1, fontSize: 10, fontWeight: '800' },
   headerCreatorName: { color: colors.textDim, fontSize: 12, fontWeight: '600' },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nftIcon:        { width: 18, height: 18 },
+  noticeIcon:     { width: 24, height: 24 },
 
   // ── Main area ──
   main: {
@@ -447,11 +453,8 @@ const s = StyleSheet.create({
   btnUnavail:    { backgroundColor: 'rgba(58,85,112,0.12)', borderWidth: 1, borderColor: 'rgba(58,85,112,0.4)' },
   btnUnavailTxt: { color: colors.textDim, fontWeight: '700', fontSize: 13 },
 
-  btnDisabled:  {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  btnDisabledTxt: { color: colors.textDim, fontWeight: '700', fontSize: 13 },
+  btnDisabled:    { backgroundColor: '#4a4a4a', borderWidth: 1, borderColor: '#666' },
+  btnDisabledTxt: { color: '#e0e0e0', fontWeight: '700', fontSize: 13 },
 
   btnAppOnly:    { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   btnAppOnlyTxt: { color: colors.textDim, fontWeight: '700', fontSize: 13 },
