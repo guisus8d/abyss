@@ -427,7 +427,7 @@ const s = StyleSheet.create({
     gap: 28,
   },
   actionBtn:   { alignItems: 'center', gap: 4 },
-  actionCount: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
+  actionCount: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
   // ── Bottom section ──
   bottom: {
