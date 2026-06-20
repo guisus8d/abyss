@@ -79,32 +79,53 @@ const uploadFrame = multer({ storage: frameStorage, limits: { fileSize: 5 * 1024
 const frameAllStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
-    if (file.fieldname === 'image') return {
+    let result;
+    if (file.fieldname === 'image') result = {
       folder:          'abbys/frames',
       allowed_formats: ['png', 'webp'],
       resource_type:   'video',
     };
-    if (file.fieldname === 'bgImage') return {
+    else if (file.fieldname === 'bgImage') result = {
       folder:          'abbys/frame-bgs',
       allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      resource_type:   'video',
       transformation:  [{ width: 1200, crop: 'limit', quality: 'auto:best' }],
     };
-    if (file.fieldname === 'logo') return {
+    else if (file.fieldname === 'logo') result = {
       folder:          'abbys/frame-logos',
       allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      resource_type:   'video',
       transformation:  [{ width: 400, height: 400, crop: 'fill', gravity: 'center' }],
     };
-    if (file.fieldname === 'pedestal') return {
+    else if (file.fieldname === 'pedestal') result = {
       folder:          'abbys/frame-pedestals',
       allowed_formats: ['png', 'webp'],
       resource_type:   'video',
     };
-    return { folder: 'abbys/frames-misc' };
+    else result = { folder: 'abbys/frames-misc' };
+    return result;
   },
 });
+
+// multer-storage-cloudinary v4 calls upload_stream(opts, callback) but
+// Cloudinary v1 expects upload_stream(callback, opts) — swap args so
+// resource_type and all other params actually reach the API.
+frameAllStorage.upload = function (opts, file) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      (err, response) => {
+        if (err != null) return reject(err);
+        return resolve(response);
+      },
+      opts,
+    );
+    file.stream.pipe(stream);
+  });
+};
+
 const uploadFrameAll = multer({
   storage: frameAllStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
 }).fields([
   { name: 'image',    maxCount: 1 },
   { name: 'bgImage',  maxCount: 1 },
