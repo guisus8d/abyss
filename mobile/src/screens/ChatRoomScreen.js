@@ -19,6 +19,16 @@ import { colors }      from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api              from '../services/api';
 import { connectSocket } from '../services/socket';
+import AsyncStorage     from '@react-native-async-storage/async-storage';
+
+// ─── Presets de fondo de chat ────────────────────────────────────────────────
+const CHAT_BG_PRESETS = [
+  { id: 'default', label: 'Original',    type: 'image' },
+  { id: 'night',   label: 'Noche',       type: 'color', color: '#020D1A' },
+  { id: 'void',    label: 'Void',        type: 'color', color: '#050505' },
+  { id: 'purple',  label: 'Deep Purple', type: 'color', color: '#0D0714' },
+  { id: 'teal',    label: 'Deep Teal',   type: 'color', color: '#030F10' },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -317,6 +327,9 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [sendingGift,   setSendingGift]   = useState(false);
   const [giftErr,       setGiftErr]       = useState('');
 
+  // ── Ajustes de chat ────────────────────────────────────────────────────────
+  const [chatBg, setChatBg] = useState('default');
+
   const flatRef        = useRef(null);
   const socketRef      = useRef(null);
   const recordingRef   = useRef(null);
@@ -346,6 +359,20 @@ export default function ChatRoomScreen({ route, navigation }) {
     }
     return result;
   }, [messages]);
+
+  useEffect(() => {
+    const loadBg = () => {
+      Promise.all([
+        AsyncStorage.getItem(`chatBg_${chat._id}`),
+        AsyncStorage.getItem('chatBg_default'),
+      ]).then(([specific, fallback]) => {
+        setChatBg(specific || fallback || 'default');
+      }).catch(() => {});
+    };
+    loadBg();
+    const unsub = navigation.addListener('focus', loadBg);
+    return unsub;
+  }, [chat._id, navigation]);
 
   useEffect(() => {
     const eventShow = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -771,11 +798,21 @@ export default function ChatRoomScreen({ route, navigation }) {
       </Modal>
 
       <ImageBackground
-        source={require('../../assets/chat-bg.jpeg')}
+        source={chatBg?.startsWith('http') ? { uri: chatBg } : require('../../assets/chat-bg.jpeg')}
         style={{ flex: 1, backgroundColor: '#050c14' }}
         resizeMode="cover"
       >
-        <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(2,5,9,0.6)' }} pointerEvents="none" />
+        {(() => {
+          const isCustomUrl = chatBg?.startsWith('http');
+          const p = isCustomUrl ? null : (CHAT_BG_PRESETS.find(x => x.id === chatBg) ?? CHAT_BG_PRESETS[0]);
+          return (
+            <View
+              style={{ position:'absolute', top:0, left:0, right:0, bottom:0,
+                backgroundColor: p?.type === 'color' ? p.color : 'rgba(2,5,9,0.6)' }}
+              pointerEvents="none"
+            />
+          );
+        })()}
       <StatusBar barStyle="light-content" backgroundColor="transparent" />
 
       <SafeAreaView edges={['top']}>
@@ -792,6 +829,9 @@ export default function ChatRoomScreen({ route, navigation }) {
               <Text style={s.headerName}>{other.username}</Text>
               <GenderIcon gender={other?.gender} />
             </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.backBtn} onPress={() => navigation.navigate('ChatSettings', { chatId: chat._id.toString(), otherUsername: other.username, currentBg: chatBg })}>
+            <Image source={require('../../assets/chats/menu/ic_menu_settings_4.png')} style={{ width:20, height:20, resizeMode:'contain' }} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -939,14 +979,22 @@ export default function ChatRoomScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
             <View style={s.mediaBtnRow}>
-              <TouchableOpacity onPress={sendImage} disabled={uploading} style={s.mediaBtn}>
-                {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={20} color={colors.textDim} />}
-              </TouchableOpacity>
               <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
-                <Ionicons name="mic-outline" size={20} color={colors.textDim} />
+                <Image source={require('../../assets/chats/menu/icon_record_v2.png')} style={s.menuIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={sendImage} disabled={uploading} style={s.mediaBtn}>
+                {uploading
+                  ? <ActivityIndicator size={16} color={colors.c1} />
+                  : <Image source={require('../../assets/chats/menu/icon_image_small_v2.png')} style={s.menuIcon} />}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => {}} style={s.mediaBtn}>
+                <Image source={require('../../assets/chats/menu/ic_menu_emoji_v2.png')} style={s.menuIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => {}} style={s.mediaBtn}>
+                <Image source={require('../../assets/chats/menu/icon_dice_v2.png')} style={s.menuIcon} />
               </TouchableOpacity>
               <TouchableOpacity onPress={openGiftModal} disabled={uploading} style={s.mediaBtn}>
-                <Ionicons name="gift" size={20} color={colors.c2} />
+                <Image source={require('../../assets/chats/menu/ic_menu_more_option_v2.png')} style={s.menuIcon} />
               </TouchableOpacity>
             </View>
           </>
@@ -1129,6 +1177,7 @@ export default function ChatRoomScreen({ route, navigation }) {
           </Pressable>
         </Pressable>
       </Modal>
+
     </View>
   );
 }
@@ -1152,8 +1201,9 @@ const s = StyleSheet.create({
   bubbleTxt:    { color:'#ffffff', fontSize:14, lineHeight:20 },
   bubbleTime:   { color: colors.textDim, fontSize:9, marginTop:4, textAlign:'right' },
   inputContainer:     { paddingTop: 20, paddingHorizontal: 12 },
-  mediaBtnRow:        { flexDirection:'row', gap:12, paddingVertical:10, paddingHorizontal:12 },
+  mediaBtnRow:        { flexDirection:'row', gap:2, paddingVertical:10, paddingHorizontal:12 },
   mediaBtn:           { padding:8, justifyContent:'center', alignItems:'center' },
+  menuIcon:           { width:25, height:25, resizeMode:'contain' },
   recContainer:       { alignItems:'center', paddingVertical:20, backgroundColor:'rgba(2,5,9,0.95)', borderRadius:20, marginBottom:10, gap:10 },
   recTimerLarge:      { fontSize:32, fontWeight:'700', color:'#fff' },
   recGrabandoTxt:     { color:'rgba(255,255,255,0.4)', fontSize:12 },
@@ -1223,4 +1273,6 @@ const s = StyleSheet.create({
   giftSendBtn:      { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:colors.c3, borderRadius:18, paddingVertical:14, marginTop:4 },
   giftSendTxt:      { color:'#fff', fontSize:15, fontWeight:'800' },
   giftSendIcon:     { fontSize:16 },
+
+
 });

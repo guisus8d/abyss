@@ -24,6 +24,8 @@ import ReportModal from '../components/ReportModal';
 import GenderIcon from '../components/GenderIcon';
 import { formatCoins } from '../utils/formatCoins';
 
+const GROUP_BG_PRESETS = { night: '#020D1A', void: '#050505', purple: '#0D0714', teal: '#030F10' };
+
 const AVATAR_SLOT = 38;
 const COMMISSION = 0.15;
 const FRAME_COST_PER_UNIT = 5;
@@ -345,6 +347,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         socketRef.current.off('group:kicked');
         socketRef.current.off('group:banned');
         socketRef.current.off('group:deleted');
+        socketRef.current.off('group:background_updated');
         socketRef.current.off('gift:update');
       }
       clearInterval(recTimerRef.current);
@@ -389,6 +392,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     socket.off('group:kicked');
     socket.off('group:banned');
     socket.off('group:deleted');
+    socket.off('group:background_updated');
 
     socket.emit('group:join', { groupId: group._id });
 
@@ -444,6 +448,11 @@ export default function GroupRoomScreen({ route, navigation }) {
       Alert.alert('Grupo eliminado', 'Este grupo fue eliminado.', [
         { text: 'Aceptar', onPress: () => navigation.navigate('Chats') },
       ]);
+    });
+
+    socket.on('group:background_updated', ({ groupId, backgroundUrl }) => {
+      if (groupId.toString() !== group._id.toString()) return;
+      setGroup(prev => ({ ...prev, backgroundUrl }));
     });
 
     socket.on('gift:update', ({ giftId, estado, slotsReclamados, reclamadoPor }) => {
@@ -1001,11 +1010,11 @@ export default function GroupRoomScreen({ route, navigation }) {
       </Modal>
 
       <ImageBackground
-        source={require('../../assets/chat-bg.jpeg')}
+        source={group.backgroundUrl?.startsWith('http') ? { uri: group.backgroundUrl } : require('../../assets/chat-bg.jpeg')}
         style={{ flex: 1, backgroundColor: '#050c14' }}
         resizeMode="cover"
       >
-        <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(2,5,9,0.6)' }} pointerEvents="none" />
+        <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor: GROUP_BG_PRESETS[group.backgroundUrl] ?? 'rgba(2,5,9,0.6)' }} pointerEvents="none" />
         <StatusBar barStyle="light-content" backgroundColor="transparent" />
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
@@ -1214,9 +1223,6 @@ export default function GroupRoomScreen({ route, navigation }) {
                   </TouchableOpacity>
                 </View>
                 <View style={s.mediaBtnRow}>
-                  <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
-                    {uploading ? <ActivityIndicator size={16} color={colors.c1} /> : <Ionicons name="image-outline" size={22} color={colors.textDim} />}
-                  </TouchableOpacity>
                   {isRecording ? (
                     <View style={s.recRow}>
                       <View style={s.recDot} />
@@ -1229,11 +1235,22 @@ export default function GroupRoomScreen({ route, navigation }) {
                     </View>
                   ) : (
                     <TouchableOpacity onLongPress={startRecording} disabled={uploading} style={s.mediaBtn}>
-                      <Ionicons name="mic-outline" size={22} color={colors.textDim} />
+                      <Image source={require('../../assets/chats/menu/icon_record_v2.png')} style={s.menuIcon} />
                     </TouchableOpacity>
                   )}
+                  <TouchableOpacity onPress={pickImage} disabled={uploading || isRecording} style={s.mediaBtn}>
+                    {uploading
+                      ? <ActivityIndicator size={16} color={colors.c1} />
+                      : <Image source={require('../../assets/chats/menu/icon_image_small_v2.png')} style={s.menuIcon} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => {}} disabled={uploading || isRecording} style={s.mediaBtn}>
+                    <Image source={require('../../assets/chats/menu/ic_menu_emoji_v2.png')} style={s.menuIcon} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => {}} disabled={uploading || isRecording} style={s.mediaBtn}>
+                    <Image source={require('../../assets/chats/menu/icon_dice_v2.png')} style={s.menuIcon} />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
-                    <Ionicons name="gift" size={22} color={colors.c2} />
+                    <Image source={require('../../assets/chats/menu/ic_menu_more_option_v2.png')} style={s.menuIcon} />
                   </TouchableOpacity>
                 </View>
               </>
@@ -1666,4 +1683,6 @@ const s = StyleSheet.create({
   giftSendBtn:         { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:colors.c2, borderRadius:16, paddingVertical:14, marginBottom:4 },
   giftSendBtnDisabled: { backgroundColor:colors.surface, borderWidth:1, borderColor:colors.border },
   giftSendTxt:         { color:colors.black, fontSize:14, fontWeight:'800' },
+
+  menuIcon: { width:25, height:25, resizeMode:'contain' },
 });

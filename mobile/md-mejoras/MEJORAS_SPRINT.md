@@ -244,3 +244,15 @@ Fase 6 → Sistema de invitaciones + coins
 1. ¿En qué pantallas exactas debe mostrarse el símbolo de género junto al nombre? (Fase 3.7)
 2. ¿El registro multi-pantalla guarda usuario "incompleto" en backend desde el paso 1, o todo se mantiene en estado local hasta completar el flujo? (Fase 4.2)
 3. ¿Ya existe alguna lógica de tracking de actividad/sesión diaria que se pueda reusar para la racha de 2 días? (Fase 6.3)
+
+---
+
+## Pendiente — Sprint futuro (NO implementar aún)
+
+### Sistema de amistad / racha de chat
+- Idea: mostrar en el chat privado cuántos días consecutivos han hablado dos usuarios ("racha de X días")
+- Requiere: tracking de `lastChatDate` por par de usuarios en el modelo Chat o en un modelo nuevo
+- Visualización: badge o indicador en el header del ChatRoomScreen
+- Decidir: ¿la racha se rompe si no hay mensajes en 24h? ¿o 48h?
+- Depende del campo que se elija: si se agrega a Chat.js, es una migración simple; si es modelo propio, más complejo
+- **NO tocar hasta que se defina el modelo de datos con Jesús**

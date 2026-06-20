@@ -51,6 +51,10 @@ import GiftsReceivedScreen   from '../screens/GiftsReceivedScreen';
 import MyGiftsScreen         from '../screens/MyGiftsScreen';
 import TransactionsScreen    from '../screens/TransactionsScreen';
 import LandingScreen         from '../screens/LandingScreen';
+import ChatPhotosScreen      from '../screens/ChatPhotosScreen';
+import ChatAudiosScreen      from '../screens/ChatAudiosScreen';
+import ChatBackgroundScreen  from '../screens/ChatBackgroundScreen';
+import ChatSettingsScreen    from '../screens/ChatSettingsScreen';
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
 // El panel de moderación solo es accesible desde abyss.social/mod
@@ -129,6 +133,10 @@ export default function AppNavigator() {
               <Stack.Screen name="GiftsReceived"   component={GiftsReceivedScreen} />
               <Stack.Screen name="MyGifts"         component={MyGiftsScreen} />
               <Stack.Screen name="Transactions"    component={TransactionsScreen} />
+              <Stack.Screen name="ChatPhotos"      component={ChatPhotosScreen}     options={{ headerShown: false }} />
+              <Stack.Screen name="ChatAudios"      component={ChatAudiosScreen}     options={{ headerShown: false }} />
+              <Stack.Screen name="ChatBackground"  component={ChatBackgroundScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="ChatSettings"    component={ChatSettingsScreen}   options={{ headerShown: false }} />
             </>
           ) : (
             <>

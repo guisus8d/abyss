@@ -41,6 +41,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
   const [showBanned,     setShowBanned]     = useState(false);
   const [bannedUsers,    setBannedUsers]    = useState([]);
   const [loadingBanned,  setLoadingBanned]  = useState(false);
+  const [savingBg,       setSavingBg]       = useState(false);
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user)?.toString() === user?._id?.toString() && m.role === 'admin'
@@ -206,6 +207,47 @@ export default function GroupSettingsScreen({ route, navigation }) {
         }
       }},
     ]);
+  }
+
+  // ── Fondo del grupo ───────────────────────────────────────────────────────
+  async function pickGroupBackground() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [9, 16], quality: 0.85,
+    });
+    if (result.canceled) return;
+    setSavingBg(true);
+    try {
+      const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+      const token = await AsyncStorage.getItem('token');
+      const uri = result.assets[0].uri;
+      const formData = new FormData();
+      formData.append('file', { uri, type: 'image/jpeg', name: 'group-bg.jpg' });
+      const res = await fetch(`${BASE_URL}/groups/${group._id}/background`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al subir');
+      setGroup(prev => ({ ...prev, backgroundUrl: data.backgroundUrl }));
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo cambiar el fondo');
+    } finally { setSavingBg(false); }
+  }
+
+  async function applyGroupBgPreset(preset) {
+    setSavingBg(true);
+    try {
+      const { data } = await api.patch(`/groups/${group._id}/background`, { preset });
+      setGroup(prev => ({ ...prev, backgroundUrl: data.backgroundUrl }));
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo cambiar el fondo');
+    } finally { setSavingBg(false); }
   }
 
   // ── Eliminar grupo ────────────────────────────────────────────────────────
@@ -603,6 +645,85 @@ export default function GroupSettingsScreen({ route, navigation }) {
             </Text>
           </View>
         </View>
+
+        {/* ── Fotos del grupo ── */}
+        <TouchableOpacity
+          style={s.card}
+          onPress={() => navigation.navigate('ChatPhotos', { groupId: group._id.toString(), otherUsername: group.name })}
+          activeOpacity={0.7}
+        >
+          <View style={[s.cardHeader, { paddingVertical: 14 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="images-outline" size={16} color={colors.textDim} />
+              <Text style={s.cardLabel}>FOTOS DEL GRUPO</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={colors.c1} />
+          </View>
+        </TouchableOpacity>
+
+        {/* ── Fondo del grupo — solo admin ── */}
+        {isAdmin && (
+          <View style={s.card}>
+            <View style={s.cardHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="image-outline" size={16} color={colors.textDim} />
+                <Text style={s.cardLabel}>FONDO DEL GRUPO</Text>
+              </View>
+              {savingBg && <ActivityIndicator size="small" color={colors.c1} />}
+            </View>
+            {group.backgroundUrl?.startsWith('http') && (
+              <Image
+                source={{ uri: group.backgroundUrl }}
+                style={{ width: '100%', height: 80, marginBottom: 2 }}
+                resizeMode="cover"
+              />
+            )}
+            {/* Presets de color */}
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 12 }}>
+              {[
+                { id: 'night',  color: '#020D1A', label: 'Noche'  },
+                { id: 'void',   color: '#050505', label: 'Void'   },
+                { id: 'purple', color: '#0D0714', label: 'Purple' },
+                { id: 'teal',   color: '#030F10', label: 'Teal'   },
+              ].map(p => (
+                <TouchableOpacity
+                  key={p.id}
+                  onPress={() => applyGroupBgPreset(p.id)}
+                  disabled={savingBg}
+                  style={[
+                    { width: 36, height: 36, borderRadius: 10, backgroundColor: p.color, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+                    group.backgroundUrl === p.id ? { borderColor: colors.c1 } : { borderColor: 'rgba(255,255,255,0.12)' },
+                  ]}
+                >
+                  {group.backgroundUrl === p.id && (
+                    <Ionicons name="checkmark" size={16} color={colors.c1} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            {/* Acciones de imagen */}
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16 }}>
+              <TouchableOpacity
+                onPress={pickGroupBackground}
+                disabled={savingBg}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)', alignItems: 'center' }}
+              >
+                <Text style={{ color: colors.c1, fontSize: 13, fontWeight: '600' }}>
+                  {savingBg ? 'Subiendo…' : 'Fondo propio'}
+                </Text>
+              </TouchableOpacity>
+              {!!group.backgroundUrl && (
+                <TouchableOpacity
+                  onPress={() => applyGroupBgPreset(null)}
+                  disabled={savingBg}
+                  style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(239,68,68,0.07)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)', alignItems: 'center' }}
+                >
+                  <Text style={{ color: 'rgba(239,68,68,0.8)', fontSize: 13, fontWeight: '600' }}>Quitar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* ── Acciones de admin ── */}
         {isAdmin && (
