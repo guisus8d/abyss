@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   ActivityIndicator, StatusBar, Dimensions, RefreshControl,
-  Modal, Pressable, TextInput, KeyboardAvoidingView, Platform,
+  Modal, Pressable, TextInput, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -236,7 +236,11 @@ export default function StoreScreen({ navigation, route }) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      {store.banner
+        ? <ExpoImage source={{ uri: store.banner }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        : <LinearGradient colors={['#091525', '#020509']} style={StyleSheet.absoluteFill} />}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(2,5,9,0.65)' }]} />
       <SafeAreaView>
         {/* Nav header */}
         <View style={s.header}>
@@ -250,7 +254,7 @@ export default function StoreScreen({ navigation, route }) {
                 style={s.editBtn}
                 onPress={() => navigation.navigate('CreateStore', { store, onCreated: () => loadStore() })}
               >
-                <Ionicons name="pencil-outline" size={18} color={colors.c1} />
+                <Image source={require('../../assets/chats/menu/ic_menu_settings_4.png')} style={{ width: 22, height: 22 }} />
               </TouchableOpacity>
             ) : <View style={{ width: 28 }} />}
             <View style={[s.nivelBadge, { borderColor: nivelColor + '40' }]}>
@@ -262,7 +266,7 @@ export default function StoreScreen({ navigation, route }) {
       </SafeAreaView>
 
       <FlatList
-        style={{ backgroundColor: colors.black }}
+        style={{ flex: 1 }}
         data={frames}
         keyExtractor={item => item._id}
         numColumns={COLS}
@@ -272,14 +276,6 @@ export default function StoreScreen({ navigation, route }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.c1} />}
         ListHeaderComponent={() => (
           <>
-            {/* Banner */}
-            <View style={s.banner}>
-              {store.banner
-                ? <ExpoImage source={{ uri: store.banner }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                : <LinearGradient colors={['#091525', '#020509']} style={StyleSheet.absoluteFill} />}
-              <View style={s.bannerOverlay} />
-            </View>
-
             {/* Identidad */}
             <View style={s.identity}>
               <View style={s.logoWrap}>
@@ -435,18 +431,18 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.black },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
   },
   backBtn:     { padding: 4 },
-  headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
+  headerTitle: {
+    position: 'absolute', left: 0, right: 0, textAlign: 'center',
+    color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5,
+  },
   editBtn:     { padding: 4 },
-  headerRight: { alignItems: 'flex-end', gap: 4 },
+  headerRight: { marginLeft: 'auto', alignItems: 'flex-end', gap: 4 },
 
-  banner:        { height: 180, marginHorizontal: -16, position: 'relative', backgroundColor: colors.deep },
-  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,9,0.4)' },
-
-  identity: { alignItems: 'center', marginTop: -44, marginBottom: 16, paddingHorizontal: 16 },
+  identity: { alignItems: 'center', marginTop: 20, marginBottom: 16, paddingHorizontal: 16 },
   logoWrap: { marginBottom: 10 },
   logo:     { width: 88, height: 88, borderRadius: 22, borderWidth: 2, borderColor: '#fff' },
   logoPlaceholder: { width: 88, height: 88, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
