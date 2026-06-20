@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
@@ -43,6 +44,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
   const isOwn  = String(creator?._id) === String(user?._id);
   const canBuy = !isOwn && frame.status === 'active' && frame.units > 0;
 
+  const previewAvatarUrl = frame.logoUrl || null;
   const displayAvatarUrl = creator?.avatarUrl;
   const displayUsername  = creator?.username;
 
@@ -99,12 +101,14 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
 
-      {/* Background */}
-      {hasBgGradient
-        ? <LinearGradient colors={frame.bgGradient} style={StyleSheet.absoluteFill} start={{ x:0,y:0 }} end={{ x:1,y:1 }} />
-        : hasBgColor
-          ? <View style={[StyleSheet.absoluteFill, { backgroundColor: frame.bgColor }]} />
-          : <LinearGradient colors={['#040e0d','#001a18']} style={StyleSheet.absoluteFill} />
+      {/* Background — bgImageUrl first, then gradient/color fallback */}
+      {frame.bgImageUrl
+        ? <ExpoImage source={{ uri: frame.bgImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        : hasBgGradient
+          ? <LinearGradient colors={frame.bgGradient} style={StyleSheet.absoluteFill} start={{ x:0,y:0 }} end={{ x:1,y:1 }} />
+          : hasBgColor
+            ? <View style={[StyleSheet.absoluteFill, { backgroundColor: frame.bgColor }]} />
+            : <LinearGradient colors={['#040e0d','#001a18']} style={StyleSheet.absoluteFill} />
       }
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} />
 
@@ -158,8 +162,8 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
             >
               <AvatarWithFrame
                 size={AVATAR_SIZE}
-                avatarUrl={displayAvatarUrl}
-                username={displayUsername}
+                avatarUrl={previewAvatarUrl}
+                username="?"
                 profileFrame={frame._id}
                 frameUrl={frameUrl}
               />
