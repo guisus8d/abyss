@@ -46,15 +46,13 @@ function FrameCard({ frame, onPress }) {
         {frame.imageUrl
           ? <ExpoImage source={{ uri: frame.imageUrl }} style={s.cardImg} contentFit="contain" autoplay />
           : <Ionicons name="sparkles-outline" size={26} color={colors.c1} />}
-        <View style={s.unitsBadge}>
-          <Text style={s.unitsTxt}>{frame.units} u.</Text>
-        </View>
       </View>
       <Text style={s.cardName} numberOfLines={1}>{frame.name}</Text>
       <View style={s.cardPriceRow}>
         <CoinIcon size={9} />
         <Text style={s.cardPriceTxt}>{frame.price}</Text>
       </View>
+      <Text style={s.cardUnits}>{frame.units} u. disponibles</Text>
     </TouchableOpacity>
   );
 }
@@ -471,8 +469,7 @@ const s = StyleSheet.create({
   cardPreview: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   cardImg:      { width: '85%', height: '85%' },
   cardAvatar:   { position: 'absolute' },
-  unitsBadge:   { position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)' },
-  unitsTxt:     { color: colors.c1, fontSize: 8, fontWeight: '700' },
+  cardUnits:    { color: colors.c1, fontSize: 8, fontWeight: '700', paddingHorizontal: 8, paddingBottom: 7 },
   cardName:     { color: colors.textHi, fontSize: 13, fontWeight: '700', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 2 },
   cardPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingBottom: 8 },
   cardPriceTxt: { color: 'rgba(251,191,36,1)', fontSize: 10, fontWeight: '800' },
