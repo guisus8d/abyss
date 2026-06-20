@@ -387,7 +387,7 @@ const s = StyleSheet.create({
   headerCreatorName: { color: colors.textDim, fontSize: 12, fontWeight: '600' },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nftIcon:        { width: 18, height: 18 },
-  noticeIcon:     { width: 24, height: 24 },
+  noticeIcon:     { width: 32, height: 32 },
 
   // ── Main area ──
   main: {
