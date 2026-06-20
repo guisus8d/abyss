@@ -134,6 +134,7 @@ export default function CreateFrameScreen({ navigation }) {
     if (!frameImage?.uri) return Alert.alert('Falta imagen', 'Sube la imagen del marco');
     if (!canCreate)    return Alert.alert('Sin recursos', `Necesitas ${selectedPkg.cost} ✦ y 200 XP`);
     setPublishing(true);
+    console.log('[CF-LOG-3b] setPublishing(true) — entering try block');
     try {
       const formData = new FormData();
       formData.append('name', name.trim());
@@ -148,8 +149,11 @@ export default function CreateFrameScreen({ navigation }) {
       // Imagen principal del marco (obligatoria)
       const mime = frameImage.mimeType || 'image/png';
       const ext  = mime.includes('webp') ? 'webp' : mime.includes('png') ? 'png' : 'jpg';
+      console.log('[CF-LOG-3c] frameImage.uri prefix:', frameImage.uri?.substring(0, 30), 'mime:', mime);
       if (frameImage.uri.startsWith('blob:') || frameImage.uri.startsWith('data:') || frameImage.uri.startsWith('http')) {
+        console.log('[CF-LOG-3d] fetching blob from URI...');
         const blob = await fetch(frameImage.uri).then(r => r.blob());
+        console.log('[CF-LOG-3d] blob fetched, size:', blob.size);
         formData.append('image', blob, `frame.${ext}`);
       } else {
         formData.append('image', { uri: frameImage.uri, type: mime, name: `frame.${ext}` });
@@ -175,7 +179,9 @@ export default function CreateFrameScreen({ navigation }) {
         const pedExt  = pedMime.includes('webp') ? 'webp' : pedMime.includes('png') ? 'png' : 'jpg';
         formData.append('pedestal', { uri: pedestalImage.uri, type: pedMime, name: `pedestal.${pedExt}` });
       }
+      console.log('[CF-LOG-4] calling postFormData /frames...');
       const data = await postFormData('/frames', formData);
+      console.log('[CF-LOG-5] postFormData SUCCESS — newCoins:', data?.newCoins);
       updateUser({ ...user, coins: data.newCoins });
       Alert.alert(
         '✦ Marco creado',
@@ -186,7 +192,8 @@ export default function CreateFrameScreen({ navigation }) {
         ]
       );
     } catch(e) {
-      Alert.alert('Error', e.response?.data?.error || 'No se pudo crear');
+      console.log('[CF-LOG-CATCH] error type:', e?.constructor?.name, 'message:', e?.message, 'response:', JSON.stringify(e?.response?.data));
+      Alert.alert('Error', e.response?.data?.error || e?.message || 'No se pudo crear');
     } finally { setPublishing(false); }
   }
 
