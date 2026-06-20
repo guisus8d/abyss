@@ -14,6 +14,8 @@ import AvatarWithFrame from './AvatarWithFrame';
 import CoinIcon from './CoinIcon';
 import { formatCoins } from '../utils/formatCoins';
 
+const collectibleIcon = require('../../assets/coleccionables/ic_collectible.png');
+
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.72, 300);
 
@@ -161,7 +163,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               </View>
               <View style={s.walletDivider} />
               <View style={s.walletSection}>
-                <Ionicons name="cube-outline" size={17} color={colors.textMid} />
+                <Image source={collectibleIcon} style={{ width: 17, height: 17, opacity: 0.75 }} resizeMode="contain" />
                 <Text style={s.walletValue}>
                   {framesCount === null ? '–' : framesCount}
                 </Text>

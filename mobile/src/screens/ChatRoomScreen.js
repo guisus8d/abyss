@@ -12,6 +12,7 @@ import AudioMessage    from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
+import GenderIcon from '../components/GenderIcon';
 import GiftBubble from '../components/GiftBubble';
 import { Ionicons }    from '@expo/vector-icons';
 import { colors }      from '../theme/colors';
@@ -744,7 +745,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 
   return (
     <View style={s.root}>
-      <Modal visible={!!imagePreview} transparent animationType="fade" onRequestClose={() => setImagePreview(null)}>
+      <Modal visible={!!imagePreview} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setImagePreview(null)}>
         <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding:20 }}>
           {imagePreview && <Image source={{ uri: imagePreview }} style={{ width:'100%', height:'60%', borderRadius:16 }} resizeMode="contain" />}
           <View style={{ flexDirection:'row', gap:16, marginTop:20 }}>
@@ -787,7 +788,10 @@ export default function ChatRoomScreen({ route, navigation }) {
               profileFrame={other.profileFrame} frameUrl={other.profileFrameUrl} banned={!!other.banned} />
           </TouchableOpacity>
           <TouchableOpacity style={{ flex:1 }} onPress={() => navigation.navigate('PublicProfile', { username: other.username })}>
-            <Text style={s.headerName}>{other.username}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={s.headerName}>{other.username}</Text>
+              <GenderIcon gender={other?.gender} />
+            </View>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -962,7 +966,7 @@ export default function ChatRoomScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
-      <Modal visible={!!menuMsg} transparent animationType="fade" onRequestClose={() => setMenuMsg(null)}>
+      <Modal visible={!!menuMsg} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setMenuMsg(null)}>
         <Pressable style={s.modalOverlay} onPress={() => setMenuMsg(null)}>
           <View style={s.menuBox}>
             <Text style={s.menuTitle} numberOfLines={1}>
@@ -988,9 +992,9 @@ export default function ChatRoomScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Modal Regalo ───────────────────────────────────────────────────── */}
-      <Modal visible={giftModal} transparent animationType="slide" onRequestClose={() => setGiftModal(false)}>
+      <Modal visible={giftModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setGiftModal(false)}>
         <Pressable style={s.giftOverlay} onPress={() => setGiftModal(false)}>
-          <Pressable style={s.giftSheet} onPress={() => {}}>
+          <Pressable style={[s.giftSheet, { paddingBottom: Math.max(insets.bottom, 20) }]} onPress={() => {}}>
             <View style={s.giftHandle} />
             <View style={s.giftHead}>
               <Text style={s.giftSheetTitle}>🎁 Enviar regalo a @{other?.username}</Text>

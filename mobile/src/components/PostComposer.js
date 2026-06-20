@@ -58,7 +58,7 @@ export default function PostComposer({ onClose, onPostCreated }) {
   const canPost = !!(content.trim() || image);
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={s.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

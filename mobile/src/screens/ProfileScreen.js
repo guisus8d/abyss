@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import PostCard from '../components/PostCard';
+import GenderIcon from '../components/GenderIcon';
 
 const W         = Dimensions.get('window').width;
 const POST_TILE = (W - 32 - 4) / 3;
@@ -95,6 +96,9 @@ export default function ProfileScreen({ navigation }) {
     }, 60000);
     return () => clearInterval(interval);
   }, [user?.lastActive]);
+
+  const hasFrame  = profile?.profileFrame === 'frame_001';
+  const canUnlock = (profile?.xp || 0) >= 10;
 
   const tabIndicator = useRef(new Animated.Value(0)).current;
 
@@ -236,9 +240,7 @@ export default function ProfileScreen({ navigation }) {
   }
 
   const renderHeader = () => {
-    const hasFrame  = profile?.profileFrame === 'frame_001';
-    const canUnlock = (profile?.xp || 0) >= 10;
-    const TAB_W     = (W - 32) / TABS.length;
+    const TAB_W = (W - 32) / TABS.length;
 
     return (
       <View>
@@ -274,6 +276,7 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Text style={s.username}>{profile?.username}</Text>
+            <GenderIcon gender={profile?.gender} size={14} />
             {profile?.emailVerified && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)' }}>
                 <Ionicons name="checkmark-circle" size={12} color="#00e5cc" />
@@ -525,9 +528,9 @@ export default function ProfileScreen({ navigation }) {
       />
 
       {/* ── Modal Fondo — sin bordes, ancho completo ── */}
-      <Modal visible={bgModal} transparent animationType="slide" onRequestClose={() => setBgModal(false)}>
+      <Modal visible={bgModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setBgModal(false)}>
         <View style={s.modalOverlay}>
-          <View style={s.bgModalBox}>
+          <View style={[s.bgModalBox, { paddingBottom: Math.max(insets.bottom + 16, 40) }]}>
             <Text style={s.modalTitle}>
               {bgTarget === 'banner' ? 'FONDO DEL BANNER' : 'FONDO DE LA CARD'}
             </Text>
@@ -573,9 +576,9 @@ export default function ProfileScreen({ navigation }) {
       </Modal>
 
       {/* ── Modal Marco ── */}
-      <Modal visible={frameModal} transparent animationType="fade" onRequestClose={() => setFrameModal(false)}>
+      <Modal visible={frameModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setFrameModal(false)}>
         <View style={s.modalOverlay}>
-          <View style={s.modalBox}>
+          <View style={[s.modalBox, { paddingBottom: Math.max(insets.bottom + 16, 28) }]}>
             <Text style={s.modalTitle}>MARCOS DE PERFIL</Text>
             <View style={{ marginBottom: 20 }}>
               <AvatarWithFrame size={90} avatarUrl={profile?.avatarUrl} username={profile?.username} profileFrame="frame_001" />

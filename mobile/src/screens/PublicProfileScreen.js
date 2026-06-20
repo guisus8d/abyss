@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import PostCard from '../components/PostCard';
+import GenderIcon from '../components/GenderIcon';
 import ReportModal from '../components/ReportModal';
 import ShareProfileModal from '../components/ShareProfileModal';
 
@@ -394,6 +395,7 @@ export default function PublicProfileScreen({ route, navigation }) {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Text style={s.username}>{profile?.username}</Text>
+            <GenderIcon gender={profile?.gender} size={14} />
             {profile?.banned && (
               <View style={s.bannedBadge}>
                 <Text style={s.bannedBadgeTxt}>Suspendido</Text>

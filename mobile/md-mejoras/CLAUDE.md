@@ -267,7 +267,12 @@ export const colors = {
 
 ## Reglas para Claude Code
 
-1. **Nunca tocar** el patrón `inverted={true}` + `[msg, ...prev]` en chat FlatLists
+1. **Todo modal/overlay DEBE tener `statusBarTranslucent`** en el `<Modal>` de RN — sin eso, en Android edge-to-edge el contenido invade el notch/status-bar o la barra de gestos. Patrón correcto según tipo:
+   - **Diálogo centrado** (`justifyContent: center`): `<Modal transparent statusBarTranslucent>` + overlay con `flex:1` y `padding ≥ 24` — sin necesidad de insets adicionales.
+   - **Bottom-sheet** (`justifyContent: flex-end`): igual que arriba, ADEMÁS el sheet debe usar `paddingBottom: Math.max(insets.bottom, N)` con `useSafeAreaInsets()` — nunca un valor fijo.
+   - **Nunca** usar `Dimensions.get('window').height` ni `top` fijo para posicionar modales.
+   - Todos los modales del proyecto fueron corregidos en Junio 2026. El patrón aplica a cualquier modal nuevo que se agregue.
+2. **Nunca tocar** el patrón `inverted={true}` + `[msg, ...prev]` en chat FlatLists
 2. **Nunca agregar** `scrollToOffset`, `scrollToEnd` o `maintainVisibleContentPosition` en FlatLists de chat
 3. **Siempre usar sesión MongoDB** para operaciones de coins, compras y gifts
 4. **Siempre hacer backup git** antes de cambios grandes: `git add -A && git commit -m "backup: antes de X"`

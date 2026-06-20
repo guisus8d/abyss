@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, StatusBar,
-  ScrollView, TextInput, Image, ActivityIndicator, Modal, Pressable, Linking,
+  FlatList, TextInput, Image, ActivityIndicator, Modal, Pressable, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,8 +35,14 @@ export default function ModPanelScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState('reports'); // 'reports' | 'users'
 
   // ── Users state ───────────────────────────────────────────────────────────
-  const [users,      setUsers]      = useState([]);
-  const [usersLoading, setUsersLoading] = useState(false);
+  const [users,           setUsers]           = useState([]);
+  const [usersLoading,    setUsersLoading]    = useState(false);
+  const [usersLoadingMore,setUsersLoadingMore]= useState(false);
+  const [usersPage,       setUsersPage]       = useState(1);
+  const [usersHasMore,    setUsersHasMore]    = useState(false);
+  const [usersTotal,      setUsersTotal]      = useState(0);
+  const [usersBanned,     setUsersBanned]     = useState(0);
+  const [usersMods,       setUsersMods]       = useState(0);
   const [search,     setSearch]     = useState('');
   const [banModal,   setBanModal]   = useState(null);
   const [banReason,  setBanReason]  = useState('');
@@ -56,13 +62,29 @@ export default function ModPanelScreen({ navigation, route }) {
   }, [activeTab, reportFilter]);
 
   // ─── Users ────────────────────────────────────────────────────────────────
-  async function loadUsers(q = '') {
-    setUsersLoading(true);
+  async function loadUsers(q = '', page = 1) {
+    if (page === 1) setUsersLoading(true);
+    else            setUsersLoadingMore(true);
     try {
-      const { data } = await api.get(`/users/mod/users${q ? `?q=${q}` : ''}`);
-      setUsers(data.users || []);
+      const params = new URLSearchParams({ page, limit: 20 });
+      if (q) params.set('q', q);
+      const { data } = await api.get(`/users/mod/users?${params}`);
+      setUsers(prev => page === 1 ? (data.users || []) : [...prev, ...(data.users || [])]);
+      setUsersPage(data.page);
+      setUsersHasMore(data.page < data.pages);
+      setUsersTotal(data.total);
+      setUsersBanned(data.totalBanned);
+      setUsersMods(data.totalMods);
     } catch (err) { console.log('loadUsers error:', err.message); }
-    finally { setUsersLoading(false); }
+    finally {
+      setUsersLoading(false);
+      setUsersLoadingMore(false);
+    }
+  }
+
+  function loadMoreUsers() {
+    if (usersLoadingMore || !usersHasMore) return;
+    loadUsers(search, usersPage + 1);
   }
 
   async function handleBan(user) {
@@ -71,7 +93,7 @@ export default function ModPanelScreen({ navigation, route }) {
     try {
       await api.post(`/users/mod/ban/${user._id}`, { reason: banReason });
       setBanModal(null); setBanReason('');
-      loadUsers(search);
+      loadUsers(search, 1);
     } catch (err) { console.log('ban error:', err.message); }
     finally { setActing(false); }
   }
@@ -79,14 +101,14 @@ export default function ModPanelScreen({ navigation, route }) {
   async function handleUnban(userId) {
     try {
       await api.post(`/users/mod/unban/${userId}`);
-      loadUsers(search);
+      loadUsers(search, 1);
     } catch (err) { console.log('unban error:', err.message); }
   }
 
   async function handleSetRole(userId, role) {
     try {
       await api.post(`/users/mod/setrole/${userId}`, { role });
-      loadUsers(search);
+      loadUsers(search, 1);
     } catch (err) { console.log('setrole error:', err.message); }
   }
 
@@ -110,18 +132,14 @@ export default function ModPanelScreen({ navigation, route }) {
     } catch (err) { console.log('resolve error:', err.message); }
   }
 
-  const userStats = {
-    total:  users.length,
-    banned: users.filter(u => u.banned).length,
-    mods:   users.filter(u => u.role === 'mod' || u.role === 'admin').length,
-  };
+  const userStats = { total: usersTotal, banned: usersBanned, mods: usersMods };
 
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
 
       {/* ── Modal detalle reporte ── */}
-      <Modal visible={!!selectedReport} transparent animationType="fade" onRequestClose={() => setSelectedReport(null)}>
+      <Modal visible={!!selectedReport} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSelectedReport(null)}>
         <Pressable style={s.modalOverlay} onPress={() => setSelectedReport(null)}>
           <Pressable style={s.reportDetailBox} onPress={e => e.stopPropagation()}>
             {selectedReport && (() => {
@@ -201,7 +219,7 @@ export default function ModPanelScreen({ navigation, route }) {
       </Modal>
 
       {/* ── Modal banear ── */}
-      <Modal visible={!!banModal} transparent animationType="fade" onRequestClose={() => setBanModal(null)}>
+      <Modal visible={!!banModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setBanModal(null)}>
         <View style={s.modalOverlay}>
           <View style={s.banModalBox}>
             <Text style={s.modalTitle}>BANEAR USUARIO</Text>
@@ -311,44 +329,54 @@ export default function ModPanelScreen({ navigation, route }) {
 
       {/* ══════════════ TAB: USUARIOS ══════════════ */}
       {activeTab === 'users' && (
-        <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false}>
-          {/* Stats */}
-          <View style={s.statsRow}>
-            <View style={s.statCard}>
-              <Text style={s.statVal}>{userStats.total}</Text>
-              <Text style={s.statLbl}>USUARIOS</Text>
-            </View>
-            <View style={[s.statCard, { borderColor:'rgba(239,68,68,0.3)' }]}>
-              <Text style={[s.statVal, { color:'rgba(239,68,68,0.8)' }]}>{userStats.banned}</Text>
-              <Text style={s.statLbl}>BANEADOS</Text>
-            </View>
-            <View style={[s.statCard, { borderColor:'rgba(251,191,36,0.3)' }]}>
-              <Text style={[s.statVal, { color:'rgba(251,191,36,1)' }]}>{userStats.mods}</Text>
-              <Text style={s.statLbl}>MODS</Text>
-            </View>
-          </View>
+        <FlatList
+          style={{ backgroundColor: colors.black }}
+          data={users}
+          keyExtractor={u => u._id}
+          onEndReached={loadMoreUsers}
+          onEndReachedThreshold={0.3}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 90 }}
+          ListHeaderComponent={
+            <>
+              {/* Stats */}
+              <View style={s.statsRow}>
+                <View style={s.statCard}>
+                  <Text style={s.statVal}>{userStats.total}</Text>
+                  <Text style={s.statLbl}>USUARIOS</Text>
+                </View>
+                <View style={[s.statCard, { borderColor:'rgba(239,68,68,0.3)' }]}>
+                  <Text style={[s.statVal, { color:'rgba(239,68,68,0.8)' }]}>{userStats.banned}</Text>
+                  <Text style={s.statLbl}>BANEADOS</Text>
+                </View>
+                <View style={[s.statCard, { borderColor:'rgba(251,191,36,0.3)' }]}>
+                  <Text style={[s.statVal, { color:'rgba(251,191,36,1)' }]}>{userStats.mods}</Text>
+                  <Text style={s.statLbl}>MODS</Text>
+                </View>
+              </View>
 
-          {/* Buscador */}
-          <View style={s.searchRow}>
-            <Ionicons name="search" size={16} color={colors.textDim} />
-            <TextInput
-              style={s.searchInput}
-              value={search}
-              onChangeText={v => { setSearch(v); loadUsers(v); }}
-              placeholder="Buscar usuario..."
-              placeholderTextColor={colors.textDim}
-            />
-            {search ? <TouchableOpacity onPress={() => { setSearch(''); loadUsers(''); }}>
-              <Ionicons name="close" size={16} color={colors.textDim} />
-            </TouchableOpacity> : null}
-          </View>
+              {/* Buscador */}
+              <View style={s.searchRow}>
+                <Ionicons name="search" size={16} color={colors.textDim} />
+                <TextInput
+                  style={s.searchInput}
+                  value={search}
+                  onChangeText={v => { setSearch(v); loadUsers(v, 1); }}
+                  placeholder="Buscar usuario..."
+                  placeholderTextColor={colors.textDim}
+                />
+                {search ? <TouchableOpacity onPress={() => { setSearch(''); loadUsers('', 1); }}>
+                  <Ionicons name="close" size={16} color={colors.textDim} />
+                </TouchableOpacity> : null}
+              </View>
 
-          {usersLoading ? (
-            <ActivityIndicator color={colors.c1} style={{ marginTop:40 }} />
-          ) : users.map(u => {
+              {usersLoading && <ActivityIndicator color={colors.c1} style={{ marginTop:40 }} />}
+            </>
+          }
+          renderItem={({ item: u }) => {
             const role = ROLE_COLORS[u.role] || ROLE_COLORS.user;
             return (
-              <View key={u._id} style={[s.userRow, u.banned && s.userRowBanned]}>
+              <View style={[s.userRow, u.banned && s.userRowBanned]}>
                 <View style={s.userAv}>
                   {u.avatarUrl
                     ? <Image source={{ uri: u.avatarUrl }} style={{ width:'100%', height:'100%', borderRadius:20 }} />
@@ -390,9 +418,13 @@ export default function ModPanelScreen({ navigation, route }) {
                 </View>
               </View>
             );
-          })}
-          <View style={{ height:40 }} />
-        </ScrollView>
+          }}
+          ListFooterComponent={
+            usersLoadingMore
+              ? <ActivityIndicator color={colors.c1} style={{ marginVertical: 16 }} />
+              : null
+          }
+        />
       )}
     </View>
   );

@@ -463,7 +463,7 @@ export default function GiftScreen({ navigation, route }) {
       {step === 'confirm'   && renderStepConfirm()}
 
       {/* Success modal */}
-      <Modal visible={successModal} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={successModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
         <View style={s.successOverlay}>
           <View style={s.successCard}>
             <View style={s.successIcon}>

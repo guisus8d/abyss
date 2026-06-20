@@ -4,7 +4,7 @@ import {
   StatusBar, ActivityIndicator, Alert,
   Dimensions, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -12,6 +12,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
+import GenderIcon from '../components/GenderIcon';
 
 const { width: W } = Dimensions.get('window');
 const AVATAR_SIZE = Math.min(W * 0.38, 150);
@@ -20,6 +21,7 @@ const SIDE_W      = 64;
 export default function MarketFrameDetailScreen({ route, navigation }) {
   const { frame } = route.params;
   const { user, updateUser } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   const [buying,          setBuying]          = useState(false);
   const [liked,           setLiked]           = useState(frame.likedByMe || false);
@@ -123,6 +125,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                 activeOpacity={0.7}
               >
                 <Text style={s.headerCreatorName}>@{creator.username}</Text>
+                <GenderIcon gender={creator?.gender} size={11} />
                 {creator.avatarUrl
                   ? <Image source={{ uri: creator.avatarUrl }} style={s.headerAvatar} />
                   : (
@@ -240,7 +243,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
       </SafeAreaView>
 
       {/* ── Modal: foto de perfil ampliada ── */}
-      <Modal visible={avatarModal} transparent animationType="fade" onRequestClose={() => setAvatarModal(false)}>
+      <Modal visible={avatarModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setAvatarModal(false)}>
         <TouchableOpacity style={s.avatarOverlay} activeOpacity={1} onPress={() => setAvatarModal(false)}>
           <View style={s.avatarModalInner}>
             {displayAvatarUrl ? (
@@ -258,10 +261,10 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Modal: comentarios ── */}
-      <Modal visible={commentsModal} transparent animationType="slide" onRequestClose={() => setCommentsModal(false)}>
+      <Modal visible={commentsModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setCommentsModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={s.overlay}>
-            <View style={s.modalBox}>
+            <View style={[s.modalBox, { paddingBottom: Math.max(insets.bottom, 20) }]}>
               <View style={s.modalHead}>
                 <Text style={s.modalTitle}>COMENTARIOS</Text>
                 <TouchableOpacity onPress={() => setCommentsModal(false)}>
@@ -286,7 +289,10 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                         )
                       }
                       <View style={{ flex: 1 }}>
-                        <Text style={s.commentUsername}>@{c.user?.username}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <Text style={s.commentUsername}>@{c.user?.username}</Text>
+                          <GenderIcon gender={c.user?.gender} size={11} />
+                        </View>
                         <Text style={s.commentText}>{c.text}</Text>
                       </View>
                     </View>
@@ -321,9 +327,9 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Modal: info del marco ── */}
-      <Modal visible={infoModal} transparent animationType="slide" onRequestClose={() => setInfoModal(false)}>
+      <Modal visible={infoModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setInfoModal(false)}>
         <View style={s.overlay}>
-          <View style={s.modalBox}>
+          <View style={[s.modalBox, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={s.modalHead}>
               <Text style={s.modalTitle}>INFO DEL MARCO</Text>
               <TouchableOpacity onPress={() => setInfoModal(false)}>

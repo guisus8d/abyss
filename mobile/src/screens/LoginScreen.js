@@ -112,7 +112,7 @@ export default function LoginScreen({ route }) {
       setReal(newReal);
       clearTimeout(timerRef.current);
       if (newLen > prevLen && newReal.length > 0) {
-        setDisplay('•'.repeat(prevLen) + newReal.slice(prevLen));
+        setDisplay('•'.repeat(newReal.length - 1) + newReal.slice(-1));
         timerRef.current = setTimeout(() => setDisplay('•'.repeat(newReal.length)), 350);
       } else {
         setDisplay('•'.repeat(newReal.length));

@@ -4,7 +4,7 @@ import {
   StatusBar, ActivityIndicator, Alert,
   Dimensions, Modal, ScrollView, TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -18,6 +18,7 @@ const AVATAR_SIZE = Math.min(W * 0.42, 170);
 export default function FrameDetailScreen({ route, navigation }) {
   const { frame, units, mode = 'owner' } = route.params;
   const { user, updateUser } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   const [equipping, setEquipping]   = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -240,9 +241,9 @@ export default function FrameDetailScreen({ route, navigation }) {
       </SafeAreaView>
 
       {/* Modal Vender */}
-      <Modal visible={sellModal} transparent animationType="slide" onRequestClose={() => setSellModal(false)}>
+      <Modal visible={sellModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setSellModal(false)}>
         <View style={s.overlay}>
-          <View style={s.modalBox}>
+          <View style={[s.modalBox, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={s.modalHead}>
               <Text style={s.modalTitle}>PONER EN VENTA</Text>
               <TouchableOpacity onPress={() => setSellModal(false)}>
@@ -300,9 +301,9 @@ export default function FrameDetailScreen({ route, navigation }) {
       </Modal>
 
       {/* Modal Info */}
-      <Modal visible={infoModal} transparent animationType="slide" onRequestClose={() => setInfoModal(false)}>
+      <Modal visible={infoModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setInfoModal(false)}>
         <View style={s.overlay}>
-          <View style={s.modalBox}>
+          <View style={[s.modalBox, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={s.modalHead}>
               <Text style={s.modalTitle}>INFO DEL MARCO</Text>
               <TouchableOpacity onPress={() => setInfoModal(false)}>

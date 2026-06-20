@@ -4,16 +4,20 @@ import {
   StyleSheet, StatusBar, ActivityIndicator,
   Platform, ScrollView, Modal, Pressable, Alert,
 } from 'react-native';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CustomTabBar from '../components/CustomTabBar';
+import GenderIcon from '../components/GenderIcon';
+import ProfileDrawer from '../components/ProfileDrawer';
 
 // ── AsyncStorage keys ──────────────────────────────────────────────────────
 const SK_PINNED = 'pinnedChats';
@@ -46,9 +50,10 @@ async function saveSet(key, set) {
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'privado',  label: 'Privado'  },
-  { key: 'circulos', label: 'Círculos' },
-  { key: 'game',     label: 'Game'     },
+  { key: 'privado',      label: 'Privado'      },
+  { key: 'circulos',    label: 'Círculos'    },
+  { key: 'game',        label: 'Game'        },
+  { key: 'invitaciones', label: 'Invitaciones' },
 ];
 const AVATAR_SIZE = 48;
 
@@ -71,6 +76,8 @@ export default function ChatsScreen({ navigation }) {
   const [unreadOverride, setUnreadOverride] = useState(new Set());
   const [hiddenIds,      setHiddenIds]      = useState(new Set());
   const [actionSheet,    setActionSheet]    = useState(null); // { type:'chat'|'group', item }
+  const [recentFollowing, setRecentFollowing] = useState([]);
+  const [drawerOpen,     setDrawerOpen]     = useState(false);
 
   // ── Load & sockets ────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
@@ -135,13 +142,16 @@ export default function ChatsScreen({ navigation }) {
     setPage(1);
     setError(null);
     try {
-      const [chatsRes, groupsRes] = await Promise.all([
+      const [chatsRes, groupsRes, followingRes] = await Promise.all([
         api.get('/chats?page=1&limit=15'),
         api.get('/groups').catch(() => ({ data: { groups: [] } })),
+        api.get(`/social/following/${user?.username}`).catch(() => ({ data: { following: [] } })),
       ]);
       setChats(chatsRes.data.chats);
       setHasMore(chatsRes.data.page < chatsRes.data.pages);
       setGroups(groupsRes.data.groups || []);
+      const all = followingRes.data.following || [];
+      setRecentFollowing(all.slice(-3).reverse());
     } catch (e) {
       console.log(e);
       setError('No se pudo cargar. Toca para reintentar.');
@@ -302,7 +312,10 @@ export default function ChatsScreen({ navigation }) {
           {isMuted  && <View style={s.muteIndicator}><Ionicons name="notifications-off" size={7} color="rgba(255,255,255,0.8)" /></View>}
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.chatUser} numberOfLines={1}>{other?.username}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+            <Text style={[s.chatUser, { marginBottom: 0, flexShrink: 1 }]} numberOfLines={1}>{other?.username}</Text>
+            <GenderIcon gender={other?.gender} />
+          </View>
           <Text numberOfLines={1} style={{ color: badge ? '#ffffff' : colors.textDim, fontWeight: badge ? '700' : '400', fontSize: 12 }}>
             {chat.lastMessageText || 'Toca para chatear'}
           </Text>
@@ -592,10 +605,40 @@ export default function ChatsScreen({ navigation }) {
       {Platform.OS !== 'web' && <StatusBar barStyle="light-content" backgroundColor={colors.black} />}
       <SafeAreaView edges={['top']}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={20} color="#ffffff" />
+          {/* Avatar propio — abre drawer */}
+          <TouchableOpacity onPress={() => setDrawerOpen(true)} activeOpacity={0.8}>
+            {user?.avatarUrl
+              ? <Image source={{ uri: user.avatarUrl }} style={s.headerAvatar} />
+              : <View style={[s.headerAvatar, s.headerAvatarPlaceholder]}>
+                  <Text style={s.headerAvatarInitial}>{user?.username?.[0]?.toUpperCase()}</Text>
+                </View>
+            }
           </TouchableOpacity>
-          
+
+          <Text style={s.headerTitle}>Mis chats</Text>
+
+          <TouchableOpacity style={s.cleanBtn} onPress={() => {}}>
+            <MaterialCommunityIcons name="broom" size={20} color="#ffffff" />
+          </TouchableOpacity>
+
+          {/* Últimos 3 seguidos — stacked */}
+          <View style={s.followingStack}>
+            {recentFollowing.map((u, i) => (
+              u?.avatarUrl
+                ? <Image
+                    key={u._id}
+                    source={{ uri: u.avatarUrl }}
+                    style={[s.stackAvatar, i > 0 && s.stackAvatarOffset]}
+                  />
+                : <View
+                    key={u._id}
+                    style={[s.stackAvatar, s.stackAvatarPlaceholder, i > 0 && s.stackAvatarOffset]}
+                  >
+                    <Text style={s.stackAvatarInitial}>{u?.username?.[0]?.toUpperCase()}</Text>
+                  </View>
+            ))}
+          </View>
+
           <TouchableOpacity style={s.addBtn} onPress={() => navigation.navigate('CreateGroup')}>
             <Ionicons name="add" size={22} color="#ffffff" />
           </TouchableOpacity>
@@ -607,18 +650,45 @@ export default function ChatsScreen({ navigation }) {
       <View style={s.tabBar}>
         {TABS.map(t => (
           <TouchableOpacity key={t.key} style={s.tabBtn} onPress={() => setTab(t.key)} activeOpacity={1}>
-            <Text style={tab === t.key ? [s.tabLabel, s.tabLabelActive] : s.tabLabel}>{t.label}</Text>
+            {t.key === 'circulos' ? (
+              <MaskedView
+                maskElement={
+                  <Text style={tab === t.key ? [s.tabLabel, s.tabLabelActive] : s.tabLabel}>
+                    {t.label}
+                  </Text>
+                }
+              >
+                <LinearGradient
+                  colors={[colors.c5, colors.c2]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={[tab === t.key ? [s.tabLabel, s.tabLabelActive] : s.tabLabel, { opacity: 0 }]}>
+                    {t.label}
+                  </Text>
+                </LinearGradient>
+              </MaskedView>
+            ) : (
+              <Text style={tab === t.key ? [s.tabLabel, s.tabLabelActive] : s.tabLabel}>{t.label}</Text>
+            )}
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={{ flex: 1 }}>
-        {tab === 'privado'  ? renderPrivado()                                      : null}
-        {tab === 'circulos' ? renderCirculos()                                     : null}
-        {tab === 'game'     ? renderComingSoon('game-controller', 'Game Sessions') : null}
+        {tab === 'privado'      ? renderPrivado()                                      : null}
+        {tab === 'circulos'    ? renderCirculos()                                     : null}
+        {tab === 'game'        ? renderComingSoon('game-controller', 'Game Sessions') : null}
+        {tab === 'invitaciones' ? renderComingSoon('mail-outline', 'Invitaciones')    : null}
       </View>
 
       {renderActionSheet()}
+
+      <ProfileDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onNavigate={(screen, params) => { setDrawerOpen(false); navigation.navigate(screen, params); }}
+      />
 
       <CustomTabBar
         navigation={navigation}
@@ -632,9 +702,17 @@ export default function ChatsScreen({ navigation }) {
 // ── Styles ────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.black },
-  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, justifyContent: 'space-between' },
-  backBtn:     { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: colors.textHi, fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, gap: 10 },
+  headerTitle: { flex: 1, color: colors.textHi, fontSize: 16, fontWeight: '700' },
+  headerAvatar:            { width: 32, height: 32, borderRadius: 16 },
+  headerAvatarPlaceholder: { backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  headerAvatarInitial:     { color: colors.textMid, fontSize: 13, fontWeight: '700' },
+  cleanBtn:    { paddingHorizontal: 8, paddingVertical: 4 },
+  followingStack: { flexDirection: 'row', alignItems: 'center' },
+  stackAvatar:        { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: '#ffffff' },
+  stackAvatarOffset:  { marginLeft: -8 },
+  stackAvatarPlaceholder: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  stackAvatarInitial: { color: colors.textMid, fontSize: 11, fontWeight: '700' },
   addBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
   tabBar:        { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 2, paddingVertical: 4, paddingHorizontal: 16 },

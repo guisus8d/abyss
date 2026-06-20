@@ -13,7 +13,7 @@ export default function GuestAuthModal({ visible, onClose }) {
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <View style={s.overlay}>
         <View style={s.box}>
           <View style={s.iconWrap}>

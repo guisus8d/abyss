@@ -20,6 +20,8 @@ import CoinIcon from '../components/CoinIcon';
 import AudioMessage from '../components/AudioMessage';
 import SharedProfileBubble from '../components/SharedProfileBubble';
 import GiftBubble from '../components/GiftBubble';
+import ReportModal from '../components/ReportModal';
+import GenderIcon from '../components/GenderIcon';
 import { formatCoins } from '../utils/formatCoins';
 
 const AVATAR_SLOT = 38;
@@ -137,6 +139,7 @@ const MessageBubble = memo(function MessageBubble({
         {showAvatar && (
           <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
             <Text style={s.msgSenderName}>{displayName}</Text>
+            <GenderIcon gender={isMe ? user?.gender : sender?.gender} size={11} />
             {senderIsGroupAdmin && (
               <View style={s.adminBadge}>
                 <Text style={s.adminBadgeTxt}>Admin</Text>
@@ -240,6 +243,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [menuMsg,       setMenuMsg]       = useState(null);
   const [menuVisible,   setMenuVisible]   = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
   const [banConfirm,    setBanConfirm]    = useState(false);
   const [kickConfirm,   setKickConfirm]   = useState(false);
 
@@ -860,7 +864,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   return (
     <View style={s.root}>
         {/* ── Modal preview imagen ─────────────────────────────────────────────── */}
-      <Modal visible={!!imagePreview} transparent animationType="fade" onRequestClose={() => setImagePreview(null)}>
+      <Modal visible={!!imagePreview} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setImagePreview(null)}>
         <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.92)', alignItems:'center', justifyContent:'center', padding:20 }}>
           {imagePreview && <Image source={{ uri: imagePreview }} style={{ width:'100%', height:'60%', borderRadius:16 }} resizeMode="contain" />}
           <View style={{ flexDirection:'row', gap:16, marginTop:20 }}>
@@ -887,9 +891,9 @@ export default function GroupRoomScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Modal opciones del mensaje ───────────────────────────────────────── */}
-      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeMenu}>
+      <Modal visible={menuVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={closeMenu}>
         <Pressable style={s.menuOverlay} onPress={closeMenu}>
-          <Pressable style={s.menuBox} onPress={e => e.stopPropagation()}>
+          <Pressable style={[s.menuBox, { paddingBottom: Math.max(insets.bottom, 24) }]} onPress={e => e.stopPropagation()}>
 
             {/* Preview del mensaje */}
             <View style={s.menuPreview}>
@@ -1020,6 +1024,11 @@ export default function GroupRoomScreen({ route, navigation }) {
               <Text style={s.groupMembers}>{group.members?.length || 0} miembros</Text>
             </View>
           </TouchableOpacity>
+          {!isAdmin && (
+            <TouchableOpacity onPress={() => setReportVisible(true)} style={[s.settingsBtn, { marginRight: 4 }]}>
+              <Ionicons name="flag-outline" size={20} color={colors.textDim} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
             <Ionicons name="settings" size={20} color="#ffffff" />
           </TouchableOpacity>
@@ -1483,6 +1492,14 @@ export default function GroupRoomScreen({ route, navigation }) {
         </Pressable>
         </KeyboardAvoidingView>
       </Modal>
+
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        type="group"
+        targetId={group._id}
+        targetName={group.name}
+      />
     </View>
   );
 }

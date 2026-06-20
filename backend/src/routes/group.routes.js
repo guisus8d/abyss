@@ -37,6 +37,13 @@ router.post('/', authMiddleware, uploadAvatar.single('image'), async (req, res) 
     const { name, description, memberIds } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
 
+    const adminGroupCount = await Group.countDocuments({
+      tipo: 'privado',
+      members: { $elemMatch: { user: req.user._id, role: 'admin' } },
+    });
+    if (adminGroupCount >= 10)
+      return res.status(400).json({ error: 'Has alcanzado el límite de 10 grupos privados como administrador. Elimina uno antes de crear otro.' });
+
     const me = await User.findById(req.user._id);
     const validIds = [...(me.followers || []).map(String), ...(me.following || []).map(String)];
     const parsedIds = JSON.parse(memberIds || '[]').filter(id => validIds.includes(String(id)));
@@ -70,7 +77,7 @@ router.get('/:id/messages', authMiddleware, async (req, res) => {
     const skip  = Math.max(0,   parseInt(req.query.skip)  || 0);
 
     const group = await Group.findById(req.params.id)
-      .populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role');
+      .populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role gender');
     if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
 
     const isMember = group.members.some(
@@ -90,7 +97,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id)
       .populate('members.user', 'username avatarUrl profileFrame profileFrameUrl')
-      .populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role');
+      .populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role gender');
     if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
 
     const isMember  = group.members.some(m => m.user._id.toString() === req.user._id.toString());
@@ -392,7 +399,7 @@ router.post('/:id/message', authMiddleware, async (req, res) => {
     });
 
     await group.save();
-    await group.populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role');
+    await group.populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role gender');
     const newMsg = group.messages[group.messages.length - 1];
 
     getIO()?.to(`group:${group._id}`).emit('group:message', { groupId: group._id, message: newMsg });
@@ -430,7 +437,7 @@ router.post('/:id/share-post', authMiddleware, async (req, res) => {
     });
 
     await group.save();
-    await group.populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role');
+    await group.populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role gender');
     const savedMsg = group.messages[group.messages.length - 1];
 
     getIO()?.to(`group:${group._id}`).emit('group:message', { groupId: group._id, message: savedMsg });
@@ -578,7 +585,7 @@ router.post('/:id/share-profile', authMiddleware, async (req, res) => {
     });
     group.markModified('unreadCounts');
     await group.save();
-    await group.populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role');
+    await group.populate('messages.sender', 'username avatarUrl profileFrame profileFrameUrl role gender');
     const savedMsg = group.messages[group.messages.length - 1];
     const { getIO } = require('../sockets');
     getIO()?.to(`group:${group._id}`).emit('group:message', { groupId: group._id, message: savedMsg });

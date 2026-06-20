@@ -237,7 +237,7 @@ export default function CollectionScreen({ navigation }) {
       )}
 
       {/* Modal detalle */}
-      <Modal visible={!!selected} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
+      <Modal visible={!!selected} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSelected(null)}>
         <Pressable style={s.modalOverlay} onPress={() => setSelected(null)}>
           <Pressable style={s.modalCard} onPress={() => {}}>
             {selected && (() => {

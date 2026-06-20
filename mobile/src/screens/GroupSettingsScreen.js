@@ -350,7 +350,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
       </Modal>
 
       {/* ── Modal confirmar eliminar grupo ── */}
-      <Modal visible={showDeleteConfirm} animationType="fade" transparent onRequestClose={() => setShowDeleteConfirm(false)}>
+      <Modal visible={showDeleteConfirm} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setShowDeleteConfirm(false)}>
         <View style={s.deleteOverlay}>
           <View style={s.deleteModal}>
             <Ionicons name="warning-outline" size={40} color="rgba(239,68,68,0.8)" style={{ marginBottom: 12 }} />

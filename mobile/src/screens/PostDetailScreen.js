@@ -36,7 +36,7 @@ function formatDate(date) {
 
 function ConfirmModal({ visible, onConfirm, onCancel }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onCancel}>
       <View style={cm.overlay}>
         <View style={cm.box}>
           <Text style={cm.title}>¿Borrar comentario?</Text>
