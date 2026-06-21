@@ -17,6 +17,7 @@ import { connectSocket } from '../services/socket';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CustomTabBar from '../components/CustomTabBar';
 import GenderIcon from '../components/GenderIcon';
+import VerifiedIcon from '../components/VerifiedIcon';
 import ProfileDrawer from '../components/ProfileDrawer';
 
 // ── AsyncStorage keys ──────────────────────────────────────────────────────
@@ -315,6 +316,7 @@ export default function ChatsScreen({ navigation }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
             <Text style={[s.chatUser, { marginBottom: 0, flexShrink: 1 }]} numberOfLines={1}>{other?.username}</Text>
             <GenderIcon gender={other?.gender} />
+            <VerifiedIcon isCreator={other?.isCreator} />
           </View>
           <Text numberOfLines={1} style={{ color: badge ? '#ffffff' : colors.textDim, fontWeight: badge ? '700' : '400', fontSize: 12 }}>
             {chat.lastMessageText || 'Toca para chatear'}

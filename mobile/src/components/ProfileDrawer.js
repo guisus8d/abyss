@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { Image } from 'react-native';
 import {
   View, Text, Animated, TouchableOpacity, TouchableWithoutFeedback,
-  StyleSheet, Dimensions, ScrollView, Alert,
+  StyleSheet, Dimensions, ScrollView,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import api from '../services/api';
-import AvatarWithFrame from './AvatarWithFrame';
 import CoinIcon from './CoinIcon';
 import { formatCoins } from '../utils/formatCoins';
 
@@ -19,9 +18,12 @@ const collectibleIcon = require('../../assets/coleccionables/ic_collectible.png'
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.72, 300);
 
-const AVATAR_SIZE   = 64;
-const FRAME_SIZE    = AVATAR_SIZE * 1.42;
-const FRAME_OFFSET  = (FRAME_SIZE - AVATAR_SIZE) / 2;
+const CARD_PAD = 12;
+const CARD_W   = DRAWER_WIDTH - CARD_PAD *2;
+const CARD_H   = Math.round(CARD_W * (485 / 637));
+const PNG_W    = Math.round(CARD_W * 1);
+const PNG_H    = Math.round(PNG_W * (485 / 637));
+const CARD_AVT = 88;
 
 function MenuItem({ icon, label, onPress, badge }) {
   return (
@@ -45,10 +47,9 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
   const insets     = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
-  const [rendered,     setRendered]     = useState(false);
-  const [uploading,    setUploading]    = useState(false);
-  const [avatarUrl,    setAvatarUrl]    = useState(user?.avatarUrl || null);
-  const [framesCount,  setFramesCount]  = useState(null);
+  const [rendered,    setRendered]    = useState(false);
+  const [avatarUrl,   setAvatarUrl]   = useState(user?.avatarUrl || null);
+  const [framesCount, setFramesCount] = useState(null);
 
   useEffect(() => {
     setAvatarUrl(user?.avatarUrl || null);
@@ -77,42 +78,9 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
     }
   }, [visible]);
 
-  async function handlePickAvatar() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (result.canceled) return;
-    setUploading(true);
-    try {
-      const asset = result.assets[0];
-      const formData = new FormData();
-      if (asset.uri.startsWith('data:') || asset.uri.startsWith('blob:') || asset.uri.startsWith('http')) {
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
-        formData.append('avatar', blob, 'avatar.jpg');
-      } else {
-        formData.append('avatar', { uri: asset.uri, type: 'image/jpeg', name: 'avatar.jpg' });
-      }
-      const { data } = await api.post('/users/me/avatar', formData);
-      setAvatarUrl(data.avatarUrl);
-      if (onAvatarUpdate) onAvatarUpdate(data.user);
-      Alert.alert('✅', 'Foto de perfil actualizada');
-    } catch (err) {
-      Alert.alert('Error', 'No se pudo subir la imagen');
-    } finally {
-      setUploading(false);
-    }
-  }
-
   if (!rendered) return null;
+
+  const cardLevel = Math.floor((user?.xp ?? 0) / 100) + 1;
 
   return (
     <View style={s.root}>
@@ -123,42 +91,70 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       <Animated.View style={[s.drawer, { transform: [{ translateX }] }]}>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-          {/* ── Perfil ── */}
-          <View style={[s.header, { paddingTop: insets.top + 28 }]}>
-
-            {/* Avatar + cámara */}
-            <View style={s.avatarArea}>
-              <TouchableOpacity
-                onPress={() => { onClose(); onNavigate('Profile'); }}
-                style={s.avatarTouch}
-                activeOpacity={0.85}
-              >
-                <AvatarWithFrame
-                  size={AVATAR_SIZE}
-                  avatarUrl={avatarUrl}
-                  username={user?.username}
-                  profileFrame={user?.profileFrame}
-                  frameUrl={user?.profileFrameUrl}
-                  bgColor={colors.surface}
+          {/* ── Abyss Card ── */}
+          <View style={[s.cardSection, { paddingTop: insets.top + CARD_AVT / 2 + 10 }]}>
+            <TouchableOpacity
+              style={s.cardOuter}
+              activeOpacity={0.85}
+              onPress={() => { onClose(); onNavigate('Profile'); }}
+            >
+              <View style={s.cardInner}>
+                <MaskedView
+                  style={{ width: CARD_W, height: CARD_H }}
+                  maskElement={
+                    <Image
+                      source={require('../../assets/abyss-card.png')}
+                      style={{ width: PNG_W, height: PNG_H }}
+                      resizeMode="stretch"
+                    />
+                  }
+                >
+                  {user?.profileBgType === 'image' && user?.profileBg
+                    ? <Image source={{ uri: user.profileBg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    : <View style={[StyleSheet.absoluteFill, { backgroundColor: user?.profileBg || '#0d1d2e' }]} />
+                  }
+                </MaskedView>
+                <Image
+                  source={require('../../assets/abyss-card.png')}
+                  style={{ position: 'absolute', top: 0, left: 0, width: PNG_W, height: PNG_H }}
+                  resizeMode="stretch"
                 />
-              </TouchableOpacity>
-              <TouchableOpacity style={s.cameraBtn} onPress={handlePickAvatar} activeOpacity={0.8}>
-                <Ionicons name={uploading ? 'time-outline' : 'camera-outline'} size={13} color={colors.textMid} />
-              </TouchableOpacity>
-            </View>
 
-            <Text style={s.username}>{user?.username}</Text>
-            <Text style={s.email}>{user?.email}</Text>
+                {/* Info: top-right (next to avatar arch) */}
+                <View style={s.cardInfo}>
+                  <Text style={s.cardUsername} numberOfLines={1}>@{user?.username}</Text>
+                  {user?.email ? (
+                    <Text style={s.cardEmail} numberOfLines={1}>{user.email}</Text>
+                  ) : null}
+                </View>
 
-            {/* XP */}
-            <View style={s.pillRow}>
-              <View style={s.pill}>
-                <Ionicons name="flash-outline" size={11} color={colors.c1} />
-                <Text style={s.pillTxt}>{user?.xp || 0} XP</Text>
+                {/* Stats strip: bottom */}
+                <View style={s.cardStats}>
+                  <View style={s.cardStat}>
+                    <Text style={s.cardStatVal}>Nv.{cardLevel}</Text>
+                    <Text style={s.cardStatLbl}>Nivel</Text>
+                  </View>
+                  <View style={s.cardStatDivider} />
+                  <View style={s.cardStat}>
+                    <Text style={s.cardStatVal}>{user?.xp ?? 0}</Text>
+                    <Text style={s.cardStatLbl}>XP</Text>
+                  </View>
+                </View>
               </View>
-            </View>
 
-            {/* ── Tarjeta cartera ── */}
+              <View style={s.cardAvatarWrap}>
+                {avatarUrl
+                  ? <Image source={{ uri: avatarUrl }} style={s.cardAvatarImg} />
+                  : <View style={s.cardAvatarFallback}>
+                      <Text style={s.cardAvatarLetter}>{user?.username?.[0]?.toUpperCase()}</Text>
+                    </View>
+                }
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Cartera ── */}
+          <View style={s.walletWrap}>
             <View style={s.walletCard}>
               <View style={s.walletSection}>
                 <CoinIcon size={17} />
@@ -168,9 +164,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               <View style={s.walletDivider} />
               <View style={s.walletSection}>
                 <Image source={collectibleIcon} style={{ width: 17, height: 17, opacity: 0.75 }} resizeMode="contain" />
-                <Text style={s.walletValue}>
-                  {framesCount === null ? '–' : framesCount}
-                </Text>
+                <Text style={s.walletValue}>{framesCount === null ? '–' : framesCount}</Text>
                 <Text style={s.walletLabel}>COLECCIONABLES</Text>
               </View>
             </View>
@@ -232,88 +226,78 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, elevation: 20,
   },
 
-  // Header / perfil
-  header: {
-    paddingHorizontal: 20, paddingBottom: 20,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    marginBottom: 4,
-    alignItems: 'center',
+  // Abyss Card
+  cardSection: {
+    paddingHorizontal: CARD_PAD,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
+  cardOuter: { width: CARD_W, position: 'relative' },
+  cardInner: { width: CARD_W, height: CARD_H },
 
-  avatarArea: {
-    alignSelf: 'center',
-    marginBottom: 14,
-    marginTop: FRAME_OFFSET,
-    position: 'relative',
-  },
-  avatarTouch: {
-    overflow: 'visible',
-  },
-  cameraBtn: {
+  // Info top-right (after avatar arch)
+  cardInfo: {
     position: 'absolute',
-    bottom:  -FRAME_OFFSET + 4,
-    right:   -FRAME_OFFSET + 4,
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1, borderColor: colors.borderC,
-    alignItems: 'center', justifyContent: 'center',
-    zIndex: 20,
+    top: 48,
+    left: CARD_AVT + 20,
+    right: 8,
+  },
+  cardUsername: {
+    color: '#fff', fontSize: 11, fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
+  cardEmail: {
+    color: 'rgba(255,255,255,0.6)', fontSize: 8.5, marginTop: 3,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
 
-  username: { color: colors.textHi, fontSize: 17, fontWeight: '700', marginBottom: 2, textAlign: 'center' },
-  email:    { color: colors.textDim, fontSize: 11, marginBottom: 14, textAlign: 'center' },
+  // Stats strip bottom
+  cardStats: {
+    position: 'absolute', bottom: 8, left: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.42)', borderRadius: 8,
+    paddingVertical: 5,
+  },
+  cardStat:        { flex: 1, alignItems: 'center' },
+  cardStatVal: {
+    color: '#fff', fontSize: 12, fontWeight: '800',
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+  },
+  cardStatLbl: {
+    color: 'rgba(255,255,255,0.52)', fontSize: 7, marginTop: 1,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  cardStatDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.18)' },
+  cardAvatarWrap: {
+    position: 'absolute', top: -(CARD_AVT * -0.15), left: 12,
+    width: CARD_AVT, height: CARD_AVT, borderRadius: CARD_AVT / 2,
+    overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)',
+    zIndex: 10, backgroundColor: colors.deep,
+  },
+  cardAvatarImg:      { width: '100%', height: '100%' },
+  cardAvatarFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  cardAvatarLetter:   { color: colors.textHi, fontSize: 16, fontWeight: '700' },
 
-  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
-  pill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: colors.border },
-  pillTxt: { color: colors.textMid, fontSize: 11, fontWeight: '600' },
-  pillDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.border },
-
-  // Tarjeta cartera
+  // Wallet card
+  walletWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   walletCard: {
     flexDirection: 'row',
-    alignSelf: 'stretch',
-    marginTop: 16,
     backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 16, borderWidth: 1, borderColor: colors.border,
     overflow: 'hidden',
   },
-  walletSection: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-    gap: 5,
-  },
-  walletDivider: {
-    width: 1,
-    backgroundColor: colors.border,
-    marginVertical: 14,
-  },
-  walletValue: {
-    color: colors.textHi,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  walletLabel: {
-    color: colors.textDim,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
+  walletSection: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 5 },
+  walletDivider: { width: 1, backgroundColor: colors.border, marginVertical: 14 },
+  walletValue:   { color: colors.textHi, fontSize: 15, fontWeight: '800' },
+  walletLabel:   { color: colors.textDim, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
 
-  // Secciones
-  section: { marginBottom: 4, paddingTop: 8 },
-
-  // Ítems de menú — todos con el mismo estilo neutro
-  menuItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 16, paddingVertical: 13,
-  },
+  // Menú
+  section:  { marginBottom: 4, paddingTop: 8 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 13 },
   iconBox: {
     width: 38, height: 38, borderRadius: 11,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   menuLabel: { flex: 1, color: colors.textHi, fontSize: 14, fontWeight: '500' },
@@ -321,16 +305,12 @@ const s = StyleSheet.create({
   badgeTxt:  { color: '#fff', fontSize: 10, fontWeight: '800' },
 
   // Logout
-  logoutWrap: { marginTop: 4 },
-  dividerLine: { height: 1, backgroundColor: colors.border, marginHorizontal: 16, marginBottom: 4 },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 16, paddingVertical: 13,
-  },
+  logoutWrap:    { marginTop: 4 },
+  dividerLine:   { height: 1, backgroundColor: colors.border, marginHorizontal: 16, marginBottom: 4 },
+  logoutBtn:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 13 },
   logoutIconBox: {
     width: 38, height: 38, borderRadius: 11,
-    backgroundColor: 'rgba(239,68,68,0.12)',
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
+    backgroundColor: 'rgba(239,68,68,0.12)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
     alignItems: 'center', justifyContent: 'center',
   },
   logoutTxt: { color: '#ef4444', fontSize: 14, fontWeight: '600' },

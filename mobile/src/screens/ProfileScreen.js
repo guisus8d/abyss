@@ -16,6 +16,7 @@ import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import PostCard from '../components/PostCard';
 import GenderIcon from '../components/GenderIcon';
+import VerifiedIcon from '../components/VerifiedIcon';
 
 const W         = Dimensions.get('window').width;
 const POST_TILE = (W - 32 - 4) / 3;
@@ -277,6 +278,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Text style={s.username}>{profile?.username}</Text>
             <GenderIcon gender={profile?.gender} size={14} />
+            <VerifiedIcon isCreator={profile?.isCreator} size={14} />
             {profile?.emailVerified && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)' }}>
                 <Ionicons name="checkmark-circle" size={12} color="#00e5cc" />

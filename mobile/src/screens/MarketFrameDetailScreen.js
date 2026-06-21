@@ -14,6 +14,7 @@ import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
 import GenderIcon from '../components/GenderIcon';
+import VerifiedIcon from '../components/VerifiedIcon';
 import { presetFromId } from '../utils/framePreset';
 
 const { width: W } = Dimensions.get('window');
@@ -140,6 +141,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
               >
                 <Text style={s.headerCreatorName}>@{creator.username}</Text>
                 <GenderIcon gender={creator?.gender} size={11} />
+                <VerifiedIcon isCreator={creator?.isCreator} size={11} />
                 {creator.avatarUrl
                   ? <Image source={{ uri: creator.avatarUrl }} style={s.headerAvatar} />
                   : (
@@ -302,6 +304,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                           <Text style={s.commentUsername}>@{c.user?.username}</Text>
                           <GenderIcon gender={c.user?.gender} size={11} />
+                          <VerifiedIcon isCreator={c.user?.isCreator} size={11} />
                         </View>
                         <Text style={s.commentText}>{c.text}</Text>
                       </View>

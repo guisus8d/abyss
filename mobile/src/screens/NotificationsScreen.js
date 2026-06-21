@@ -31,6 +31,7 @@ function timeAgo(date) {
 function notifText(n) {
   switch (n.type) {
     case 'like':
+      if (n.frame) return 'le dio ❤️ a tu marco';
       return n.text && n.text !== '❤️'
         ? `reaccionó con ${n.text} a tu post`
         : 'le dio ❤️ a tu post';
@@ -109,10 +110,16 @@ export default function NotificationsScreen({ navigation }) {
       <View>
         <TouchableOpacity
           style={[s.item, !isRead && s.itemUnread]}
-          onPress={() => {
+          onPress={async () => {
             if (item.post && (item.type === 'comment' || item.type === 'like' || item.type === 'mention')) {
               const postId = item.post?._id || item.post;
               navigation.navigate('PostDetail', { postId });
+            } else if (item.type === 'like' && item.frame) {
+              const frameId = item.frame?._id || item.frame;
+              try {
+                const { data } = await api.get(`/market/frames/${frameId}`);
+                navigation.navigate('MarketFrameDetail', { frame: data.frame });
+              } catch { /* si falla el fetch, no navegar */ }
             } else if (item.type === 'follow') {
               navigation.navigate('PublicProfile', { username: item.from?.username });
             }

@@ -13,6 +13,7 @@ import SharedProfileBubble from '../components/SharedProfileBubble';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
 import GenderIcon from '../components/GenderIcon';
+import VerifiedIcon from '../components/VerifiedIcon';
 import GiftBubble from '../components/GiftBubble';
 import { Ionicons }    from '@expo/vector-icons';
 import { colors }      from '../theme/colors';
@@ -828,6 +829,7 @@ export default function ChatRoomScreen({ route, navigation }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={s.headerName}>{other.username}</Text>
               <GenderIcon gender={other?.gender} />
+              <VerifiedIcon isCreator={other?.isCreator} />
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={s.backBtn} onPress={() => navigation.navigate('ChatSettings', { chatId: chat._id.toString(), otherUsername: other.username, currentBg: chatBg })}>

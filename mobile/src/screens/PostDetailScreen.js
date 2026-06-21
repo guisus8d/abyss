@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Modal, TouchableOpacity, Image,
   StyleSheet, ActivityIndicator, TextInput, Platform, Alert, Share, Linking,
+  KeyboardAvoidingView, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ import AvatarWithFrame from '../components/AvatarWithFrame';
 import SharePostModal  from '../components/SharePostModal';
 import ReportModal     from '../components/ReportModal';
 import { renderCommentText, COMMENT_EMOJIS } from '../utils/commentUtils';
+import VerifiedIcon from '../components/VerifiedIcon';
 
 const C = {
   card:'#0b1521',cardBorder:'rgba(255,255,255,0.07)',surface:'#0d1d2e',
@@ -87,6 +89,7 @@ export default function PostDetailScreen({ route, navigation }) {
   const [totalComments,      setTotalComments]       = useState(0);
   const [commentReactions,   setCommentReactions]    = useState({});
   const [commentPickerFor,   setCommentPickerFor]    = useState(null);
+  const [isKeyboardVisible,  setIsKeyboardVisible]   = useState(false);
 
   const inputRef   = useRef(null);
   const sendingRef = useRef(false);
@@ -110,6 +113,12 @@ export default function PostDetailScreen({ route, navigation }) {
   }, [postId]);
 
   useEffect(() => { loadPost(1); }, [loadPost]);
+
+  useEffect(() => {
+    const sub1 = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const sub2 = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false));
+    return () => { sub1.remove(); sub2.remove(); };
+  }, []);
 
   const loadMoreComments = useCallback(() => {
     if (!hasMore || loadingMore) return;
@@ -197,7 +206,7 @@ export default function PostDetailScreen({ route, navigation }) {
 
   const isAuthor   = post.author?._id === user?._id || post.author?.id === user?._id;
   const isNews     = post.postType === 'news';
-  const inputBottomPad = isWeb ? 12 : Math.max(insets.bottom, 12);
+  const inputBottomPad = isWeb ? 12 : isKeyboardVisible ? 12 : Math.max(insets.bottom, 12);
 
   const renderComment = (c, isReply = false) => {
     const uid       = c.user?._id?.toString() || c.user?.toString();
@@ -225,7 +234,10 @@ export default function PostDetailScreen({ route, navigation }) {
                   <Text style={s.replyPreviewTxt} numberOfLines={1}>{'↩ @'}{c.replyTo.username}{': '}{c.replyTo.text}</Text>
                 </View>
               ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <Text style={s.commentUser} onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>{c.user?.username}</Text>
+              <VerifiedIcon isCreator={c.user?.isCreator} size={11} />
+            </View>
               {renderCommentText(c.text, navigation, s.commentTxt, s.commentLink)}
             </TouchableOpacity>
             <View style={s.commentReactRow}>
@@ -261,7 +273,10 @@ export default function PostDetailScreen({ route, navigation }) {
   };
 
   return (
-    <View style={s.root}>
+    <KeyboardAvoidingView
+      style={s.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ConfirmModal
         visible={!!deleteCommentModal}
         onConfirm={() => handleDeleteComment(deleteCommentModal)}
@@ -321,7 +336,10 @@ export default function PostDetailScreen({ route, navigation }) {
         <TouchableOpacity style={s.authorRow} onPress={() => navigation.navigate('PublicProfile', { username: post.author?.username })} activeOpacity={0.8}>
           <AvatarWithFrame size={44} avatarUrl={post.author?.avatarUrl} username={post.author?.username} profileFrame={post.author?.profileFrame} frameUrl={post.author?.profileFrameUrl} />
           <View style={{ marginLeft:12, flex:1 }}>
-            <Text style={s.authorName}>{post.author?.username}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Text style={s.authorName}>{post.author?.username}</Text>
+              <VerifiedIcon isCreator={post.author?.isCreator} />
+            </View>
             <Text style={s.authorMeta}>{'XP '}{post.author?.xp||0}{' · '}{timeAgo(post.createdAt)}</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={C.textDim} />
@@ -426,7 +444,7 @@ export default function PostDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

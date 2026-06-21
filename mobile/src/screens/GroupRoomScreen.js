@@ -22,6 +22,7 @@ import SharedProfileBubble from '../components/SharedProfileBubble';
 import GiftBubble from '../components/GiftBubble';
 import ReportModal from '../components/ReportModal';
 import GenderIcon from '../components/GenderIcon';
+import VerifiedIcon from '../components/VerifiedIcon';
 import { formatCoins } from '../utils/formatCoins';
 
 const GROUP_BG_PRESETS = { night: '#020D1A', void: '#050505', purple: '#0D0714', teal: '#030F10' };
@@ -142,6 +143,7 @@ const MessageBubble = memo(function MessageBubble({
           <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
             <Text style={s.msgSenderName}>{displayName}</Text>
             <GenderIcon gender={isMe ? user?.gender : sender?.gender} size={11} />
+            <VerifiedIcon isCreator={isMe ? user?.isCreator : sender?.isCreator} size={11} />
             {senderIsGroupAdmin && (
               <View style={s.adminBadge}>
                 <Text style={s.adminBadgeTxt}>Admin</Text>

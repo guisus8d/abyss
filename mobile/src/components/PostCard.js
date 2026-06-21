@@ -11,6 +11,7 @@ import SharePostModal  from './SharePostModal';
 import GuestAuthModal  from './GuestAuthModal';
 import api from '../services/api';
 import GenderIcon from './GenderIcon';
+import VerifiedIcon from './VerifiedIcon';
 import { renderCommentText, COMMENT_EMOJIS } from '../utils/commentUtils';
 
 const C = {
@@ -121,6 +122,7 @@ function ReactorsModal({ visible, postId, initialFilter, onClose }) {
                     <AvatarWithFrame size={34} avatarUrl={u?.avatarUrl} username={u?.username} />
                     <Text style={rm.userTxt}>@{u?.username}</Text>
                     <GenderIcon gender={u?.gender} size={12} />
+                    <VerifiedIcon isCreator={u?.isCreator} size={12} />
                   </View>
                 )}
                 ListEmptyComponent={<Text style={rm.empty}>Sin reacciones todavía</Text>}
@@ -206,6 +208,7 @@ function CommentSection({
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
                       <Text style={s.commentUser}>{c.user?.username}</Text>
                       <GenderIcon gender={c.user?.gender} size={11} />
+                      <VerifiedIcon isCreator={c.user?.isCreator} size={11} />
                     </View>
                   </TouchableOpacity>
                   {renderCommentText(c.text, navigation, s.commentText, s.commentLink)}
@@ -269,6 +272,7 @@ function CommentSection({
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 }}>
                         <Text style={s.commentUser}>{r.user?.username}</Text>
                         <GenderIcon gender={r.user?.gender} size={11} />
+                        <VerifiedIcon isCreator={r.user?.isCreator} size={11} />
                       </View>
                     </TouchableOpacity>
                     {renderCommentText(r.text, navigation, s.commentText, s.commentLink)}
@@ -471,6 +475,7 @@ const PostCard = memo(function PostCard({
             <View style={s.usernameRow}>
               <Text style={s.username}>{post.author.username}</Text>
               <GenderIcon gender={post.author.gender} />
+              <VerifiedIcon isCreator={post.author.isCreator} />
             </View>
           </TouchableOpacity>
           <Text style={s.meta}>XP {post.author.xp} · {ago}</Text>
