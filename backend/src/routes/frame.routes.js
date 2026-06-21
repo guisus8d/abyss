@@ -108,7 +108,7 @@ router.post('/', authMiddleware, (req, res, next) => {
 
     frameLog(`user xp=${user.xp} coins=${user.coins} pkgCost=${pkgCost} pkgUnits=${pkgUnits}`);
 
-    if (user.xp < XP_MINIMO)
+    if (user.xp < XP_MINIMO && !user.isCreator)
       throw Object.assign(new Error(`Necesitas ${XP_MINIMO} XP para crear marcos`), { status: 403 });
     if (user.coins < pkgCost)
       throw Object.assign(new Error(`Necesitas ${pkgCost} monedas`), { status: 400 });
@@ -204,6 +204,27 @@ router.patch('/:id/listing', authMiddleware, async (req, res) => {
 
     await frame.save();
     res.json({ frame });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── DELETE /frames/my/:frameId — eliminar marco de la colección (sin reembolso) ─
+router.delete('/my/:frameId', authMiddleware, async (req, res) => {
+  try {
+    const ownership = await FrameOwnership.findOne({ user: req.user._id, frame: req.params.frameId });
+    if (!ownership) return res.status(404).json({ error: 'Marco no encontrado en tu colección' });
+
+    await ownership.deleteOne();
+
+    let profileCleared = false;
+    const user = await User.findById(req.user._id);
+    if (String(user.profileFrame) === String(req.params.frameId)) {
+      user.profileFrame    = 'default';
+      user.profileFrameUrl = null;
+      await user.save();
+      profileCleared = true;
+    }
+
+    res.json({ message: 'Marco eliminado de tu colección', profileCleared });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

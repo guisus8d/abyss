@@ -4,7 +4,7 @@ import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, RefreshControl,
   ActivityIndicator, Alert, Animated, Platform, Linking,
-  Modal, FlatList, Pressable,
+  Modal, FlatList, Pressable, Image, Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
@@ -39,6 +39,40 @@ const TABS = [
 ];
 
 const INITIAL_TAB_STATE = () => ({ posts: [], page: 1, hasMore: true, loading: false, loaded: false });
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const MEET_PAD = 14;
+const MEET_GAP = 8;
+const MEET_CARD_W = Math.floor((SCREEN_W - MEET_PAD * 2 - MEET_GAP * 2) / 3);
+const MEET_CARD_H = Math.round(MEET_CARD_W * (242 / 314)); // ratio nativo de los bg_*.9.png (314×242)
+
+function MeetSection() {
+  return (
+    <View style={ms.wrap}>
+      <View style={ms.card}>
+        <Image source={require('../../assets/meet/bg_text_match_entrance.9.png')} style={ms.img} resizeMode="contain" />
+        <Text style={ms.label}>{'Meet\nText'}</Text>
+        <View style={ms.iconWrap}>
+          <Image source={require('../../assets/meet/icon_text_match_hd.webp')} style={ms.iconImg} resizeMode="contain" />
+        </View>
+      </View>
+      <View style={ms.card}>
+        <Image source={require('../../assets/meet/bg_voice_match_entrance.9.png')} style={ms.img} resizeMode="contain" />
+        <Text style={ms.label}>{'Meet\nVoice'}</Text>
+        <View style={ms.iconWrap}>
+          <Image source={require('../../assets/meet/icon_activity_open.webp')} style={ms.iconImg} resizeMode="contain" />
+        </View>
+      </View>
+      <View style={ms.card}>
+        <Image source={require('../../assets/meet/bg_drifting_bottle_entrance.9.png')} style={ms.img} resizeMode="contain" />
+        <Text style={ms.label}>{'Meet\nBottle'}</Text>
+        <View style={ms.iconWrap}>
+          <Image source={require('../../assets/meet/icon_bottle_match_hd.webp')} style={ms.iconImg} resizeMode="contain" />
+        </View>
+      </View>
+    </View>
+  );
+}
 
 function BadgeToast({ badge, onHide }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -339,6 +373,7 @@ export default function HomeScreen({ navigation }) {
         scrollEventThrottle={400}>
         <View style={{ height: 70 + insets.top }} />
         <OrbitUsers navigation={navigation} />
+        <MeetSection />
 
         {/* Tab bar */}
         <View style={s.tabBarWrap}>
@@ -478,7 +513,7 @@ const s = StyleSheet.create({
   tabBar: {
     flexDirection: 'row', backgroundColor: CARD_BG,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    padding: 4, position: 'relative', overflow: 'hidden',
+    padding: 4, overflow: 'hidden',
   },
   tabBtn:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 4, borderRadius: 10, margin: 2 },
   tabBtnActive:   { backgroundColor: colors.c1 },
@@ -486,7 +521,7 @@ const s = StyleSheet.create({
   tabLabel:       { color: colors.textDim, fontSize: 12, fontWeight: '600' },
   tabLabelActive: { color: colors.black },
 
-  feedContainer: { backgroundColor: CARD_BG, marginHorizontal: 0, minHeight: 300, paddingTop: 4, zIndex: 1 },
+  feedContainer: { backgroundColor: CARD_BG, marginHorizontal: 0, minHeight: 300, paddingTop: 4 },
   postGap:       { marginTop: 8 },
   loadingMore:   { paddingVertical: 20, alignItems: 'center' },
   endRow:        { flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, marginVertical: 20, gap: 10 },
@@ -498,4 +533,32 @@ const s = StyleSheet.create({
   epKnob:     { width: 40, height: 4, backgroundColor: colors.c1, borderRadius: 2, alignSelf: 'center', marginVertical: 10 },
   epItem:     { width: '12.5%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
   epEmoji:    { fontSize: 26, textAlign: 'center' },
+});
+
+const ms = StyleSheet.create({
+  wrap:     { flexDirection: 'row', paddingHorizontal: MEET_PAD, marginTop: 12, marginBottom: 4, gap: MEET_GAP },
+  card:     { width: MEET_CARD_W, height: MEET_CARD_H },
+  img:      { width: MEET_CARD_W, height: MEET_CARD_H },
+  label:    {
+    position: 'absolute',
+    bottom: 28,
+    left: 22,
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(255,255,255,0.9)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+  iconWrap: {
+    position: 'absolute',
+    bottom: 5,
+    right: 8,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconImg:  { width: 40, height: 40 },
 });

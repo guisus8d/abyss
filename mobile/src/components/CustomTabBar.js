@@ -59,11 +59,11 @@ export default function CustomTabBar({
           <Text style={[s.niLbl, { color: colors.c1 }]}>Game</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.ni} onPress={() => navigation.navigate('Market')}>
+        <TouchableOpacity style={s.ni} onPress={() => { if (activeTab !== 'market') navigation.navigate('Market'); }}>
           <View style={s.niBox}>
-            <Ionicons name="storefront" size={20} color={colors.textDim} />
+            <Ionicons name="storefront" size={20} color={activeTab === 'market' ? colors.c1 : colors.textDim} />
           </View>
-          <Text style={s.niLbl}>Tienda</Text>
+          <Text style={[s.niLbl, activeTab === 'market' && { color: colors.c1 }]}>Tienda</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.ni} onPress={() => guard(() => onCreatePress?.())}>

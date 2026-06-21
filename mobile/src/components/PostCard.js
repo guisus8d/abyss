@@ -11,6 +11,7 @@ import SharePostModal  from './SharePostModal';
 import GuestAuthModal  from './GuestAuthModal';
 import api from '../services/api';
 import GenderIcon from './GenderIcon';
+import { renderCommentText, COMMENT_EMOJIS } from '../utils/commentUtils';
 
 const C = {
   card:         '#0b1521',
@@ -72,8 +73,6 @@ const cm = StyleSheet.create({
   btnDanger:    { flex: 1, paddingVertical: 13, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.75)', alignItems: 'center' },
   btnDangerTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });
-
-const COMMENT_EMOJIS = ['❤️','😂','😍','🔥','👏','😮','😢','😡','💯','👍'];
 
 function ReactorsModal({ visible, postId, initialFilter, onClose }) {
   const [reactions, setReactions] = useState({});
@@ -140,7 +139,7 @@ function ReactorsModal({ visible, postId, initialFilter, onClose }) {
 function CommentSection({
   post, currentUserId, replyToComment, setReplyToComment,
   commentText, setCommentText, sending, onSubmit, onDeleteComment, goToProfile, onViewAll,
-  isGuest, onGuestAction,
+  isGuest, onGuestAction, navigation,
 }) {
   const [commentReactions, setCommentReactions] = useState(() => {
     const map = {};
@@ -209,7 +208,7 @@ function CommentSection({
                       <GenderIcon gender={c.user?.gender} size={11} />
                     </View>
                   </TouchableOpacity>
-                  <Text style={s.commentText}>{c.text}</Text>
+                  {renderCommentText(c.text, navigation, s.commentText, s.commentLink)}
                   {/* Reacciones al comentario */}
                   {(() => {
                     const rxs = commentReactions[String(c._id)] || [];
@@ -272,7 +271,7 @@ function CommentSection({
                         <GenderIcon gender={r.user?.gender} size={11} />
                       </View>
                     </TouchableOpacity>
-                    <Text style={s.commentText}>{r.text}</Text>
+                    {renderCommentText(r.text, navigation, s.commentText, s.commentLink)}
                   </View>
                   <TouchableOpacity
                     onPress={() => setReplyToComment({ commentId: c._id, username: c.user?.username, text: c.text })}
@@ -591,6 +590,7 @@ const PostCard = memo(function PostCard({
           onViewAll={() => navigation.navigate('PostDetail', { postId: post._id })}
           isGuest={isGuest}
           onGuestAction={() => setShowGuestModal(true)}
+          navigation={navigation}
         />
       )}
 
@@ -664,6 +664,7 @@ const s = StyleSheet.create({
   commentBubble:       { flex: 1, backgroundColor: C.surface, borderRadius: 12, borderTopLeftRadius: 4, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: C.cardBorder },
   commentUser:         { color: C.accent, fontSize: 12, fontWeight: '700', marginBottom: 3 },
   commentText:         { color: C.textMid, fontSize: 12.5, lineHeight: 18 },
+  commentLink:         { color: C.accent, textDecorationLine: 'underline' },
   replyBtn:            { paddingLeft: 6, paddingVertical: 4, marginTop: 4 },
   replyRow:            { flexDirection: 'row', alignItems: 'flex-start', paddingLeft: 20, marginBottom: 10, gap: 6 },
   replyConnector:      { width: 2, backgroundColor: C.accentBorder, borderRadius: 2, alignSelf: 'stretch', marginRight: 4 },

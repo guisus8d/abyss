@@ -251,19 +251,14 @@ export default function StoreScreen({ navigation, route }) {
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>TIENDA</Text>
-          <View style={s.headerRight}>
-            {isOwn ? (
-              <TouchableOpacity
-                style={s.editBtn}
-                onPress={() => navigation.navigate('CreateStore', { store, onCreated: () => loadStore() })}
-              >
-                <Image source={require('../../assets/chats/menu/ic_menu_settings_4.png')} style={{ width: 22, height: 22 }} />
-              </TouchableOpacity>
-            ) : <View style={{ width: 28 }} />}
-            <View style={[s.nivelBadge, { borderColor: nivelColor + '40' }]}>
-              <Text style={[s.nivelTxt, { color: nivelColor }]}>Nv. {nivel} · {NIVEL_LABELS[nivel]}</Text>
-            </View>
-          </View>
+          {isOwn ? (
+            <TouchableOpacity
+              style={[s.editBtn, { marginLeft: 'auto' }]}
+              onPress={() => navigation.navigate('CreateStore', { store, onCreated: () => loadStore() })}
+            >
+              <Image source={require('../../assets/chats/menu/ic_menu_settings_4.png')} style={{ width: 22, height: 22 }} />
+            </TouchableOpacity>
+          ) : <View style={{ width: 28, marginLeft: 'auto' }} />}
         </View>
 
       </SafeAreaView>
@@ -287,6 +282,9 @@ export default function StoreScreen({ navigation, route }) {
                   : <View style={s.logoPlaceholder}><Ionicons name="storefront" size={36} color={colors.c1} /></View>}
               </View>
               <Text style={s.storeName}>{store.nombre}</Text>
+              <View style={[s.nivelBadge, { borderColor: nivelColor + '40' }]}>
+                <Text style={[s.nivelTxt, { color: nivelColor }]}>Nv. {nivel} · {NIVEL_LABELS[nivel]}</Text>
+              </View>
             </View>
 
             {store.descripcion ? (
@@ -450,7 +448,7 @@ const s = StyleSheet.create({
   logo:     { width: 88, height: 88, borderRadius: 22, borderWidth: 2, borderColor: '#fff' },
   logoPlaceholder: { width: 88, height: 88, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   storeName: { color: colors.textHi, fontSize: 18, fontWeight: '800', textAlign: 'center' },
-  nivelBadge: { alignSelf: 'flex-end', borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  nivelBadge: { alignSelf: 'center', marginTop: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
   nivelTxt:   { fontSize: 11, fontWeight: '700' },
 
   desc: { color: colors.textMid, fontSize: 13, lineHeight: 18, paddingHorizontal: 16, marginBottom: 14 },

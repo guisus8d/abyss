@@ -28,15 +28,12 @@ async function uploadStoreImage(localUri, field) {
   return data.url;
 }
 
-async function pickImage(aspect) {
+async function pickImage(aspect, allowsEditing = true) {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== 'granted') throw new Error('Permiso de galería requerido');
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    allowsEditing: true,
-    aspect,
-    quality: 0.85,
-  });
+  const opts = { mediaTypes: ['images'], allowsEditing, quality: 0.85 };
+  if (allowsEditing && aspect) opts.aspect = aspect;
+  const result = await ImagePicker.launchImageLibraryAsync(opts);
   if (result.canceled) return null;
   return result.assets[0].uri;
 }
@@ -60,7 +57,7 @@ function TextField({ label, value, onChangeText, placeholder, multiline, maxLeng
   );
 }
 
-function ImageField({ label, uri, onPick, uploading, aspect, hint }) {
+function ImageField({ label, uri, onPick, uploading, aspect, hint, changeText = 'Cambiar imagen' }) {
   return (
     <View style={s.fieldWrap}>
       <Text style={s.fieldLabel}>{label}</Text>
@@ -80,7 +77,7 @@ function ImageField({ label, uri, onPick, uploading, aspect, hint }) {
                 <View style={s.imagePickerIcon}>
                   <Ionicons name={uri ? 'pencil-outline' : 'camera-outline'} size={22} color={colors.c1} />
                 </View>
-                <Text style={s.imagePickerTxt}>{uri ? 'Cambiar imagen' : 'Subir imagen'}</Text>
+                <Text style={s.imagePickerTxt}>{uri ? changeText : 'Subir imagen'}</Text>
                 {hint && !uri && <Text style={s.imagePickerHint}>{hint}</Text>}
               </>}
         </View>
@@ -105,7 +102,7 @@ export default function CreateStoreScreen({ navigation, route }) {
 
   async function handlePickBanner() {
     try {
-      const uri = await pickImage([16, 5]);
+      const uri = await pickImage(null, false);
       if (!uri) return;
       setBannerLocal(uri);
     } catch (e) { setErrMsg(e.message); }
@@ -203,12 +200,12 @@ export default function CreateStoreScreen({ navigation, route }) {
         </View>
 
         <ImageField
-          label="Banner"
+          label="Fondo"
           uri={bannerLocal}
           onPick={handlePickBanner}
           uploading={uploadingBanner}
-          aspect={[16, 5]}
           hint="Recomendado 1600×500 px"
+          changeText="Cambiar fondo"
         />
 
         <ImageField
@@ -218,6 +215,7 @@ export default function CreateStoreScreen({ navigation, route }) {
           uploading={uploadingLogo}
           aspect={[1, 1]}
           hint="Recomendado cuadrado"
+          changeText="Cambiar logo"
         />
 
         <Text style={s.fallbackNote}>

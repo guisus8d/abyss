@@ -57,7 +57,9 @@ function FrameCard({ frame, onPress }) {
         <CoinIcon size={9} />
         <Text style={s.cardPriceTxt}>{frame.price}</Text>
       </View>
-      <Text style={s.cardCreator} numberOfLines={1}>@{frame.creator?.username}</Text>
+      <View style={s.unitsBadge}>
+        <Text style={s.unitsTxt}>{frame.units} u.</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -212,7 +214,11 @@ export default function MarketScreen({ navigation }) {
         />
       )}
 
-      <CustomTabBar navigation={navigation} activeTab="market" />
+      <CustomTabBar
+        navigation={navigation}
+        activeTab="market"
+        onCreatePress={() => navigation.navigate('CreateFrame')}
+      />
 
     </View>
   );
@@ -255,7 +261,8 @@ const s = StyleSheet.create({
   cardName:     { color: colors.textHi, fontSize: 13, fontWeight: '700', paddingHorizontal: 8, paddingTop: 7, paddingBottom: 2 },
   cardPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingBottom: 4 },
   cardPriceTxt: { color: 'rgba(251,191,36,1)', fontSize: 10, fontWeight: '800' },
-  cardCreator:  { color: colors.textDim, fontSize: 9, paddingHorizontal: 8, paddingBottom: 8 },
+  unitsBadge:   { alignSelf: 'flex-start', marginLeft: 8, marginBottom: 7, backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)' },
+  unitsTxt:     { color: colors.c1, fontSize: 8, fontWeight: '700' },
 
   empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 40, marginTop: 60 },
   emptyIcon:  { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },

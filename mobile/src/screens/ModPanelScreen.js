@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, StatusBar, ScrollView,
-  FlatList, TextInput, Image, ActivityIndicator, Modal, Pressable, Linking,
+  FlatList, TextInput, Image, ActivityIndicator, Modal, Pressable, Linking, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -111,6 +111,36 @@ export default function ModPanelScreen({ navigation, route }) {
       await api.post(`/users/mod/setrole/${userId}`, { role });
       loadUsers(search, 1, hideBots);
     } catch (err) { console.log('setrole error:', err.message); }
+  }
+
+  function handleGrantCreator(u) {
+    Alert.alert(
+      'Otorgar rol de Creador',
+      `¿Asignar rol de Creador a @${u.username}?\n\n• Badge "Creador de Marcos"\n• XP mínimo garantizado (100)\n• 500 coins de bienvenida (una sola vez)`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Otorgar',
+          onPress: async () => {
+            setActing(true);
+            try {
+              const { data } = await api.post(`/users/mod/grantcreator/${u._id}`);
+              loadUsers(search, 1, hideBots);
+              Alert.alert(
+                '✅ Creador asignado',
+                data.coinsGranted
+                  ? `@${u.username} recibió el rol, XP mínimo y 500 coins.`
+                  : `@${u.username} recibió el rol. El bonus de coins ya había sido otorgado.`
+              );
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error || err.message);
+            } finally {
+              setActing(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   // ─── Reports ──────────────────────────────────────────────────────────────
@@ -400,6 +430,7 @@ export default function ModPanelScreen({ navigation, route }) {
                     <View style={[s.roleBadge, { backgroundColor: role.bg, borderColor: role.border }]}>
                       <Text style={[s.roleBadgeTxt, { color: role.text }]}>{role.label}</Text>
                     </View>
+                    {u.isCreator && <View style={s.creatorBadge}><Text style={s.creatorBadgeTxt}>CREADOR</Text></View>}
                     {u.banned && <View style={s.bannedBadge}><Text style={s.bannedBadgeTxt}>BANEADO</Text></View>}
                   </View>
                   <Text style={s.userEmail}>{u.email}</Text>
@@ -420,6 +451,11 @@ export default function ModPanelScreen({ navigation, route }) {
                   {currentUser?.role === 'admin' && u.role !== 'admin' && (
                     <TouchableOpacity style={s.actionBtn} onPress={() => handleSetRole(u._id, u.role === 'mod' ? 'user' : 'mod')}>
                       <Ionicons name={u.role === 'mod' ? 'shield-outline' : 'shield-checkmark-outline'} size={20} color="rgba(251,191,36,0.8)" />
+                    </TouchableOpacity>
+                  )}
+                  {currentUser?.role === 'admin' && !u.isCreator && u.role !== 'admin' && (
+                    <TouchableOpacity style={s.actionBtn} onPress={() => handleGrantCreator(u)}>
+                      <Ionicons name="brush-outline" size={20} color="rgba(15,227,184,0.8)" />
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity style={s.actionBtn} onPress={() => navigation.navigate('PublicProfile', { username: u.username })}>
@@ -499,8 +535,10 @@ const s = StyleSheet.create({
   banReason:    { color:'rgba(239,68,68,0.6)', fontSize:10, marginTop:2 },
   roleBadge:    { borderRadius:6, paddingHorizontal:6, paddingVertical:2, borderWidth:1 },
   roleBadgeTxt: { fontSize:8, fontWeight:'800', letterSpacing:1 },
-  bannedBadge:  { backgroundColor:'rgba(239,68,68,0.15)', borderRadius:6, paddingHorizontal:6, paddingVertical:2, borderWidth:1, borderColor:'rgba(239,68,68,0.3)' },
+  bannedBadge:   { backgroundColor:'rgba(239,68,68,0.15)', borderRadius:6, paddingHorizontal:6, paddingVertical:2, borderWidth:1, borderColor:'rgba(239,68,68,0.3)' },
   bannedBadgeTxt:{ color:'rgba(239,68,68,0.8)', fontSize:8, fontWeight:'800', letterSpacing:1 },
+  creatorBadge:  { backgroundColor:'rgba(15,227,184,0.12)', borderRadius:6, paddingHorizontal:6, paddingVertical:2, borderWidth:1, borderColor:'rgba(15,227,184,0.35)' },
+  creatorBadgeTxt:{ color:'rgba(15,227,184,0.9)', fontSize:8, fontWeight:'800', letterSpacing:1 },
   actions:      { flexDirection:'row', gap:4 },
   actionBtn:    { width:34, height:34, borderRadius:10, backgroundColor:'rgba(255,255,255,0.04)', alignItems:'center', justifyContent:'center', borderWidth:1, borderColor: colors.border },
 

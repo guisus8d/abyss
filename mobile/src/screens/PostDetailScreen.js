@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/authStore';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import SharePostModal  from '../components/SharePostModal';
 import ReportModal     from '../components/ReportModal';
+import { renderCommentText, COMMENT_EMOJIS } from '../utils/commentUtils';
 
 const C = {
   card:'#0b1521',cardBorder:'rgba(255,255,255,0.07)',surface:'#0d1d2e',
@@ -84,6 +85,8 @@ export default function PostDetailScreen({ route, navigation }) {
   const [loadingMore,        setLoadingMore]         = useState(false);
   const [commentsPage,       setCommentsPage]        = useState(1);
   const [totalComments,      setTotalComments]       = useState(0);
+  const [commentReactions,   setCommentReactions]    = useState({});
+  const [commentPickerFor,   setCommentPickerFor]    = useState(null);
 
   const inputRef   = useRef(null);
   const sendingRef = useRef(false);
@@ -147,6 +150,44 @@ export default function PostDetailScreen({ route, navigation }) {
     finally { setDeleteCommentModal(null); }
   }, [postId]);
 
+  useEffect(() => {
+    if (!post?.comments) return;
+    setCommentReactions(prev => {
+      const next = { ...prev };
+      let changed = false;
+      post.comments.forEach(c => {
+        const key = String(c._id);
+        if (key && !(key in next)) { next[key] = c.reactions || []; changed = true; }
+      });
+      return changed ? next : prev;
+    });
+  }, [post?.comments]);
+
+  const handleCommentReact = useCallback(async (commentId, emoji) => {
+    const key = String(commentId);
+    setCommentPickerFor(null);
+    let snapshot;
+    setCommentReactions(prev => {
+      snapshot = prev[key] || [];
+      const current = [...snapshot];
+      const idx = current.findIndex(r => String(r.user?._id ?? r.user) === String(user?._id));
+      if (idx >= 0) {
+        if (current[idx].type === emoji) current.splice(idx, 1);
+        else current[idx] = { ...current[idx], type: emoji };
+      } else {
+        current.push({ user: user?._id, type: emoji });
+      }
+      return { ...prev, [key]: current };
+    });
+    try {
+      const { data } = await api.post(`/posts/${postId}/comment/${key}/react`, { type: emoji });
+      setCommentReactions(prev => ({ ...prev, [key]: data.reactions || [] }));
+    } catch (e) {
+      console.warn('handleCommentReact error:', e?.response?.data?.error || e?.message);
+      setCommentReactions(prev => ({ ...prev, [key]: snapshot || [] }));
+    }
+  }, [postId, user?._id]);
+
   if (loading) return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <ActivityIndicator color={C.accent} style={{ marginTop:60 }} />
@@ -159,10 +200,12 @@ export default function PostDetailScreen({ route, navigation }) {
   const inputBottomPad = isWeb ? 12 : Math.max(insets.bottom, 12);
 
   const renderComment = (c, isReply = false) => {
-    const uid      = c.user?._id?.toString() || c.user?.toString();
-    const isOwn    = uid === user?._id?.toString();
-    const parentId = isReply ? c.replyTo?.commentId : c._id;
+    const uid       = c.user?._id?.toString() || c.user?.toString();
+    const isOwn     = uid === user?._id?.toString();
+    const parentId  = isReply ? c.replyTo?.commentId : c._id;
     const replyData = { commentId: parentId, username: c.user?.username, text: c.text };
+    const rxs       = commentReactions[String(c._id)] || [];
+    const groups    = rxs.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {});
 
     return (
       <View key={c._id || String(Math.random())} style={[s.commentWrap, isReply && s.commentWrapReply]}>
@@ -171,19 +214,43 @@ export default function PostDetailScreen({ route, navigation }) {
           <TouchableOpacity style={{ marginRight:10 }} onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })} activeOpacity={0.8}>
             <AvatarWithFrame size={isReply ? 28 : 34} avatarUrl={c.user?.avatarUrl} username={c.user?.username} />
           </TouchableOpacity>
-          <TouchableOpacity style={{ flex:1 }}
-            onLongPress={() => { if (isOwn) setDeleteCommentModal(c._id); }}
-            onPress={() => { setReplyTo(replyData); inputRef.current?.focus(); }}
-            activeOpacity={0.85} delayLongPress={400}
-          >
-            {isReply && c.replyTo?.text ? (
-              <View style={s.replyPreview}>
-                <Text style={s.replyPreviewTxt} numberOfLines={1}>{'↩ @'}{c.replyTo.username}{': '}{c.replyTo.text}</Text>
+          <View style={{ flex:1 }}>
+            <TouchableOpacity
+              onLongPress={() => { if (isOwn) setDeleteCommentModal(c._id); }}
+              onPress={() => { setReplyTo(replyData); inputRef.current?.focus(); }}
+              activeOpacity={0.85} delayLongPress={400}
+            >
+              {isReply && c.replyTo?.text ? (
+                <View style={s.replyPreview}>
+                  <Text style={s.replyPreviewTxt} numberOfLines={1}>{'↩ @'}{c.replyTo.username}{': '}{c.replyTo.text}</Text>
+                </View>
+              ) : null}
+              <Text style={s.commentUser} onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>{c.user?.username}</Text>
+              {renderCommentText(c.text, navigation, s.commentTxt, s.commentLink)}
+            </TouchableOpacity>
+            <View style={s.commentReactRow}>
+              {Object.entries(groups).map(([emoji, count]) => (
+                <TouchableOpacity key={emoji} style={s.commentReactPill} onPress={() => handleCommentReact(String(c._id), emoji)}>
+                  <Text style={s.commentReactEmoji}>{emoji}</Text>
+                  <Text style={s.commentReactCount}>{count}</Text>
+                </TouchableOpacity>
+              ))}
+              {user && (
+                <TouchableOpacity style={s.commentReactAdd} onPress={() => setCommentPickerFor(commentPickerFor === String(c._id) ? null : String(c._id))}>
+                  <Text style={s.commentReactAddTxt}>+</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {commentPickerFor === String(c._id) && (
+              <View style={s.commentEmojiPicker}>
+                {COMMENT_EMOJIS.map(e => (
+                  <TouchableOpacity key={e} style={s.commentEmojiBtn} onPress={() => handleCommentReact(String(c._id), e)}>
+                    <Text style={{ fontSize: 18 }}>{e}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            ) : null}
-            <Text style={s.commentUser} onPress={() => navigation.navigate('PublicProfile', { username: c.user?.username })}>{c.user?.username}</Text>
-            <Text style={s.commentTxt}>{c.text}</Text>
-          </TouchableOpacity>
+            )}
+          </View>
           <TouchableOpacity onPress={() => { setReplyTo(replyData); inputRef.current?.focus(); }} style={{ paddingLeft:10, paddingVertical:4 }}>
             <Ionicons name="return-down-back-outline" size={14} color={C.textDim} />
           </TouchableOpacity>
@@ -411,4 +478,13 @@ const s = StyleSheet.create({
   ctaWrap: { backgroundColor:C.card, borderTopWidth:1, borderTopColor:C.cardBorder, padding:16, alignItems:'center' },
   ctaBtn:  { backgroundColor:C.accent, paddingVertical:13, paddingHorizontal:32, borderRadius:14 },
   ctaTxt:  { color:'#020509', fontWeight:'800', fontSize:14 },
+  commentLink:        { color:C.accent, textDecorationLine:'underline' },
+  commentReactRow:    { flexDirection:'row', flexWrap:'wrap', gap:4, marginTop:5 },
+  commentReactPill:   { flexDirection:'row', alignItems:'center', gap:2, backgroundColor:'rgba(255,255,255,0.05)', borderRadius:10, paddingHorizontal:6, paddingVertical:2, borderWidth:1, borderColor:C.cardBorder },
+  commentReactEmoji:  { fontSize:11 },
+  commentReactCount:  { color:C.textDim, fontSize:10, fontWeight:'600' },
+  commentReactAdd:    { alignItems:'center', justifyContent:'center', width:22, height:22, borderRadius:11, borderWidth:1, borderColor:C.cardBorder, backgroundColor:'rgba(255,255,255,0.04)' },
+  commentReactAddTxt: { color:C.textDim, fontSize:12, lineHeight:14 },
+  commentEmojiPicker: { flexDirection:'row', flexWrap:'wrap', marginTop:6, gap:4, backgroundColor:C.surface, borderRadius:10, borderWidth:1, borderColor:C.cardBorder, padding:6 },
+  commentEmojiBtn:    { padding:3 },
 });

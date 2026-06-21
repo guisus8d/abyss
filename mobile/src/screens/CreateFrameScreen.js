@@ -37,13 +37,29 @@ const BG_GRADIENTS = [
   ['#0a1a0a','#22d3ee22'],['#2a0a0a','#f9731622'],
 ];
 
-// 5 avatares de muestra para previsualizar
+const PRESET_SOURCES = [
+  require('../../assets/profile-presets/preset_avatar_01.png'),
+  require('../../assets/profile-presets/preset_avatar_02.png'),
+  require('../../assets/profile-presets/preset_avatar_03.png'),
+  require('../../assets/profile-presets/preset_avatar_04.png'),
+  require('../../assets/profile-presets/preset_avatar_05.png'),
+  require('../../assets/profile-presets/preset_avatar_06.png'),
+  require('../../assets/profile-presets/preset_avatar_07.png'),
+  require('../../assets/profile-presets/preset_avatar_08.png'),
+];
+const DEFAULT_LOGO = PRESET_SOURCES[0];
+
+// Avatares de muestra para previsualizar: "Tú" + 8 presets reales
 const SAMPLE_AVATARS = [
-  { id: 0, letter: '?', bg: 'rgba(0,229,204,0.15)', color: colors.c1,              label: 'Tú' },
-  { id: 1, letter: 'A', bg: '#1a0a2e',              color: '#d946ef',               label: 'Axel' },
-  { id: 2, letter: 'S', bg: '#0a1a2e',              color: '#00e5cc',               label: 'Sara' },
-  { id: 3, letter: 'M', bg: '#1a1a0a',              color: '#f97316',               label: 'Max' },
-  { id: 4, letter: 'L', bg: '#0a2a1a',              color: '#22d3ee',               label: 'Luna' },
+  { id: 0, isUser: true, label: 'Tú' },
+  { id: 1, image: PRESET_SOURCES[0], label: '' },
+  { id: 2, image: PRESET_SOURCES[1], label: '' },
+  { id: 3, image: PRESET_SOURCES[2], label: '' },
+  { id: 4, image: PRESET_SOURCES[3], label: '' },
+  { id: 5, image: PRESET_SOURCES[4], label: '' },
+  { id: 6, image: PRESET_SOURCES[5], label: '' },
+  { id: 7, image: PRESET_SOURCES[6], label: '' },
+  { id: 8, image: PRESET_SOURCES[7], label: '' },
 ];
 
 export default function CreateFrameScreen({ navigation }) {
@@ -207,7 +223,7 @@ export default function CreateFrameScreen({ navigation }) {
   }
 
   const av = SAMPLE_AVATARS[selectedAvatar];
-  const avatarUri = selectedAvatar === 0 ? user?.avatarUrl : null;
+  const avatarUri = av.isUser ? user?.avatarUrl : null;
 
   return (
     <View style={s.root}>
@@ -250,12 +266,14 @@ export default function CreateFrameScreen({ navigation }) {
                 <ExpoImage source={{uri:logoImage.uri}} contentFit="contain" pointerEvents="none"
                   style={[StyleSheet.absoluteFillObject, s.previewLogoOverlay]} />
               )}
-              <View style={s.previewCircle}>
+              <View style={[s.previewCircle, { backgroundColor: (!avatarUri && !av.image) ? 'rgba(0,229,204,0.15)' : 'transparent' }]}>
                 {avatarUri
-                  ? <Image source={{uri:avatarUri}} style={s.previewCircleImg} />
-                  : <Text style={[s.previewCircleTxt,{color:av.color}]}>
-                      {av.letter === '?' ? (user?.username?.[0]?.toUpperCase() || '?') : av.letter}
-                    </Text>}
+                  ? <ExpoImage source={{uri:avatarUri}} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  : av.image
+                    ? <ExpoImage source={av.image} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    : <Text style={[s.previewCircleTxt,{color:colors.c1}]}>
+                        {user?.username?.[0]?.toUpperCase() || '?'}
+                      </Text>}
               </View>
               {frameImage?.uri && (
                 <ExpoImage source={{uri:frameImage.uri}} contentFit="contain" autoplay pointerEvents="none"
@@ -275,14 +293,16 @@ export default function CreateFrameScreen({ navigation }) {
               style={{ backgroundColor: colors.black }}
               contentContainerStyle={s.avatarSelectorRow}>
               {SAMPLE_AVATARS.map((a, i) => (
-                <TouchableOpacity key={i} style={[s.avatarSampleBtn, selectedAvatar===i && s.avatarSampleBtnActive]}
-                  onPress={() => setSelectedAvatar(i)}>
-                  <View style={[s.avatarSampleCircle, {backgroundColor: a.id===0 && user?.avatarUrl ? 'transparent' : a.bg}]}>
-                    {a.id===0 && user?.avatarUrl
-                      ? <Image source={{uri:user.avatarUrl}} style={s.avatarSampleImg} />
-                      : <Text style={[s.avatarSampleTxt,{color:a.color}]}>
-                          {a.letter==='?' ? (user?.username?.[0]?.toUpperCase()||'?') : a.letter}
-                        </Text>}
+                <TouchableOpacity key={i} style={s.avatarSampleBtn} onPress={() => setSelectedAvatar(i)}>
+                  <View style={[s.avatarSampleCircle, {
+                    borderColor: selectedAvatar===i ? colors.c1 : 'transparent',
+                    backgroundColor: a.isUser && !user?.avatarUrl ? 'rgba(0,229,204,0.15)' : 'transparent',
+                  }]}>
+                    {a.isUser && user?.avatarUrl
+                      ? <ExpoImage source={{uri:user.avatarUrl}} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      : a.isUser
+                        ? <Text style={[s.avatarSampleTxt,{color:colors.c1}]}>{user?.username?.[0]?.toUpperCase()||'?'}</Text>
+                        : <ExpoImage source={a.image} style={StyleSheet.absoluteFill} contentFit="cover" />}
                   </View>
                   <Text style={[s.avatarSampleName, selectedAvatar===i && {color:colors.c1}]}>{a.label}</Text>
                 </TouchableOpacity>
@@ -417,12 +437,11 @@ export default function CreateFrameScreen({ navigation }) {
             <Text style={s.sectionLabel}>LOGO / MARCA (OPCIONAL)</Text>
             <Text style={s.sectionHint}>Imagen identificativa mostrada junto al marco en el mercado</Text>
             <TouchableOpacity style={s.uploadBtn} onPress={pickLogo}>
-              {logoImage?.uri
-                ? <ExpoImage source={{uri:logoImage.uri}} style={s.uploadPreview} contentFit="contain" />
-                : <View style={s.uploadEmpty}>
-                    <Ionicons name="image-outline" size={28} color={colors.textDim} />
-                    <Text style={s.uploadTxt}>Subir logo</Text>
-                  </View>}
+              <ExpoImage
+                source={logoImage?.uri ? {uri:logoImage.uri} : DEFAULT_LOGO}
+                style={s.uploadPreview}
+                contentFit="contain"
+              />
             </TouchableOpacity>
           </View>
 

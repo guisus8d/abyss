@@ -358,6 +358,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     try {
       const { data } = await api.get(`/groups/${group._id}`);
       setGroup(data.group);
+      // Detect banned state from server data (in case user was banned then re-added without unban)
+      const myId = user?._id?.toString();
+      if (myId && data.group.bannedUsers?.some(b => b?.toString() === myId)) {
+        setIsBanned(true);
+      }
       if (!data.isPending) {
         const { data: msgData } = await api.get(`/groups/${group._id}/messages?limit=50`);
         setMessages(msgData.messages || []);
@@ -705,10 +710,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   function sendMessage() {
     if (!text.trim() || sendingRef.current) return;
     sendingRef.current = true;
-    setText('');
-    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
-    setNewMsgIndicator(false);
-    socketRef.current?.emit('group:message', {
+    const payload = {
       groupId: group._id,
       text:    text.trim(),
       type:    'text',
@@ -717,7 +719,11 @@ export default function GroupRoomScreen({ route, navigation }) {
         text:           replyTo.text,
         senderUsername: replyTo.sender?.username || '',
       } : undefined,
-    });
+    };
+    socketRef.current?.emit('group:message', payload);
+    setText('');
+    flatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setNewMsgIndicator(false);
     setReplyTo(null);
     sendingRef.current = false;
   }

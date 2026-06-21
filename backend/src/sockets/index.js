@@ -126,7 +126,7 @@ function initSockets(server) {
         chat.lastMessageText =
           type === 'image' ? '[Imagen]' :
           type === 'audio' ? '[Audio]'  :
-          type === 'gift'  ? '🎁 Nuevo regalo disponible' :
+          type === 'gift'  ? 'Nuevo regalo disponible' :
           text?.trim() || '';
 
         chat.participants.forEach(p => {
