@@ -76,6 +76,11 @@
     .stat:hover,.stat.on{border-color:var(--accent)}
     .stat-n{font-size:26px;font-weight:800;color:var(--hi)}
     .stat-l{font-size:9px;letter-spacing:2px;color:var(--dim);margin-top:4px}
+    .eco-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+    @media(max-width:480px){.eco-grid{grid-template-columns:repeat(2,1fr)}}
+    .eco-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:18px 16px;text-align:center}
+    .eco-n{font-size:26px;font-weight:800;color:var(--hi)}
+    .eco-l{font-size:9px;letter-spacing:2px;color:var(--dim);margin-top:4px}
 
     /* Search */
     .search{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:16px}
@@ -258,6 +263,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Historial
       </button>
+      <button class="tab" id="t-eco" onclick="showTab('economia')" style="display:none">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Economía
+      </button>
     </div>
 
     <!-- REPORTES -->
@@ -276,6 +285,17 @@
       <div id="log-more" style="display:none;text-align:center;margin-top:14px">
         <button class="btn-cancel" onclick="loadMoreLogs()">Cargar más</button>
       </div>
+    </div>
+
+    <!-- ECONOMÍA -->
+    <div id="pane-economia" style="display:none">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn-cancel" style="display:flex;align-items:center;gap:6px" onclick="loadEconomia()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg>
+          Actualizar
+        </button>
+      </div>
+      <div id="eco-body"></div>
     </div>
 
     <!-- USUARIOS -->
@@ -532,7 +552,7 @@ function showApp(){
   document.getElementById('app').style.display='block';
   document.getElementById('h-uname').textContent=`@${me?.username}`;
   document.getElementById('h-role').textContent=(me?.role||'').toUpperCase();
-  if(me?.role==='admin')document.getElementById('t-log').style.display='flex';
+  if(me?.role==='admin'){document.getElementById('t-log').style.display='flex';document.getElementById('t-eco').style.display='flex';}
   loadReports();
 }
 
@@ -540,11 +560,14 @@ function showTab(t){
   document.getElementById('pane-reports').style.display=t==='reports'?'block':'none';
   document.getElementById('pane-users').style.display=t==='users'?'block':'none';
   document.getElementById('pane-logs').style.display=t==='logs'?'block':'none';
+  document.getElementById('pane-economia').style.display=t==='economia'?'block':'none';
   document.getElementById('t-rep').classList.toggle('on',t==='reports');
   document.getElementById('t-usr').classList.toggle('on',t==='users');
   document.getElementById('t-log').classList.toggle('on',t==='logs');
+  document.getElementById('t-eco').classList.toggle('on',t==='economia');
   if(t==='users')loadUsers();
   if(t==='logs')loadLogs(1,true);
+  if(t==='economia')loadEconomia();
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────────
@@ -902,6 +925,34 @@ async function submitRevertWithPin(pin){
     loadLogs(1,true);
   }catch(ex){errEl.textContent=ex.message}
   finally{load(false)}
+}
+
+// ── Economía ──────────────────────────────────────────────────────────────────
+async function loadEconomia(){
+  const el=document.getElementById('eco-body');
+  el.innerHTML='<div class="empty"><div class="spin" style="margin:auto"></div></div>';
+  try{
+    const d=await apiFetch('/mod/metrics');
+    el.innerHTML=`
+      <div class="eco-grid">
+        <div class="eco-card"><div class="eco-n">${d.totalUsers.toLocaleString('es')}</div><div class="eco-l">USUARIOS REALES</div></div>
+        <div class="eco-card"><div class="eco-n" style="color:var(--accent)">${d.totalCoins.toLocaleString('es')}</div><div class="eco-l">COINS EN CIRCULACIÓN</div></div>
+        <div class="eco-card"><div class="eco-n">${d.totalFrames.toLocaleString('es')}</div><div class="eco-l">MARCOS ACTIVOS</div></div>
+        <div class="eco-card"><div class="eco-n" style="color:var(--gold)">${d.totalFramesSold.toLocaleString('es')}</div><div class="eco-l">MARCOS VENDIDOS</div></div>
+        <div class="eco-card"><div class="eco-n">${d.totalTransactions.toLocaleString('es')}</div><div class="eco-l">TRANSACCIONES</div></div>
+      </div>
+      <p class="section-title" style="margin-bottom:12px">TOP 3 MARCOS MÁS VENDIDOS</p>
+      ${d.topFrames.length?'<div class="list">'+d.topFrames.map((f,i)=>`
+        <div class="row">
+          <div class="av" style="font-size:11px;font-weight:900;color:var(--gold)">#${i+1}</div>
+          <div class="ri">
+            <div class="rn">${esc(f.name)}</div>
+            <div class="rs">${f.totalSold} vendidos &middot; ${f.price} coins</div>
+          </div>
+        </div>
+      `).join('')+'</div>':'<div class="empty"><p>Sin marcos activos</p></div>'}
+    `;
+  }catch(ex){el.innerHTML=`<div class="empty"><p style="color:var(--red)">${esc(ex.message)}</p></div>`}
 }
 
 // Init
