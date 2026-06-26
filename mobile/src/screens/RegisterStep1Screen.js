@@ -10,38 +10,38 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 
 const { width: W } = Dimensions.get('window');
+const CAROUSEL_ITEM_SIZE = 88;
 
 const PRESET_URLS = Array.from({ length: 8 }, (_, i) =>
   `https://res.cloudinary.com/dlpdzgkeg/image/upload/v1781913669/avatars/presets/preset_bot_0${i + 1}.png`
 );
 
+// Presets + un item de cámara como último elemento del carrusel
+const CAROUSEL_DATA = [
+  ...PRESET_URLS.map(url => ({ type: 'preset', url })),
+  { type: 'camera' },
+];
+
 function StepDots({ current }) {
   return (
     <View style={dots.row}>
       {[0, 1, 2, 3].map(i => (
-        <View
-          key={i}
-          style={[
-            dots.dot,
-            i === current ? dots.dotActive : dots.dotInactive,
-          ]}
-        />
+        <View key={i} style={[dots.dot, i === current ? dots.dotActive : dots.dotInactive]} />
       ))}
     </View>
   );
 }
-
 const dots = StyleSheet.create({
-  row:        { flexDirection: 'row', gap: 6, marginBottom: 32 },
-  dot:        { height: 6, borderRadius: 3 },
-  dotActive:  { width: 20, backgroundColor: '#00e5cc' },
-  dotInactive:{ width: 6,  backgroundColor: 'rgba(0,229,204,0.2)' },
+  row:         { flexDirection: 'row', gap: 6, marginBottom: 32 },
+  dot:         { height: 6, borderRadius: 3 },
+  dotActive:   { width: 20, backgroundColor: '#00e5cc' },
+  dotInactive: { width: 6,  backgroundColor: 'rgba(0,229,204,0.2)' },
 });
 
 const vUsername = (v) => /^[a-zA-Z0-9_]{3,20}$/.test(v);
 const errUsername = (v) => {
   if (!v) return '';
-  if (v.length < 3) return 'Minimo 3 caracteres';
+  if (v.length < 3)  return 'Minimo 3 caracteres';
   if (v.length > 20) return 'Maximo 20 caracteres';
   if (!/^[a-zA-Z0-9_]+$/.test(v)) return 'Solo letras, numeros y _';
   return '';
@@ -87,6 +87,49 @@ export default function RegisterStep1Screen({ navigation, route }) {
 
   const canContinue = vUsername(username);
 
+  function renderCarouselItem({ item }) {
+    if (item.type === 'camera') {
+      const isSelected = !!customAvatar;
+      return (
+        <TouchableOpacity
+          onPress={pickCustomAvatar}
+          activeOpacity={0.75}
+          style={[s.presetWrap, isSelected && s.presetWrapSelected]}
+        >
+          {customAvatar ? (
+            <>
+              <Image source={{ uri: customAvatar }} style={s.presetImg} />
+              <View style={s.presetCheck}>
+                <Ionicons name="checkmark" size={10} color="#001a18" />
+              </View>
+            </>
+          ) : (
+            <View style={s.cameraCircle}>
+              <Ionicons name="camera" size={22} color="rgba(232,244,248,0.5)" />
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    // Preset item
+    const isSelected = !customAvatar && selectedPreset === item.url;
+    return (
+      <TouchableOpacity
+        onPress={() => { setSelectedPreset(item.url); setCustomAvatar(null); }}
+        activeOpacity={0.75}
+        style={[s.presetWrap, isSelected && s.presetWrapSelected]}
+      >
+        <Image source={{ uri: item.url }} style={s.presetImg} />
+        {isSelected && (
+          <View style={s.presetCheck}>
+            <Ionicons name="checkmark" size={10} color="#001a18" />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View style={[s.root, { paddingTop: insets.top + 8 }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
@@ -109,7 +152,33 @@ export default function RegisterStep1Screen({ navigation, route }) {
         <Text style={s.title}>Elige tu identidad</Text>
         <Text style={s.subtitle}>Como te van a conocer en las profundidades</Text>
 
-        {/* Username */}
+        {/* ── Carrusel de avatares — primero ── */}
+        <Text style={s.label}>FOTO DE PERFIL</Text>
+        <View style={s.carouselWrap}>
+          <FlatList
+            horizontal
+            data={CAROUSEL_DATA}
+            keyExtractor={(item, i) => item.url || `camera-${i}`}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.carouselContent}
+            renderItem={renderCarouselItem}
+          />
+          {/* Edge fades */}
+          <LinearGradient
+            colors={['#00080f', 'transparent']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={s.fadeLeft}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={['transparent', '#00080f']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={s.fadeRight}
+            pointerEvents="none"
+          />
+        </View>
+
+        {/* ── Username — debajo del carrusel ── */}
         <View style={s.field}>
           <Text style={s.label}>NOMBRE DE USUARIO</Text>
           <View style={[
@@ -128,7 +197,6 @@ export default function RegisterStep1Screen({ navigation, route }) {
               onChangeText={v => setUsername(v.replace(/\s/g, ''))}
               autoCapitalize="none"
               maxLength={20}
-              autoFocus
             />
             {username.length > 0 && (
               <Ionicons
@@ -143,69 +211,6 @@ export default function RegisterStep1Screen({ navigation, route }) {
             <Text style={s.fieldErr}>{errUsername(username)}</Text>
           )}
         </View>
-
-        {/* Avatar */}
-        <Text style={s.label}>FOTO DE PERFIL</Text>
-
-        {/* Carousel */}
-        <View style={s.carouselWrap}>
-          <FlatList
-            horizontal
-            data={PRESET_URLS}
-            keyExtractor={item => item}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.carouselContent}
-            renderItem={({ item }) => {
-              const isSelected = !customAvatar && selectedPreset === item;
-              return (
-                <TouchableOpacity
-                  onPress={() => { setSelectedPreset(item); setCustomAvatar(null); }}
-                  activeOpacity={0.75}
-                  style={[s.presetWrap, isSelected && s.presetWrapSelected]}
-                >
-                  <Image
-                    source={{ uri: item }}
-                    style={s.presetImg}
-                  />
-                  {isSelected && (
-                    <View style={s.presetCheck}>
-                      <Ionicons name="checkmark" size={10} color="#001a18" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            }}
-          />
-          {/* Edge fade — left */}
-          <LinearGradient
-            colors={['#00080f', 'transparent']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={s.fadeLeft}
-            pointerEvents="none"
-          />
-          {/* Edge fade — right */}
-          <LinearGradient
-            colors={['transparent', '#00080f']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={s.fadeRight}
-            pointerEvents="none"
-          />
-        </View>
-
-        {/* Custom photo */}
-        <TouchableOpacity style={s.customPhotoBtn} onPress={pickCustomAvatar} activeOpacity={0.7}>
-          {customAvatar ? (
-            <View style={s.customPhotoPreviewRow}>
-              <Image source={{ uri: customAvatar }} style={s.customPhotoPreview} />
-              <Text style={s.customPhotoLbl}>Cambiar foto</Text>
-            </View>
-          ) : (
-            <>
-              <Ionicons name="camera-outline" size={15} color="rgba(0,229,204,0.5)" />
-              <Text style={s.customPhotoTxt}>Subir mi propia foto</Text>
-            </>
-          )}
-        </TouchableOpacity>
       </View>
 
       {/* Footer */}
@@ -230,8 +235,6 @@ export default function RegisterStep1Screen({ navigation, route }) {
   );
 }
 
-const CAROUSEL_ITEM_SIZE = 80;
-
 const s = StyleSheet.create({
   root:    { flex: 1, backgroundColor: '#000d1a' },
   header:  { paddingHorizontal: 16, paddingBottom: 8 },
@@ -242,9 +245,60 @@ const s = StyleSheet.create({
   title:    { fontSize: 22, fontWeight: '700', color: '#e8f4f8', marginBottom: 6 },
   subtitle: { fontSize: 13, color: 'rgba(232,244,248,0.4)', marginBottom: 28, lineHeight: 18 },
 
-  // Field
-  field:     { marginBottom: 24 },
-  label:     { fontSize: 9, letterSpacing: 3, color: 'rgba(0,229,204,0.5)', marginBottom: 10, fontWeight: '700' },
+  label:   { fontSize: 9, letterSpacing: 3, color: 'rgba(0,229,204,0.5)', marginBottom: 12, fontWeight: '700' },
+
+  // Carousel
+  carouselWrap: {
+    position: 'relative',
+    marginHorizontal: -24, // sangría negativa para que el carrusel ocupe el ancho completo
+    marginBottom: 28,
+  },
+  carouselContent: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    gap: 14,
+  },
+  presetWrap: {
+    width: CAROUSEL_ITEM_SIZE,
+    height: CAROUSEL_ITEM_SIZE,
+    borderRadius: CAROUSEL_ITEM_SIZE / 2,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  presetWrapSelected: {
+    borderColor: '#00e5cc',
+    shadowColor: '#00e5cc',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 8,
+    shadowOpacity: 0.5,
+    elevation: 4,
+  },
+  presetImg: { width: '100%', height: '100%', borderRadius: CAROUSEL_ITEM_SIZE / 2 },
+  presetCheck: {
+    position: 'absolute', bottom: 2, right: 2,
+    backgroundColor: '#00e5cc', borderRadius: 8,
+    width: 16, height: 16,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cameraCircle: {
+    width: CAROUSEL_ITEM_SIZE,
+    height: CAROUSEL_ITEM_SIZE,
+    borderRadius: CAROUSEL_ITEM_SIZE / 2,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fadeLeft: {
+    position: 'absolute', left: 0, top: 0, bottom: 0, width: 30, zIndex: 1,
+  },
+  fadeRight: {
+    position: 'absolute', right: 0, top: 0, bottom: 0, width: 30, zIndex: 1,
+  },
+
+  // Username field
+  field:     { marginBottom: 0 },
   inputWrap: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.04)',
@@ -254,47 +308,6 @@ const s = StyleSheet.create({
   inputIcon: { paddingHorizontal: 14 },
   input:     { flex: 1, paddingVertical: 14, paddingRight: 14, color: '#e8f4f8', fontSize: 14 },
   fieldErr:  { color: 'rgba(239,68,68,0.8)', fontSize: 10, marginTop: 5, marginLeft: 4 },
-
-  // Carousel
-  carouselWrap:    { position: 'relative', marginBottom: 14 },
-  carouselContent: { paddingHorizontal: 20, paddingVertical: 8, gap: 12 },
-  presetWrap: {
-    width: CAROUSEL_ITEM_SIZE, height: CAROUSEL_ITEM_SIZE,
-    borderRadius: CAROUSEL_ITEM_SIZE / 2,
-    borderWidth: 2, borderColor: 'transparent',
-  },
-  presetWrapSelected: {
-    borderColor: '#00e5cc',
-    shadowColor: '#00e5cc', shadowOffset: { width: 0, height: 0 }, shadowRadius: 8, shadowOpacity: 0.5,
-    elevation: 4,
-  },
-  presetImg: { width: '100%', height: '100%', borderRadius: CAROUSEL_ITEM_SIZE / 2 },
-  presetCheck: {
-    position: 'absolute', bottom: 2, right: 2,
-    backgroundColor: '#00e5cc', borderRadius: 8, width: 16, height: 16,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  fadeLeft: {
-    position: 'absolute', left: 0, top: 0, bottom: 0, width: 28,
-    zIndex: 1,
-  },
-  fadeRight: {
-    position: 'absolute', right: 0, top: 0, bottom: 0, width: 28,
-    zIndex: 1,
-  },
-
-  // Custom photo
-  customPhotoBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 10, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: 'rgba(0,229,204,0.18)',
-    borderRadius: 10, alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,229,204,0.04)',
-  },
-  customPhotoTxt:        { color: 'rgba(0,229,204,0.6)', fontSize: 12 },
-  customPhotoPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  customPhotoPreview:    { width: 32, height: 32, borderRadius: 16 },
-  customPhotoLbl:        { color: 'rgba(0,229,204,0.7)', fontSize: 12 },
 
   // Next button
   btnNext:    { borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
