@@ -8,6 +8,13 @@ function getIO() {
   try { return require('../sockets').getIO(); } catch { return null; }
 }
 
+function isAdminOrCoAdmin(group, userId) {
+  return group.members.some(
+    m => m.user.toString() === userId.toString() &&
+         (m.role === 'admin' || m.role === 'co-admin')
+  );
+}
+
 // ─── helper: push + emit mensaje de sistema ────────────────────────────────────
 async function emitSystemMessage(group, text, action) {
   group.messages.push({ text, type: 'system', systemAction: action, sender: null });
@@ -20,6 +27,178 @@ async function emitSystemMessage(group, text, action) {
     message: sysMsg.toObject(),
   });
 }
+
+// ─── Círculos ──────────────────────────────────────────────────────────────────
+
+// Crear círculo
+router.post('/circles', authMiddleware, uploadAvatar.single('image'), async (req, res) => {
+  try {
+    const { name, description, hashtags } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+
+    const parsedTags = (() => {
+      try { return JSON.parse(hashtags || '[]'); } catch { return []; }
+    })();
+
+    const circle = await Group.create({
+      name:         name.trim(),
+      description:  description?.trim() || '',
+      imageUrl:     req.file?.path || null,
+      imagePublicId:req.file?.filename || null,
+      creator:      req.user._id,
+      isCircle:     true,
+      isPublic:     true,
+      hashtags:     parsedTags.map(t => String(t).toLowerCase().replace(/[^a-z0-9_]/g, '')).filter(Boolean),
+      membersCount: 1,
+      members:      [{ user: req.user._id, role: 'admin' }],
+    });
+
+    const populated = await Group.findById(circle._id)
+      .select('name description imageUrl hashtags membersCount members lastMessage lastMessageText creator isCircle isPublic');
+    res.status(201).json({ group: populated });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Mis círculos
+router.get('/circles/mine', authMiddleware, async (req, res) => {
+  try {
+    const circles = await Group.find({ isCircle: true, 'members.user': req.user._id })
+      .select('name description imageUrl hashtags rules membersCount members lastMessage lastMessageText lastMessageSender unreadCounts creator isCircle isPublic isActive activatedAt')
+      .populate('members.user', 'username avatarUrl profileFrame profileFrameUrl')
+      .sort({ lastMessage: -1 });
+    res.json({ circles });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Fiestas públicas y activas (sin auth requerida)
+router.get('/circles/public', async (req, res) => {
+  try {
+    const circles = await Group
+      .find({ isCircle: true, isPublic: true, isActive: true })
+      .sort({ membersCount: -1 })
+      .limit(10)
+      .select('name imageUrl membersCount hashtags isCircle isPublic isActive');
+    res.json({ circles });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Activar / desactivar círculo (admin o co-admin)
+router.patch('/circles/:id/toggle-active', authMiddleware, async (req, res) => {
+  try {
+    const circle = await Group.findOne({ _id: req.params.id, isCircle: true });
+    if (!circle) return res.status(404).json({ error: 'Círculo no encontrado' });
+
+    if (!isAdminOrCoAdmin(circle, req.user._id))
+      return res.status(403).json({ error: 'Solo admin o co-admin puede cambiar el estado' });
+
+    circle.isActive = !circle.isActive;
+    if (circle.isActive) {
+      circle.activatedAt = new Date();
+    } else {
+      circle.activatedAt = null;
+      getIO()?.to(`group:${circle._id}`).emit('circle:deactivated', {
+        groupId: circle._id.toString(),
+      });
+    }
+    await circle.save();
+    res.json({ group: circle });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Asignar / quitar co-admin (solo admin)
+router.patch('/circles/:id/set-role', authMiddleware, async (req, res) => {
+  try {
+    const circle = await Group.findOne({ _id: req.params.id, isCircle: true });
+    if (!circle) return res.status(404).json({ error: 'Círculo no encontrado' });
+
+    const isAdmin = circle.members.some(
+      m => m.user.toString() === req.user._id.toString() && m.role === 'admin'
+    );
+    if (!isAdmin) return res.status(403).json({ error: 'Solo el admin puede asignar roles' });
+
+    const { memberId, role } = req.body;
+    if (!memberId) return res.status(400).json({ error: 'memberId requerido' });
+    if (!['co-admin', 'member'].includes(role)) return res.status(400).json({ error: 'Rol inválido' });
+
+    const target = circle.members.find(m => m.user.toString() === memberId.toString());
+    if (!target) return res.status(404).json({ error: 'Miembro no encontrado' });
+    if (target.role === 'admin') return res.status(403).json({ error: 'No puedes cambiar el rol del admin' });
+
+    target.role = role;
+    await circle.save();
+    res.json({ ok: true, role });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Editar reglas del círculo (admin o co-admin)
+router.patch('/circles/:id/rules', authMiddleware, async (req, res) => {
+  try {
+    const circle = await Group.findOne({ _id: req.params.id, isCircle: true });
+    if (!circle) return res.status(404).json({ error: 'Círculo no encontrado' });
+
+    if (!isAdminOrCoAdmin(circle, req.user._id))
+      return res.status(403).json({ error: 'Solo admin o co-admin' });
+
+    const { rules } = req.body;
+    if (!Array.isArray(rules)) return res.status(400).json({ error: 'rules debe ser un array' });
+    if (rules.length > 10) return res.status(400).json({ error: 'Máximo 10 reglas' });
+
+    circle.rules = rules.map(r => String(r).trim()).filter(Boolean);
+    await circle.save();
+    res.json({ rules: circle.rules });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Unirse a un círculo (sin aprobación)
+router.post('/circles/:id/join', authMiddleware, async (req, res) => {
+  try {
+    const circle = await Group.findOneAndUpdate(
+      { _id: req.params.id, isCircle: true, 'members.user': { $ne: req.user._id } },
+      { $push: { members: { user: req.user._id, role: 'member' } }, $inc: { membersCount: 1 } },
+      { new: true }
+    );
+
+    if (!circle) {
+      const exists = await Group.exists({ _id: req.params.id, isCircle: true });
+      if (!exists) return res.status(404).json({ error: 'Círculo no encontrado' });
+      return res.status(400).json({ error: 'Ya eres miembro' });
+    }
+
+    const joiningUser = await User.findById(req.user._id).select('username').lean();
+    if (joiningUser) {
+      await emitSystemMessage(circle, `${joiningUser.username} se unió a la fiesta`, 'join');
+    }
+
+    const populated = await Group.findById(circle._id)
+      .select('name description imageUrl hashtags membersCount members lastMessage lastMessageText creator isCircle isPublic isActive');
+    res.json({ group: populated });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Salir de un círculo
+router.delete('/circles/:id/leave', authMiddleware, async (req, res) => {
+  try {
+    const circle = await Group.findOne({ _id: req.params.id, isCircle: true });
+    if (!circle) return res.status(404).json({ error: 'Círculo no encontrado' });
+
+    const isMember = circle.members.some(m => m.user.toString() === req.user._id.toString());
+    if (!isMember) return res.status(400).json({ error: 'No eres miembro' });
+
+    circle.members = circle.members.filter(m => m.user.toString() !== req.user._id.toString());
+    circle.membersCount = circle.members.length;
+
+    // Si no quedan admins, promueve al siguiente miembro
+    const hasAdmin = circle.members.some(m => m.role === 'admin');
+    if (!hasAdmin && circle.members.length > 0) {
+      circle.members[0].role = 'admin';
+    }
+
+    await circle.save();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Grupos regulares ───────────────────────────────────────────────────────────
 
 // Obtener mis grupos
 router.get('/', authMiddleware, async (req, res) => {
@@ -83,7 +262,7 @@ router.get('/:id/messages', authMiddleware, async (req, res) => {
     const isMember = group.members.some(
       m => (m.user?._id || m.user).toString() === req.user._id.toString()
     );
-    if (!isMember) return res.status(403).json({ error: 'No eres miembro' });
+    if (!isMember && !(group.isCircle && group.isPublic)) return res.status(403).json({ error: 'No eres miembro' });
 
     const total    = group.messages.length;
     const messages = group.messages.slice().reverse().slice(skip, skip + limit).reverse();
@@ -103,7 +282,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const isMember  = group.members.some(m => m.user._id.toString() === req.user._id.toString());
     const isPending = group.pendingInvites.some(u => u.toString() === req.user._id.toString());
 
-    if (!isMember && !isPending) return res.status(403).json({ error: 'No eres miembro' });
+    const isPublicCircle = group.isCircle && group.isPublic;
+    if (!isMember && !isPending && !isPublicCircle) return res.status(403).json({ error: 'No eres miembro' });
 
     // Pendientes ven el grupo sin historial de mensajes
     if (isPending) {
@@ -118,19 +298,34 @@ router.get('/:id', authMiddleware, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Editar grupo — solo admin
+// Editar grupo — admin (o co-admin si es círculo)
 router.patch('/:id', authMiddleware, uploadAvatar.single('image'), async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
-    const isAdmin = group.members.some(m => m.user.toString() === req.user._id.toString() && m.role === 'admin');
-    if (!isAdmin) return res.status(403).json({ error: 'Solo admins' });
-    const { name, description, bgColor, imageUrl } = req.body;
+
+    const canEdit = group.isCircle
+      ? isAdminOrCoAdmin(group, req.user._id)
+      : group.members.some(m => m.user.toString() === req.user._id.toString() && m.role === 'admin');
+    if (!canEdit) return res.status(403).json({ error: 'Solo admins' });
+
+    const { name, description, bgColor, imageUrl, hashtags } = req.body;
     if (name)                      group.name        = name.trim();
     if (description !== undefined) group.description = description.trim();
     if (bgColor !== undefined)     group.bgColor     = bgColor;
     if (req.file)                  { group.imageUrl = req.file.path; group.imagePublicId = req.file.filename; }
     else if (imageUrl !== undefined) group.imageUrl  = imageUrl || null;
+    if (hashtags !== undefined && group.isCircle) {
+      try {
+        const parsed = typeof hashtags === 'string' ? JSON.parse(hashtags) : hashtags;
+        if (Array.isArray(parsed)) {
+          group.hashtags = parsed
+            .map(t => String(t).toLowerCase().replace(/[^a-z0-9_]/g, ''))
+            .filter(Boolean)
+            .slice(0, 5);
+        }
+      } catch {}
+    }
     await group.save();
     await group.populate('members.user', 'username avatarUrl profileFrame profileFrameUrl');
     res.json({ group });
@@ -168,16 +363,19 @@ router.post('/:id/add-members', authMiddleware, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Expulsar miembro — solo admin (sin banear, puede regresar)
+// Expulsar miembro — admin siempre; co-admin solo puede expulsar members (en círculos)
 router.post('/:id/kick/:memberId', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
-    const isAdmin = group.members.some(m => m.user.toString() === req.user._id.toString() && m.role === 'admin');
-    if (!isAdmin) return res.status(403).json({ error: 'Solo admins' });
+    const callerMember = group.members.find(m => m.user.toString() === req.user._id.toString());
+    const callerRole   = callerMember?.role;
+    const canKick = callerRole === 'admin' || (group.isCircle && callerRole === 'co-admin');
+    if (!canKick) return res.status(403).json({ error: 'Solo admins' });
     const target = group.members.find(m => m.user.toString() === req.params.memberId);
     if (!target) return res.status(404).json({ error: 'Miembro no encontrado' });
-    if (target.role === 'admin') return res.status(403).json({ error: 'No puedes expulsar a otro admin' });
+    if (target.role === 'admin') return res.status(403).json({ error: 'No puedes expulsar a un admin' });
+    if (target.role === 'co-admin' && callerRole !== 'admin') return res.status(403).json({ error: 'Solo el admin puede expulsar a un co-admin' });
 
     const kickedUser = await User.findById(req.params.memberId).select('username').lean();
     group.members = group.members.filter(m => m.user.toString() !== req.params.memberId);
@@ -203,10 +401,13 @@ router.delete('/:id/members/:memberId', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
-    const isAdmin = group.members.some(m => m.user.toString() === req.user._id.toString() && m.role === 'admin');
-    if (!isAdmin) return res.status(403).json({ error: 'Solo admins' });
+    const callerMember = group.members.find(m => m.user.toString() === req.user._id.toString());
+    const callerRole   = callerMember?.role;
+    const canKick = callerRole === 'admin' || (group.isCircle && callerRole === 'co-admin');
+    if (!canKick) return res.status(403).json({ error: 'Solo admins' });
     const target = group.members.find(m => m.user.toString() === req.params.memberId);
-    if (target?.role === 'admin') return res.status(403).json({ error: 'No puedes expulsar a otro admin' });
+    if (target?.role === 'admin') return res.status(403).json({ error: 'No puedes expulsar a un admin' });
+    if (target?.role === 'co-admin' && callerRole !== 'admin') return res.status(403).json({ error: 'Solo el admin puede expulsar a un co-admin' });
 
     const kickedUser = await User.findById(req.params.memberId).select('username').lean();
     group.members = group.members.filter(m => m.user.toString() !== req.params.memberId);
@@ -255,7 +456,10 @@ router.post('/:id/leave', authMiddleware, async (req, res) => {
     await group.save();
 
     if (leavingUser) {
-      await emitSystemMessage(group, `${leavingUser.username} salio del grupo`, 'leave');
+      const leaveText = group.isCircle
+        ? `${leavingUser.username} salió de la fiesta`
+        : `${leavingUser.username} salio del grupo`;
+      await emitSystemMessage(group, leaveText, 'leave');
     }
     if (newAdminUser) {
       await emitSystemMessage(group, `${newAdminUser.username} es el nuevo administrador`, 'new_admin');

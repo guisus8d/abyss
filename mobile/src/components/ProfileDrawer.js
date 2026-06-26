@@ -122,10 +122,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
                 {/* Info: top-right (next to avatar arch) */}
                 <View style={s.cardInfo}>
-                  <Text style={s.cardUsername} numberOfLines={1}>@{user?.username}</Text>
-                  {user?.email ? (
-                    <Text style={s.cardEmail} numberOfLines={1}>{user.email}</Text>
-                  ) : null}
+                  <Text style={s.cardUsername} numberOfLines={1}>{user?.username}</Text>
                 </View>
 
                 {/* Stats strip: bottom */}
@@ -247,11 +244,6 @@ const s = StyleSheet.create({
     color: '#fff', fontSize: 11, fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  cardEmail: {
-    color: 'rgba(255,255,255,0.6)', fontSize: 8.5, marginTop: 3,
-    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
-  },
-
   // Stats strip bottom
   cardStats: {
     position: 'absolute', bottom: 8, left: 8, right: 8,

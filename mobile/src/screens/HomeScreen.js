@@ -41,6 +41,9 @@ const TABS = [
 const INITIAL_TAB_STATE = () => ({ posts: [], page: 1, hasMore: true, loading: false, loaded: false });
 
 const { width: SCREEN_W } = Dimensions.get('window');
+const FIESTA_CARD_W = Math.floor(SCREEN_W * 0.65) - 30;
+const FIESTA_LOGO_H = 150;
+const HASHTAG_COLORS = ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'];
 const MEET_PAD = 14;
 const MEET_GAP = 8;
 const MEET_CARD_W = Math.floor((SCREEN_W - MEET_PAD * 2 - MEET_GAP * 2) / 3);
@@ -70,6 +73,49 @@ function MeetSection() {
           <Image source={require('../../assets/meet/icon_bottle_match_hd.webp')} style={ms.iconImg} resizeMode="contain" />
         </View>
       </View>
+    </View>
+  );
+}
+
+function FiestasSection({ fiestas, onPress }) {
+  if (!fiestas || fiestas.length === 0) return null;
+  return (
+    <View style={fs.wrap}>
+      <View style={fs.headerRow}>
+        <Text style={fs.title}>Fiestas</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={fs.scroll}>
+        {fiestas.map(item => (
+          <TouchableOpacity key={item._id} style={fs.card} activeOpacity={0.8} onPress={() => onPress(item)}>
+            {item.imageUrl
+              ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.8)', 'transparent']}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', justifyContent: 'flex-start', padding: 10 }}
+            >
+              <Text style={fs.name} numberOfLines={2}>{item.name}</Text>
+            </LinearGradient>
+            <LinearGradient
+              colors={['rgba(0,0,0,0.75)', 'transparent']}
+              start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
+            />
+            {item.hashtags?.length > 0 && (
+              <View style={fs.hashtags}>
+                {item.hashtags.slice(0, 3).map((tag, idx) => {
+                  const c = HASHTAG_COLORS[idx % HASHTAG_COLORS.length];
+                  return (
+                    <View key={tag} style={[fs.hashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
+                      <Text style={[fs.hashtagTxt, { color: c }]}>#{tag}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -117,6 +163,7 @@ export default function HomeScreen({ navigation }) {
   }, [user?.lastActive]);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [refreshing,    setRefreshing]    = useState(false);
+  const [fiestas,       setFiestas]       = useState([]);
   const [activeTab,     setActiveTab]     = useState('todos');
   const [tabData,       setTabData]       = useState({
     todos:     INITIAL_TAB_STATE(),
@@ -141,6 +188,12 @@ export default function HomeScreen({ navigation }) {
       if (data.user) updateUser(data.user);
     }).catch(() => {});
   }, [isGuest]);
+
+  useEffect(() => {
+    api.get('/groups/circles/public')
+      .then(({ data }) => setFiestas(data.circles || []))
+      .catch(() => {});
+  }, []);
 
   const fetchTab = useCallback(async (tabKey, page = 1, append = false) => {
     const tab = TABS.find(t => t.key === tabKey);
@@ -374,6 +427,10 @@ export default function HomeScreen({ navigation }) {
         <View style={{ height: 70 + insets.top }} />
         <OrbitUsers navigation={navigation} />
         <MeetSection />
+        <FiestasSection
+          fiestas={fiestas}
+          onPress={item => isGuest ? setShowGuestModal(true) : navigation.navigate('GroupRoom', { group: item })}
+        />
 
         {/* Tab bar */}
         <View style={s.tabBarWrap}>
@@ -450,7 +507,7 @@ export default function HomeScreen({ navigation }) {
         navigation={navigation}
         activeTab="home"
         onCreatePress={() => setShowMenu(true)}
-        onCirclesPress={() => setDrawerOpen(true)}
+        onCirclesPress={() => navigation.navigate('Circles')}
         onGuestAction={() => setShowGuestModal(true)}
       />
 
@@ -459,9 +516,10 @@ export default function HomeScreen({ navigation }) {
           onSelect={key => {
             setShowMenu(false);
             if (key === 'quick')      setShowCompose(true);
-            else if (key === 'frame') navigation.navigate('CreateFrame');
-            else if (key === 'image') navigation.navigate('PostImage');
-            else if (key === 'news')  navigation.navigate('PostNoticia');
+            else if (key === 'frame')   navigation.navigate('CreateFrame');
+            else if (key === 'image')   navigation.navigate('PostImage');
+            else if (key === 'news')    navigation.navigate('PostNoticia');
+            else if (key === 'channel') navigation.navigate('Circles');
           }} />
       )}
       {showCompose && <PostComposer onClose={() => setShowCompose(false)} onPostCreated={handlePostCreated} />}
@@ -533,6 +591,20 @@ const s = StyleSheet.create({
   epKnob:     { width: 40, height: 4, backgroundColor: colors.c1, borderRadius: 2, alignSelf: 'center', marginVertical: 10 },
   epItem:     { width: '12.5%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
   epEmoji:    { fontSize: 26, textAlign: 'center' },
+});
+
+const fs = StyleSheet.create({
+  wrap:            { marginTop: 16, marginBottom: 20 },
+  headerRow:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 10 },
+  title:           { color: colors.textHi, fontSize: 16, fontWeight: '700' },
+  scroll:          { paddingHorizontal: 14, gap: 10 },
+  card:            { width: FIESTA_CARD_W, height: FIESTA_LOGO_H, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', shadowColor: '#ffffff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 3 },
+  name:            { color: '#fff', fontSize: 15, fontWeight: '800' },
+  hashtags:        { position: 'absolute', bottom: 8, left: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  hashtagPill:     { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1 },
+  hashtagTxt:      { fontSize: 9, fontWeight: '600' },
+  membersBadge:    { position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  membersBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '600' },
 });
 
 const ms = StyleSheet.create({

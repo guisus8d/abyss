@@ -9,9 +9,11 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
-import api from '../services/api';
+import api, { postFormData } from '../services/api';
+import AudioMessage from '../components/AudioMessage';
 
 const W = Dimensions.get('window').width;
 
@@ -47,9 +49,10 @@ export default function EditProfilePageScreen({ route, navigation }) {
   const [blocks, setBlocks]       = useState(profile?.profileBlocks || []);
   const [bg, setBg]               = useState(profile?.profileBg || '');
   const [bgType, setBgType]       = useState(profile?.profileBgType || 'color');
-  const [saving, setSaving]       = useState(false);
-  const [uploading, setUploading] = useState(null);
-  const [bgModal, setBgModal]     = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [uploading, setUploading]     = useState(null);
+  const [audioUploading, setAudioUploading] = useState(false);
+  const [bgModal, setBgModal]         = useState(false);
   const [addModal, setAddModal]   = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [mentionQ, setMentionQ]   = useState('');
@@ -95,6 +98,26 @@ export default function EditProfilePageScreen({ route, navigation }) {
     });
   }
 
+  // ── Pick & upload audio block ───────────────────────────────
+  async function pickAudio() {
+    setAddModal(false);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true });
+      if (result.canceled) return;
+      setAudioUploading(true);
+      const asset = result.assets[0];
+      const formData = new FormData();
+      formData.append('audio', { uri: asset.uri, type: asset.mimeType || 'audio/mpeg', name: asset.name || 'audio.mp3' });
+      const { data } = await api.post('/users/me/block-audio', formData);
+      const b = { id: uid(), type: 'audio', audioUrl: data.url, content: '' };
+      setBlocks(prev => [...prev, b]);
+    } catch {
+      Alert.alert('Error', 'No se pudo subir el audio');
+    } finally {
+      setAudioUploading(false);
+    }
+  }
+
   // ── Upload image ────────────────────────────────────────────
   async function pickImage(blockId) {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -123,22 +146,16 @@ export default function EditProfilePageScreen({ route, navigation }) {
 
   async function pickBgImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: true, aspect: [16,9], quality: 0.8,
+      mediaTypes: ['images'], allowsEditing: false, quality: 0.9,
     });
     if (result.canceled) return;
     setUploading('bg');
     try {
       const asset = result.assets[0];
       const formData = new FormData();
-      if (asset.uri.startsWith('blob:') || asset.uri.startsWith('data:') || asset.uri.startsWith('http')) {
-        const res  = await fetch(asset.uri);
-        const blob = await res.blob();
-        formData.append('file', blob, 'bg.jpg');
-      } else {
-        formData.append('file', { uri: asset.uri, type: 'image/jpeg', name: 'bg.jpg' });
-      }
-      const { data } = await api.post('/users/me/upload', formData);
-      setBg(data.url);
+      formData.append('cardBg', { uri: asset.uri, type: 'image/jpeg', name: 'card-bg.jpg' });
+      const data = await postFormData('/users/me/card-bg', formData);
+      setBg(data.cardBgUrl);
       setBgType('image');
       setBgModal(false);
     } catch {
@@ -313,6 +330,21 @@ export default function EditProfilePageScreen({ route, navigation }) {
       </View>
     );
 
+    if (block.type === 'audio') return (
+      <View key={block.id} style={s.blockWrap}>
+        <View style={s.blockBar}>
+          <TouchableOpacity onPress={() => move(block.id, -1)} style={s.blockBarBtn}><Ionicons name="chevron-up" size={13} color={colors.textDim} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => move(block.id, 1)} style={s.blockBarBtn}><Ionicons name="chevron-down" size={13} color={colors.textDim} /></TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => remove(block.id)} style={s.blockBarBtn}><Ionicons name="trash-outline" size={13} color="rgba(239,68,68,0.7)" /></TouchableOpacity>
+        </View>
+        <View style={s.audioCard}>
+          <Ionicons name="musical-note-outline" size={16} color={colors.textDim} />
+          <AudioMessage uri={block.audioUrl} isMe={false} duration={0} />
+        </View>
+      </View>
+    );
+
     return null;
   }
 
@@ -394,13 +426,20 @@ export default function EditProfilePageScreen({ route, navigation }) {
                   <Text style={s.blockTypeHint}>Párrafo libre</Text>
                 </LinearGradient>
               </TouchableOpacity>
-              <TouchableOpacity style={s.blockTypeCard} onPress={() => addBlock('image')}>
+              <TouchableOpacity style={s.blockTypeCard} onPress={() => {
+                const imgCount = blocks.filter(b => b.type === 'image').length;
+                if (imgCount >= 4) {
+                  Alert.alert('Límite alcanzado', 'Puedes agregar máximo 4 imágenes en el Sobre mí.');
+                  return;
+                }
+                addBlock('image');
+              }}>
                 <LinearGradient colors={['rgba(147,51,234,0.15)','rgba(147,51,234,0.03)']} style={s.blockTypeCardInner}>
                   <View style={[s.blockTypeIcon, { borderColor: 'rgba(167,139,250,0.3)' }]}>
                     <Ionicons name="image-outline" size={24} color="rgba(167,139,250,1)" />
                   </View>
                   <Text style={[s.blockTypeLabel, { color: 'rgba(167,139,250,1)' }]}>Imagen</Text>
-                  <Text style={s.blockTypeHint}>Foto del carrete</Text>
+                  <Text style={s.blockTypeHint}>{blocks.filter(b=>b.type==='image').length}/4 fotos</Text>
                 </LinearGradient>
               </TouchableOpacity>
               <TouchableOpacity style={s.blockTypeCard} onPress={() => { setAddModal('mention'); setMentionQ(''); setMentionResults([]); }}>
@@ -413,6 +452,15 @@ export default function EditProfilePageScreen({ route, navigation }) {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity style={[s.audioBlockBtn, audioUploading && { opacity: 0.6 }]} onPress={pickAudio} disabled={audioUploading}>
+              {audioUploading
+                ? <ActivityIndicator size="small" color={colors.c4} />
+                : <Ionicons name="mic-outline" size={20} color={colors.c4} />}
+              <Text style={[s.blockTypeLabel, { color: colors.c4, fontSize: 13 }]}>
+                {audioUploading ? 'Subiendo audio...' : 'Agregar audio'}
+              </Text>
+              <Text style={[s.blockTypeHint, { marginTop: 0 }]}>Desde tu móvil</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={s.sheetCancelBtn} onPress={() => setAddModal(false)}>
               <Text style={s.sheetCancelTxt}>Cancelar</Text>
             </TouchableOpacity>
@@ -571,6 +619,9 @@ const s = StyleSheet.create({
   colorGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginVertical: 10 },
   colorSwatch:    { width: 52, height: 52, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   colorSwatchImg: { width: 52, height: 52, borderRadius: 14, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,229,204,0.05)' },
+
+  audioCard:          { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(249,115,22,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)', paddingHorizontal: 16, paddingVertical: 14 },
+  audioBlockBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, backgroundColor: 'rgba(249,115,22,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)', paddingHorizontal: 16, paddingVertical: 14 },
 
   mentionSearch:      { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
   mentionSearchInput: { flex: 1, color: colors.textHi, fontSize: 14 },

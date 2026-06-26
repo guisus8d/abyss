@@ -24,6 +24,7 @@ import ProfileDrawer from '../components/ProfileDrawer';
 const SK_PINNED = 'pinnedChats';
 const SK_MUTED  = 'mutedChats';
 const SK_UNREAD = 'unreadOverride';
+const HASHTAG_COLORS = ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'];
 const SK_HIDDEN = 'hiddenChats';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ async function saveSet(key, set) {
 // ── Constants ──────────────────────────────────────────────────────────────
 const TABS = [
   { key: 'privado',      label: 'Privado'      },
-  { key: 'circulos',    label: 'Círculos'    },
+  { key: 'circulos',    label: 'Fiestas'    },
   { key: 'game',        label: 'Game'        },
   { key: 'invitaciones', label: 'Invitaciones' },
 ];
@@ -78,6 +79,7 @@ export default function ChatsScreen({ navigation }) {
   const [hiddenIds,      setHiddenIds]      = useState(new Set());
   const [actionSheet,    setActionSheet]    = useState(null); // { type:'chat'|'group', item }
   const [recentFollowing, setRecentFollowing] = useState([]);
+  const [fiestas,         setFiestas]         = useState([]);
   const [drawerOpen,     setDrawerOpen]     = useState(false);
 
   // ── Load & sockets ────────────────────────────────────────────────────────
@@ -143,16 +145,18 @@ export default function ChatsScreen({ navigation }) {
     setPage(1);
     setError(null);
     try {
-      const [chatsRes, groupsRes, followingRes] = await Promise.all([
+      const [chatsRes, groupsRes, followingRes, fiestasRes] = await Promise.all([
         api.get('/chats?page=1&limit=15'),
         api.get('/groups').catch(() => ({ data: { groups: [] } })),
         api.get(`/social/following/${user?.username}`).catch(() => ({ data: { following: [] } })),
+        api.get('/groups/circles/mine').catch(() => ({ data: { circles: [] } })),
       ]);
       setChats(chatsRes.data.chats);
       setHasMore(chatsRes.data.page < chatsRes.data.pages);
       setGroups(groupsRes.data.groups || []);
       const all = followingRes.data.following || [];
       setRecentFollowing(all.slice(-3).reverse());
+      setFiestas(fiestasRes.data.circles || []);
     } catch (e) {
       console.log(e);
       setError('No se pudo cargar. Toca para reintentar.');
@@ -270,7 +274,7 @@ export default function ChatsScreen({ navigation }) {
   // ── List data (pinned section + regular) ──────────────────────────────────
   const allPrivateItems = [
     ...[...chats].map(c  => ({ type: 'chat',  data: c, _t: new Date(c.lastMessage || 0).getTime() })),
-    ...[...groups].map(g => ({ type: 'group', data: g, _t: new Date(g.lastMessage || g.createdAt || 0).getTime() })),
+    ...[...groups].filter(g => !g.isCircle).map(g => ({ type: 'group', data: g, _t: new Date(g.lastMessage || g.createdAt || 0).getTime() })),
   ].sort((a, b) => b._t - a._t);
 
   function buildListData() {
@@ -569,7 +573,93 @@ export default function ChatsScreen({ navigation }) {
   }
 
   function renderCirculos() {
-    return renderComingSoon('people', 'Círculos');
+    if (loading) return <ActivityIndicator color={colors.c1} style={{ marginTop: 40 }} />;
+    if (fiestas.length === 0) {
+      return (
+        <View style={s.emptyTab}>
+          <View style={s.emptyIconWrap}><Ionicons name="planet-outline" size={32} color={colors.textDim} /></View>
+          <Text style={s.emptyTitle}>Aún no estás en ninguna fiesta</Text>
+          <Text style={s.emptySubtitle}>Únete o crea una para empezar</Text>
+          <TouchableOpacity style={s.fiestasExploreBtn} onPress={() => navigation.navigate('Circles')}>
+            <Text style={s.fiestasExploreBtnTxt}>Explorar fiestas</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    const sortedFiestas = [...fiestas].sort((a, b) => {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      if (a.isActive && b.isActive)
+        return new Date(b.activatedAt || 0) - new Date(a.activatedAt || 0);
+      return new Date(b.lastMessage || 0) - new Date(a.lastMessage || 0);
+    });
+    return (
+      <FlatList
+        data={sortedFiestas}
+        keyExtractor={item => item._id}
+        contentContainerStyle={{ paddingVertical: 8 }}
+        renderItem={({ item }) => {
+          const admin = (item.members || []).find(m => m.role === 'admin');
+          const adminUser = admin?.user;
+          const adminUsername = adminUser?.username || '?';
+          const adminAvatar = adminUser?.avatarUrl;
+          return (
+            <TouchableOpacity
+              style={[s.fiestasRow, !item.isActive && { opacity: 0.45 }]}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('GroupRoom', { group: item })}
+            >
+              <View style={s.fiestasCardRight}>
+                <View style={s.fiestasHeaderRow}>
+                  <AvatarWithFrame
+                    size={48}
+                    avatarUrl={adminAvatar}
+                    username={adminUsername}
+                    profileFrame={adminUser?.profileFrame}
+                    frameUrl={adminUser?.profileFrameUrl}
+                  />
+                  <Text style={s.fiestasAdminName} numberOfLines={1}>{adminUsername}</Text>
+                </View>
+                <View style={s.fiestasLogoWrap}>
+                  {item.imageUrl
+                    ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.75)', 'transparent']}
+                    style={[StyleSheet.absoluteFill, { justifyContent: 'flex-start', padding: 8 }]}
+                  >
+                    <Text style={s.fiestasLogoName} numberOfLines={1}>{item.name}</Text>
+                  </LinearGradient>
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.7)', 'transparent']}
+                    start={{ x: 0, y: 1 }}
+                    end={{ x: 0, y: 0 }}
+                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
+                  />
+                  {item.hashtags?.length > 0 && (
+                    <View style={[s.fiestasHashtags, { position: 'absolute', bottom: 6, left: 6 }]}>
+                      {item.hashtags.slice(0, 5).map((tag, idx) => {
+                        const c = HASHTAG_COLORS[idx % HASHTAG_COLORS.length];
+                        return (
+                          <View key={tag} style={[s.fiestasHashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
+                            <Text style={[s.fiestasHashtagTxt, { color: c }]}>#{tag}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                  <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '600' }}>
+                      {(item.membersCount ?? item.members?.length ?? 0)} miembros
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    );
   }
 
   function renderPrivado() {
@@ -775,4 +865,18 @@ const s = StyleSheet.create({
   comingSoonIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', alignItems: 'center', justifyContent: 'center' },
   comingSoonBadge:{ backgroundColor: 'rgba(0,229,204,0.08)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', paddingHorizontal: 12, paddingVertical: 4 },
   comingSoonTxt:  { color: colors.c1, fontSize: 10, fontWeight: '800', letterSpacing: 2 },
+
+  fiestasRow:          { paddingLeft: 0, paddingRight: 16, paddingVertical: 19, marginLeft: 73, marginRight: 60, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  fiestasHeaderRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6, marginLeft: -56 },
+  fiestasAdminAvatar:  { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: 'rgba(0,229,204,0.08)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  fiestasAdminInitial: { color: colors.c1, fontSize: 20, fontWeight: '700' },
+  fiestasCardRight:    { gap: 0 },
+  fiestasAdminName:    { color: colors.textHi, fontSize: 12, fontWeight: '600', flex: 1 },
+  fiestasLogoWrap:     { width: '100%', height: 175, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.surface, marginRight: 80 },
+  fiestasLogoName:     { color: '#ffffff', fontSize: 20, fontWeight: '700', marginTop: 10 },
+  fiestasExploreBtn:   { marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)' },
+  fiestasExploreBtnTxt:{ color: colors.c1, fontSize: 13, fontWeight: '700' },
+  fiestasHashtags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  fiestasHashtagPill:  { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  fiestasHashtagTxt:   { color: colors.c1, fontSize: 10, fontWeight: '600' },
 });

@@ -55,6 +55,8 @@ import ChatPhotosScreen      from '../screens/ChatPhotosScreen';
 import ChatAudiosScreen      from '../screens/ChatAudiosScreen';
 import ChatBackgroundScreen  from '../screens/ChatBackgroundScreen';
 import ChatSettingsScreen    from '../screens/ChatSettingsScreen';
+import CirclesScreen         from '../screens/CirclesScreen';
+import CircleCreateScreen    from '../screens/CircleCreateScreen';
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
 // El panel de moderación solo es accesible desde abyss.social/mod
@@ -122,6 +124,8 @@ export default function AppNavigator() {
               <Stack.Screen name="CreateGroup"     component={CreateGroupScreen} />
               <Stack.Screen name="GroupRoom"       component={GroupRoomScreen} />
               <Stack.Screen name="GroupSettings"   component={GroupSettingsScreen} />
+              <Stack.Screen name="Circles"         component={CirclesScreen} />
+              <Stack.Screen name="CircleCreate"    component={CircleCreateScreen} />
               <Stack.Screen name="Search"          component={SearchScreen} />
               <Stack.Screen name="BlockedUsers"    component={BlockedUsersScreen} />
               <Stack.Screen name="Market"            component={MarketScreen} />

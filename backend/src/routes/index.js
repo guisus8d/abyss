@@ -9,10 +9,12 @@ router.use('/notifications',require('./notification.routes'));
 router.use('/groups',       require('./group.routes'));
 router.use('/reports',      require('./report.routes'));
 router.use('/modlogs',      require('./modlog.routes'));
+router.use('/mod',          require('./mod.routes'));
 // Sistema de tienda
 router.use('/market',       require('./market.routes'));
 router.use('/store',        require('./store.routes'));
 router.use('/gifts',        require('./gift.routes'));
 router.use('/transactions', require('./wallet.routes'));
 router.use('/coins',        require('./wallet.routes'));
+router.use('/wall',         require('./wall.routes'));
 module.exports = router;

@@ -45,6 +45,7 @@
       "favicon": "./assets/favicon.png",
       "template": "./web/index.html"
     },
+    "assetBundlePatterns": ["**/*"],
     "newArchEnabled": true,
     "plugins": [
       "react-native-edge-to-edge",

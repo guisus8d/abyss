@@ -52,11 +52,11 @@ const OPTIONS = [
     key: 'channel',
     icon: 'radio',
     label: 'Canal',
-    hint: 'Próximamente',
+    hint: 'Fiestas',
     color: 'rgba(96,165,250,1)',
     bg: 'rgba(41,121,255,0.08)',
     border: 'rgba(41,121,255,0.2)',
-    active: false,
+    active: true,
   },
 ];
 

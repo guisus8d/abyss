@@ -289,6 +289,9 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
+// Cache de fondo de chat en memoria — evita el flash en visitas posteriores
+const _bgCache = new Map();
+
 // ─── ChatRoomScreen ───────────────────────────────────────────────────────────
 
 export default function ChatRoomScreen({ route, navigation }) {
@@ -329,7 +332,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [giftErr,       setGiftErr]       = useState('');
 
   // ── Ajustes de chat ────────────────────────────────────────────────────────
-  const [chatBg, setChatBg] = useState('default');
+  const [chatBg, setChatBg] = useState(() => _bgCache.get(chat._id) ?? null);
 
   const flatRef        = useRef(null);
   const socketRef      = useRef(null);
@@ -367,7 +370,9 @@ export default function ChatRoomScreen({ route, navigation }) {
         AsyncStorage.getItem(`chatBg_${chat._id}`),
         AsyncStorage.getItem('chatBg_default'),
       ]).then(([specific, fallback]) => {
-        setChatBg(specific || fallback || 'default');
+        const resolved = specific || fallback || 'default';
+        _bgCache.set(chat._id, resolved);
+        setChatBg(resolved);
       }).catch(() => {});
     };
     loadBg();
@@ -799,7 +804,7 @@ export default function ChatRoomScreen({ route, navigation }) {
       </Modal>
 
       <ImageBackground
-        source={chatBg?.startsWith('http') ? { uri: chatBg } : require('../../assets/chat-bg.jpeg')}
+        source={chatBg === null ? null : chatBg?.startsWith('http') ? { uri: chatBg } : require('../../assets/chat-bg.jpeg')}
         style={{ flex: 1, backgroundColor: '#050c14' }}
         resizeMode="cover"
       >

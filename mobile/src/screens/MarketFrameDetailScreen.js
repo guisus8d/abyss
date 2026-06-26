@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
+import { formatCoins } from '../utils/formatCoins';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import CoinIcon from '../components/CoinIcon';
 import GenderIcon from '../components/GenderIcon';
@@ -56,7 +57,7 @@ export default function MarketFrameDetailScreen({ route, navigation }) {
     try {
       const { data } = await api.post(`/market/frames/${frame._id}/buy`);
       if (updateUser) updateUser({ ...user, coins: data.newCoins });
-      Alert.alert('Marco comprado', `Te quedan ${data.newCoins} monedas`, [
+      Alert.alert('Marco comprado', `Te quedan ${formatCoins(data.newCoins)} monedas`, [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e) {

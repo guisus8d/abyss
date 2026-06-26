@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Image,
+  View, Text, ScrollView, FlatList, TouchableOpacity, Image, TextInput,
   StyleSheet, StatusBar, ActivityIndicator,
   Alert, Dimensions, Clipboard, Modal, Pressable, Linking, Platform,
 } from 'react-native';
@@ -9,18 +9,22 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { getActivityStatus } from '../utils/timeUtils';
+import { getActivityStatus, getRelativeTime } from '../utils/timeUtils';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import PostCard from '../components/PostCard';
+import AudioMessage from '../components/AudioMessage';
 import GenderIcon from '../components/GenderIcon';
 import VerifiedIcon from '../components/VerifiedIcon';
 import ReportModal from '../components/ReportModal';
 import ShareProfileModal from '../components/ShareProfileModal';
 
-const W = Dimensions.get('window').width;
+const W        = Dimensions.get('window').width;
+const H        = Dimensions.get('window').height;
+const GRID_GAP = 4;
+const CELL     = Math.floor((W - 40 - GRID_GAP) / 2);
 const isWeb = Platform.OS === 'web';
 
 const TABS_BASE = [
@@ -52,6 +56,12 @@ export default function PublicProfileScreen({ route, navigation }) {
   const [shareProfileOpen, setShareProfileOpen] = useState(false);
   const [activityStatus,   setActivityStatus]   = useState({ text: '', isOnline: false });
   const [userHasStore,     setUserHasStore]     = useState(false);
+  const [wallMessages,     setWallMessages]     = useState([]);
+  const [wallLoading,      setWallLoading]      = useState(false);
+  const [wallText,         setWallText]         = useState('');
+  const [wallPosting,      setWallPosting]      = useState(false);
+  const [viewerVisible,    setViewerVisible]    = useState(false);
+  const [viewerIndex,      setViewerIndex]      = useState(0);
 
   useEffect(() => {
     if (username === me?.username) navigation.replace('Profile');
@@ -71,9 +81,9 @@ export default function PublicProfileScreen({ route, navigation }) {
     setLoading(true);
     try {
       const [profileRes, postsRes, storeRes] = await Promise.all([
-        api.get(`/users/${username}`),
-        api.get(`/posts/user/${username}?page=1&limit=10`).catch(() => ({ data: { posts: [], total: 0, hasMore: false } })),
-        api.get(`/store/${username}`).catch(() => null),
+        api.get(`/users/${encodeURIComponent(username)}`),
+        api.get(`/posts/user/${encodeURIComponent(username)}?page=1&limit=10`).catch(() => ({ data: { posts: [], total: 0, hasMore: false } })),
+        api.get(`/store/${encodeURIComponent(username)}`).catch(() => null),
       ]);
       setProfile(profileRes.data.user);
       setUserHasStore(!!(storeRes?.data?.store));
@@ -83,6 +93,12 @@ export default function PublicProfileScreen({ route, navigation }) {
       setPostsPage(1);
       setFollowing(profileRes.data.user.followers?.some(f => f._id === me?._id || f === me?._id));
       setBlocked(me?.blockedUsers?.some(id => (id?._id || id) === profileRes.data.user._id) ?? false);
+      // Cargar muro
+      setWallLoading(true);
+      api.get(`/wall/${encodeURIComponent(username)}`)
+        .then(r => setWallMessages(r.data.messages || []))
+        .catch(() => {})
+        .finally(() => setWallLoading(false));
       if (me) {
         try {
           const chatRes = await api.get(`/chats/check/${profileRes.data.user._id}`);
@@ -101,8 +117,11 @@ export default function PublicProfileScreen({ route, navigation }) {
     setPostsLoadingMore(true);
     try {
       const nextPage = postsPage + 1;
-      const { data } = await api.get(`/posts/user/${username}?page=${nextPage}&limit=10`);
-      setPosts(prev => [...prev, ...(data.posts || [])]);
+      const { data } = await api.get(`/posts/user/${encodeURIComponent(username)}?page=${nextPage}&limit=10`);
+      setPosts(prev => {
+        const all = [...prev, ...(data.posts || [])];
+        return [...new Map(all.map(p => [p._id?.toString(), p])).values()];
+      });
       setPostsHasMore(data.hasMore ?? false);
       setPostsPage(nextPage);
     } catch {}
@@ -130,7 +149,7 @@ export default function PublicProfileScreen({ route, navigation }) {
   async function handleFollow() {
     setLoadingBtn(true);
     try {
-      const { data } = await api.post(`/social/follow/${username}`);
+      const { data } = await api.post(`/social/follow/${encodeURIComponent(username)}`);
       setFollowing(data.following);
       setProfile(prev => ({
         ...prev,
@@ -164,7 +183,7 @@ export default function PublicProfileScreen({ route, navigation }) {
         { text: 'Cancelar', style: 'cancel' },
         { text: blocked ? 'Desbloquear' : 'Bloquear', style: 'destructive', onPress: async () => {
           try {
-            const { data } = await api.post(`/social/block/${username}`);
+            const { data } = await api.post(`/social/block/${encodeURIComponent(username)}`);
             setBlocked(data.blocked);
             if (data.blocked) {
               setFollowing(false);
@@ -180,7 +199,7 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   async function handleUnblock() {
     try {
-      await api.post(`/social/block/${username}`);
+      await api.post(`/social/block/${encodeURIComponent(username)}`);
       setBlocked(false);
       updateUser({ ...me, blockedUsers: (me.blockedUsers || []).filter(id => id.toString() !== profile._id.toString()) });
     } catch (err) {
@@ -213,6 +232,34 @@ export default function PublicProfileScreen({ route, navigation }) {
       const { data } = await api.get(`/frames/${frameId}`);
       navigation.navigate('MarketFrameDetail', { frame: data.frame });
     } catch {}
+  }
+
+  async function postWallMsg() {
+    if (!wallText.trim()) return;
+    setWallPosting(true);
+    try {
+      const { data } = await api.post(`/wall/${encodeURIComponent(username)}`, { text: wallText.trim() });
+      setWallMessages(prev => [data.message, ...prev]);
+      setWallText('');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo enviar el mensaje');
+    } finally {
+      setWallPosting(false);
+    }
+  }
+
+  async function deleteWallMsg(id) {
+    Alert.alert('Eliminar', '¿Eliminar este mensaje?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try {
+          await api.delete(`/wall/msg/${id}`);
+          setWallMessages(prev => prev.filter(m => m._id !== id));
+        } catch (err) {
+          Alert.alert('Error', err.response?.data?.error || 'No se pudo eliminar');
+        }
+      }},
+    ]);
   }
 
   if (loading) return (
@@ -251,7 +298,7 @@ export default function PublicProfileScreen({ route, navigation }) {
   const isMutual     = following && theyFollowMe;
   const prefs        = { showXp: true, showFollowers: true, showFollowing: true, showPosts: true, ...(profile?.profilePrefs || {}) };
   const TABS         = TABS_BASE.filter(t => t.key !== 'posts' || prefs.showPosts);
-  const TAB_W        = (W - 32) / TABS.length;
+  const TAB_W        = W / TABS.length;
 
   return (
     <View style={s.root}>
@@ -415,24 +462,20 @@ export default function PublicProfileScreen({ route, navigation }) {
           {prefs.showXp && <Text style={s.xpTxt}>XP {profile?.xp || 0}</Text>}
 
           <View style={s.heroStats}>
-            {prefs.showFollowing && (
-              <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type:'following' })}>
-                <Text style={s.heroStatVal}>{profile?.following?.length || 0}</Text>
-                <Text style={s.heroStatLbl}>SIGUIENDO</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={s.heroStat} onPress={prefs.showFollowing ? () => navigation.navigate('FollowList', { username: profile?.username, type:'following' }) : undefined}>
+              <Text style={s.heroStatVal}>{prefs.showFollowing ? (profile?.following?.length || 0) : '—'}</Text>
+              <Text style={s.heroStatLbl}>SIGUIENDO</Text>
+            </TouchableOpacity>
             {prefs.showPosts && (
               <View style={s.heroStat}>
                 <Text style={s.heroStatVal}>{totalPosts}</Text>
                 <Text style={s.heroStatLbl}>POSTS</Text>
               </View>
             )}
-            {prefs.showFollowers && (
-              <TouchableOpacity style={s.heroStat} onPress={() => navigation.navigate('FollowList', { username: profile?.username, type:'followers' })}>
-                <Text style={s.heroStatVal}>{profile?.followers?.length || 0}</Text>
-                <Text style={s.heroStatLbl}>SEGUIDORES</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={s.heroStat} onPress={prefs.showFollowers ? () => navigation.navigate('FollowList', { username: profile?.username, type:'followers' }) : undefined}>
+              <Text style={s.heroStatVal}>{prefs.showFollowers ? (profile?.followers?.length || 0) : '—'}</Text>
+              <Text style={s.heroStatLbl}>SEGUIDORES</Text>
+            </TouchableOpacity>
           </View>
 
           {!me && isWeb && (
@@ -484,7 +527,7 @@ export default function PublicProfileScreen({ route, navigation }) {
         </View>
 
         {/* ── Tabs ── */}
-        <View style={[s.tabBar, { marginHorizontal:16 }]}>
+        <View style={[s.tabBar, { marginHorizontal:0, borderRadius:0 }]}>
           {TABS.map(t => (
             <TouchableOpacity key={t.key} style={[s.tabBtn, { width:TAB_W }]} onPress={() => setTab(t.key)}>
               <Ionicons name={t.icon} size={20} color={tab===t.key?'#ffffff':colors.textDim} />
@@ -495,30 +538,78 @@ export default function PublicProfileScreen({ route, navigation }) {
 
         {/* ── Tab: Perfil ── */}
         {tab === 'profile' && (
-          <View>
-            <View style={[s.profileSection, { borderRadius:0, borderLeftWidth:0, borderRightWidth:0, paddingHorizontal:20 }]}>
-              {profile?.profileBgType==='image' && profile?.profileBg && (
-                <>
-                  <Image source={{ uri:profile.profileBg }} style={s.sectionBgImage} resizeMode="cover" />
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor:'rgba(0,0,0,0.35)' }]} />
+          <View style={s.pubContentBgWrapper}>
+            {profile?.profileBgType === 'image' && profile?.profileBg
+              ? <>
+                  <Image source={{ uri: profile.profileBg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]} />
                 </>
-              )}
-              {profile?.profileBgType!=='image' && profile?.profileBg && (
-                <View style={[StyleSheet.absoluteFill, { backgroundColor:profile.profileBg }]} />
-              )}
+              : profile?.profileBgType !== 'image' && profile?.profileBg
+                ? <View style={[StyleSheet.absoluteFill, { backgroundColor: profile.profileBg }]} />
+                : null
+            }
+
+            {/* ── Bio ── */}
+            {((profile?.bioType === 'text' || (!profile?.bioType && profile?.bio?.trim())) && profile?.bio?.trim()) ? (
+              <>
+                <View style={s.pubSectionLabelRow}>
+                  <View style={s.pubSectionBadge}><Text style={s.pubSectionBadgeTxt}>BIO</Text></View>
+                </View>
+                <View style={s.pubBioSection}>
+                  <Text style={s.pubBioText}>{profile.bio}</Text>
+                </View>
+              </>
+            ) : profile?.bioType === 'audio' && profile?.bioAudioUrl ? (
+              <>
+                <View style={s.pubSectionLabelRow}>
+                  <View style={s.pubSectionBadge}><Text style={s.pubSectionBadgeTxt}>BIO</Text></View>
+                </View>
+                <View style={s.pubBioSection}>
+                  <View style={s.pubBioAudio}>
+                    <AudioMessage uri={profile.bioAudioUrl} isMe={false} duration={0} />
+                  </View>
+                </View>
+              </>
+            ) : null}
+
+            {/* ── Sobre mí ── */}
+            <View style={s.pubSectionLabelRow}>
+              <View style={s.pubSectionBadge}><Text style={s.pubSectionBadgeTxt}>SOBRE MÍ</Text></View>
+            </View>
+            <View style={[s.profileSection, { borderWidth:0, borderRadius:0, backgroundColor:'transparent', paddingHorizontal:20 }]}>
               <View style={s.blocksContainer}>
                 {(!profile?.profileBlocks || profile.profileBlocks.length===0) && (
                   <View style={s.emptyPage}><Text style={s.emptyPageTxt}>Sin contenido todavía</Text></View>
                 )}
-                {(profile?.profileBlocks||[]).map((block,i) => {
+                {(() => {
+                  const imgBlocks = (profile?.profileBlocks||[]).filter(b => b.type==='image' && b.imageUrl);
+                  let imgGridShown = false;
+                  return (profile?.profileBlocks||[]).map((block,i) => {
                   if (block.type==='text') return (
                     <Text key={block.id||i} style={{ fontSize:block.fontSize||14, fontWeight:block.bold?'700':'400', textAlign:block.align||'left', color:colors.textHi, lineHeight:(block.fontSize||14)*1.5, marginBottom:8 }}>
                       {block.content}
                     </Text>
                   );
-                  if (block.type==='image' && block.imageUrl) return (
-                    <Image key={block.id||i} source={{ uri:block.imageUrl }} style={{ width:'100%', height:180, borderRadius:12, marginBottom:8 }} resizeMode="cover" />
+                  if (block.type==='audio' && block.audioUrl) return (
+                    <View key={block.id||i} style={s.pubAudioBlock}>
+                      <Ionicons name="musical-note-outline" size={14} color={colors.textDim} />
+                      <AudioMessage uri={block.audioUrl} isMe={false} duration={0} />
+                    </View>
                   );
+                  if (block.type==='image' && block.imageUrl) {
+                    if (imgGridShown) return null;
+                    imgGridShown = true;
+                    return (
+                      <View key="imgGrid" style={s.imgGrid}>
+                        {imgBlocks.map((b, idx) => (
+                          <TouchableOpacity key={b.id||idx} style={s.imgCell} activeOpacity={0.85}
+                            onPress={() => { setViewerIndex(idx); setViewerVisible(true); }}>
+                            <Image source={{ uri:b.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    );
+                  }
                   if (block.type==='mention') return (
                     <TouchableOpacity key={block.id||i} style={s.mentionBlock} onPress={() => navigation.navigate('PublicProfile', { username:block.mentionUsername })}>
                       <View style={s.mentionAv}>
@@ -531,9 +622,75 @@ export default function PublicProfileScreen({ route, navigation }) {
                     </TouchableOpacity>
                   );
                   return null;
-                })}
+                  });
+                })()}
               </View>
             </View>
+
+            {/* ── Muro ── */}
+            <View style={s.pubMuroSection}>
+              <View style={s.pubMuroHeader}>
+                <Text style={s.pubMuroTitle}>MURO</Text>
+              </View>
+
+              {/* Mensajes — ocupa el espacio flexible arriba */}
+              <ScrollView style={{ flex: 1 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                {wallLoading && <ActivityIndicator color={colors.c1} style={{ paddingVertical: 20 }} />}
+                {!wallLoading && wallMessages.length === 0 && (
+                  <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                    <Text style={{ color: colors.textDim, fontSize: 12 }}>Aún no hay mensajes</Text>
+                  </View>
+                )}
+                {wallMessages.map((msg, i) => {
+                  const isOwn = msg.author?._id === me?._id || msg.author?.username === me?.username;
+                  return (
+                    <TouchableOpacity key={msg._id} activeOpacity={isOwn ? 0.8 : 1} onLongPress={isOwn ? () => deleteWallMsg(msg._id) : undefined}>
+                      <View style={s.pubMuroMsg}>
+                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { username: msg.author?.username })}>
+                          <View style={s.pubMuroAvatar}>
+                            {msg.author?.avatarUrl
+                              ? <Image source={{ uri: msg.author.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+                              : <Text style={s.pubMuroAvatarLetter}>{msg.author?.username?.[0]?.toUpperCase()}</Text>}
+                          </View>
+                        </TouchableOpacity>
+                        <View style={s.pubMuroMsgBody}>
+                          <Text style={s.pubMuroUsername}>{msg.author?.username}</Text>
+                          <Text style={s.pubMuroText}>{msg.text}</Text>
+                          <Text style={s.pubMuroDate}>{getRelativeTime(msg.createdAt)}</Text>
+                        </View>
+                      </View>
+                      {i < wallMessages.length - 1 && <View style={s.pubMuroDivider} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Input fijo en la parte inferior */}
+              {me && (
+                <View style={s.pubMuroInputRow}>
+                  <TextInput
+                    style={s.pubMuroInput}
+                    placeholder="Escribe algo en el muro…"
+                    placeholderTextColor={colors.textDim}
+                    value={wallText}
+                    onChangeText={setWallText}
+                    maxLength={500}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[s.pubMuroSendBtn, (!wallText.trim() || wallPosting) && { opacity: 0.4 }]}
+                    onPress={postWallMsg}
+                    disabled={!wallText.trim() || wallPosting}
+                  >
+                    {wallPosting
+                      ? <ActivityIndicator size="small" color={colors.black} />
+                      : <Ionicons name="send" size={16} color={colors.black} />}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            <View style={{ height: 20 }} />
           </View>
         )}
 
@@ -583,6 +740,32 @@ export default function PublicProfileScreen({ route, navigation }) {
         <View style={{ height:60 }} />
       </ScrollView>
 
+      {/* ── Visor de imágenes fullscreen ── */}
+      <Modal visible={viewerVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setViewerVisible(false)}>
+        <View style={{ flex:1, backgroundColor:'#000' }}>
+          <FlatList
+            data={(profile?.profileBlocks||[]).filter(b => b.type==='image' && b.imageUrl)}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={viewerIndex}
+            getItemLayout={(_, index) => ({ length: W, offset: W * index, index })}
+            renderItem={({ item }) => (
+              <View style={{ width:W, height:H, justifyContent:'center', alignItems:'center' }}>
+                <Image source={{ uri:item.imageUrl }} style={{ width:W, height:H }} resizeMode="contain" />
+              </View>
+            )}
+            keyExtractor={(item, idx) => item.id || String(idx)}
+            style={{ flex:1 }}
+          />
+          <TouchableOpacity
+            style={{ position:'absolute', top:insets.top+12, right:16, backgroundColor:'rgba(0,0,0,0.6)', borderRadius:20, padding:8 }}
+            onPress={() => setViewerVisible(false)}
+          >
+            <Ionicons name="close" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -629,14 +812,42 @@ const s = StyleSheet.create({
   tabDot: { position:'absolute', bottom:0, height:2, backgroundColor:'#ffffff', borderRadius:1 },
 
   // Perfil
-  profileSection:  { borderWidth:1, borderColor:'rgba(255,255,255,0.1)', padding:16, position:'relative', minHeight:120, backgroundColor:'rgba(255,255,255,0.04)' },
+  profileSection:  { borderWidth:1, borderColor:'rgba(255,255,255,0.1)', padding:16, position:'relative', minHeight:80, backgroundColor:'rgba(255,255,255,0.04)' },
   sectionBgImage:  { position:'absolute', top:0, left:0, right:0, bottom:0 },
   blocksContainer: { gap:8, paddingBottom:8 },
+  imgGrid:         { flexDirection:'row', flexWrap:'wrap', gap:GRID_GAP, marginBottom:8 },
+  imgCell:         { width:CELL, height:CELL, borderRadius:10, overflow:'hidden', backgroundColor:'rgba(255,255,255,0.06)' },
   emptyPage:       { alignItems:'center', paddingVertical:24 },
   emptyPageTxt:    { color:colors.textDim, fontSize:12 },
   mentionBlock:    { flexDirection:'row', alignItems:'center', gap:10, backgroundColor:'rgba(0,229,204,0.07)', borderRadius:12, borderWidth:1, borderColor:'rgba(0,229,204,0.2)', padding:12 },
   mentionAv:       { width:36, height:36, borderRadius:18, backgroundColor:colors.deep, alignItems:'center', justifyContent:'center', overflow:'hidden' },
   mentionAt:       { flex:1, color:colors.c1, fontWeight:'700', fontSize:14 },
+
+  // Bio pública
+  pubContentBgWrapper: { overflow: 'hidden', backgroundColor: colors.surface },
+  pubBioSection:     { paddingHorizontal:20, paddingBottom:12 },
+  pubSectionLabelRow:{ paddingHorizontal:20, paddingTop:16, paddingBottom:8 },
+  pubSectionBadge:   { alignSelf:'flex-start', backgroundColor:colors.deep, borderRadius:10, paddingHorizontal:12, paddingVertical:5 },
+  pubSectionBadgeTxt:{ color:colors.textHi, fontSize:9, fontWeight:'700', letterSpacing:3 },
+  pubBioText:        { color:colors.textHi, fontSize:14, lineHeight:22 },
+  pubBioAudio:       { paddingVertical:8 },
+  pubAudioBlock:     { flexDirection:'row', alignItems:'center', gap:10, backgroundColor:'rgba(249,115,22,0.06)', borderRadius:12, borderWidth:1, borderColor:'rgba(249,115,22,0.18)', paddingHorizontal:14, paddingVertical:12, marginBottom:8 },
+
+  // Muro público
+  pubMuroSection:    { marginHorizontal:20, marginTop:16, marginBottom:8, borderRadius:18, overflow:'hidden', backgroundColor:'rgba(5,12,20,0.92)', borderWidth:1, borderColor:'rgba(255,255,255,0.07)', height:420 },
+  pubMuroHeader:     { flexDirection:'row', alignItems:'center', paddingHorizontal:16, paddingVertical:14, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.07)' },
+  pubMuroTitle:      { color:colors.textDim, fontSize:9, fontWeight:'700', letterSpacing:3, flex:1 },
+  pubMuroInputRow:   { flexDirection:'row', alignItems:'flex-end', gap:8, margin:12 },
+  pubMuroInput:      { flex:1, color:colors.textHi, fontSize:13, backgroundColor:'rgba(255,255,255,0.06)', borderRadius:12, borderWidth:1, borderColor:'rgba(255,255,255,0.1)', paddingHorizontal:14, paddingVertical:10, maxHeight:90 },
+  pubMuroSendBtn:    { width:40, height:40, borderRadius:20, backgroundColor:colors.c1, alignItems:'center', justifyContent:'center' },
+  pubMuroMsg:        { flexDirection:'row', padding:14, gap:12, alignItems:'flex-start' },
+  pubMuroAvatar:     { width:36, height:36, borderRadius:18, backgroundColor:'rgba(255,255,255,0.06)', alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.1)', overflow:'hidden' },
+  pubMuroAvatarLetter:{ color:colors.c1, fontSize:14, fontWeight:'700' },
+  pubMuroMsgBody:    { flex:1, gap:2 },
+  pubMuroUsername:   { color:colors.textHi, fontSize:13, fontWeight:'700' },
+  pubMuroText:       { color:colors.textMid, fontSize:13, lineHeight:19 },
+  pubMuroDate:       { color:colors.textDim, fontSize:10, marginTop:2 },
+  pubMuroDivider:    { height:1, backgroundColor:'rgba(255,255,255,0.06)', marginHorizontal:14 },
   padded:          { paddingHorizontal:16 },
   emptyTab:        { alignItems:'center', paddingVertical:48, gap:12 },
   emptyTxt:        { color:colors.textDim, fontSize:14 },

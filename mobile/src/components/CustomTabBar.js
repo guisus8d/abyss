@@ -97,7 +97,7 @@ export default function CustomTabBar({
           <View style={s.niBox}>
             <Ionicons name="people" size={20} color={colors.textDim} />
           </View>
-          <Text style={s.niLbl}>Círculos</Text>
+          <Text style={s.niLbl}>Fiestas</Text>
         </TouchableOpacity>
       </View>
 

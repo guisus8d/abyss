@@ -26,6 +26,7 @@ import VerifiedIcon from '../components/VerifiedIcon';
 import { formatCoins } from '../utils/formatCoins';
 
 const GROUP_BG_PRESETS = { night: '#020D1A', void: '#050505', purple: '#0D0714', teal: '#030F10' };
+const _circleCache = {};
 
 const AVATAR_SLOT = 38;
 const COMMISSION = 0.15;
@@ -72,11 +73,16 @@ function renderRichText(text, navigation) {
 }
 
 // ─── Mensaje de sistema ───────────────────────────────────────────────────────
-function SystemMessage({ msg }) {
-  const labels = { join: 'se unio al grupo', leave: 'salio del grupo', kick: 'fue expulsado', ban: 'fue baneado' };
+function SystemMessage({ msg, isCircle }) {
+  const text = isCircle
+    ? (msg.text || '')
+        .replace(/\bdel grupo\b/gi, 'de la fiesta')
+        .replace(/\bal grupo\b/gi, 'a la fiesta')
+        .replace(/\bgrupo\b/gi, 'fiesta')
+    : msg.text;
   return (
     <View style={s.sysRow}>
-      <Text style={s.sysTxt}>{msg.text}</Text>
+      <Text style={s.sysTxt}>{text}</Text>
     </View>
   );
 }
@@ -125,16 +131,17 @@ const MessageBubble = memo(function MessageBubble({
   const senderIsBlocked = !isMe && blockedIds?.includes((sender?._id || sender)?.toString());
 
   if (msg.type === 'system') {
-    return <SystemMessage msg={msg} />;
+    return <SystemMessage msg={msg} isCircle={!!group?.isCircle} />;
   }
 
   const displayName        = isMe ? (user?.username || 'Tu') : (sender?.username || '');
   const isPostType         = msg.type === 'shared_post' || msg.type === 'shared_profile';
   const isDeleted          = msg.deletedFor?.map(d => d.toString()).includes(user?._id?.toString());
-  const senderIsGroupAdmin = group?.members?.some(
+  const senderMemberRole = group?.members?.find(
     m => (m.user?._id || m.user)?.toString() === (sender?._id || sender)?.toString()
-      && m.role === 'admin'
-  );
+  )?.role;
+  const senderIsGroupAdmin   = senderMemberRole === 'admin';
+  const senderIsGroupCoAdmin = senderMemberRole === 'co-admin';
 
   return (
     <>
@@ -147,6 +154,11 @@ const MessageBubble = memo(function MessageBubble({
             {senderIsGroupAdmin && (
               <View style={s.adminBadge}>
                 <Text style={s.adminBadgeTxt}>Admin</Text>
+              </View>
+            )}
+            {senderIsGroupCoAdmin && (
+              <View style={s.coAdminBadge}>
+                <Text style={s.coAdminBadgeTxt}>Co-admin</Text>
               </View>
             )}
           </View>
@@ -248,18 +260,23 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [menuMsg,       setMenuMsg]       = useState(null);
   const [menuVisible,   setMenuVisible]   = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const [infoVisible,       setInfoVisible]       = useState(false);
+  const [imgViewerVisible,  setImgViewerVisible]  = useState(false);
+  const [allMembersVisible, setAllMembersVisible] = useState(false);
+  const [memberSearch,      setMemberSearch]      = useState('');
   const [banConfirm,    setBanConfirm]    = useState(false);
   const [kickConfirm,   setKickConfirm]   = useState(false);
 
   // Estados de expulsión / baneo
   const [isKicked,         setIsKicked]         = useState(false);
   const [isBanned,         setIsBanned]          = useState(false);
-  const [showWelcomeBanner,setShowWelcomeBanner] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [kbVisible,          setKbVisible]          = useState(false);
   const [hasMore,            setHasMore]            = useState(false);
   const [loadingMore,        setLoadingMore]        = useState(false);
   const [newMsgIndicator,    setNewMsgIndicator]    = useState(false);
+  const [dismissedJoinBar,   setDismissedJoinBar]   = useState(false);
+  const [groupLoaded,        setGroupLoaded]        = useState(false);
 
   // ── Regalo ─────────────────────────────────────────────────────────────────
   const [giftModal,   setGiftModal]   = useState(false);
@@ -288,17 +305,28 @@ export default function GroupRoomScreen({ route, navigation }) {
   const isAdmin = group?.members?.some(
     m => ((m.user?._id || m.user)?.toString()) === user?._id?.toString() && m.role === 'admin'
   );
-
-  const isMember = group?.members?.some(
-    m => ((m.user?._id || m.user)?.toString()) === user?._id?.toString()
+  const isCoAdmin = group?.members?.some(
+    m => ((m.user?._id || m.user)?.toString()) === user?._id?.toString() && m.role === 'co-admin'
   );
+
+  const [isMember, setIsMember] = useState(() => {
+    const grp = route.params?.group;
+    if (!grp || !user?._id) return false;
+    if (_circleCache[grp._id]) return true;
+    const creatorId = grp.creator?._id?.toString() || grp.creator?.toString();
+    if (creatorId === user._id.toString()) return true;
+    return (grp.members || []).some(
+      m => (m.user?._id?.toString() || m.user?.toString()) === user._id.toString()
+    );
+  });
 
   const isPending = !isMember && group?.pendingInvites?.some(
     u => u?.toString() === user?._id?.toString()
   );
 
   const flatListData = useMemo(() => {
-    const reversed = [...messages].reverse();
+    const unique = [...new Map(messages.map(m => [m._id?.toString(), m])).values()];
+    const reversed = [...unique].reverse();
     const result = [];
     for (let i = 0; i < reversed.length; i++) {
       result.push(reversed[i]);
@@ -339,6 +367,16 @@ export default function GroupRoomScreen({ route, navigation }) {
   }, []);
 
   useEffect(() => {
+    if (group?.isCircle) {
+      const id = group._id;
+      import('@react-native-async-storage/async-storage')
+        .then(({ default: AS }) => AS.getItem(`circle_member_${id}`))
+        .then(v => { if (v) { _circleCache[id] = true; setIsMember(true); } })
+        .catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
     loadGroup();
     setupSocket();
     return () => {
@@ -360,8 +398,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     try {
       const { data } = await api.get(`/groups/${group._id}`);
       setGroup(data.group);
-      // Detect banned state from server data (in case user was banned then re-added without unban)
       const myId = user?._id?.toString();
+      setIsMember((data.group.members ?? []).some(
+        m => m.user?._id?.toString() === myId || m.user?.toString() === myId
+      ));
+      // Detect banned state from server data (in case user was banned then re-added without unban)
       if (myId && data.group.bannedUsers?.some(b => b?.toString() === myId)) {
         setIsBanned(true);
       }
@@ -371,23 +412,11 @@ export default function GroupRoomScreen({ route, navigation }) {
         setHasMore(msgData.hasMore ?? false);
         msgSkipRef.current = 50;
         api.post(`/groups/${group._id}/read`).catch(() => {});
-        // Mostrar banner si fue añadido recientemente (< 24h), no es admin, y no lo aceptó antes
-        const myMember = data.group.members?.find(
-          m => (m.user?._id || m.user)?.toString() === user?._id?.toString()
-        );
-        if (myMember?.role === 'member' && myMember.joinedAt) {
-          const hoursSince = (Date.now() - new Date(myMember.joinedAt).getTime()) / 3600000;
-          if (hoursSince < 24) {
-            const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
-            const accepted = await AsyncStorage.getItem(`group_accepted_${group._id}`);
-            if (!accepted) setShowWelcomeBanner(true);
-          }
-        }
       }
     } catch (e) {
-      if (e.response?.status === 403) setIsBanned(true);
+      if (e.response?.status === 403 && !group?.isCircle) setIsBanned(true);
     }
-    finally { setLoading(false); }
+    finally { setLoading(false); setGroupLoaded(true); }
   }
 
   async function setupSocket() {
@@ -452,9 +481,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     // Escuchar eliminación del grupo
     socket.on('group:deleted', ({ groupId }) => {
       if (groupId.toString() !== group._id.toString()) return;
-      Alert.alert('Grupo eliminado', 'Este grupo fue eliminado.', [
-        { text: 'Aceptar', onPress: () => navigation.navigate('Chats') },
-      ]);
+      Alert.alert(
+        group?.isCircle ? 'Fiesta eliminada' : 'Grupo eliminado',
+        group?.isCircle ? 'Esta fiesta fue eliminada.' : 'Este grupo fue eliminado.',
+        [{ text: 'Aceptar', onPress: () => navigation.navigate('Chats') }],
+      );
     });
 
     socket.on('group:background_updated', ({ groupId, backgroundUrl }) => {
@@ -542,7 +573,22 @@ export default function GroupRoomScreen({ route, navigation }) {
       setIsKicked(false);
       loadGroup();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'No se pudo unir al grupo');
+      Alert.alert('Error', e.response?.data?.error || (group?.isCircle ? 'No se pudo unir a la fiesta' : 'No se pudo unir al grupo'));
+    }
+  }
+
+  async function handleCircleJoin() {
+    try {
+      const { data } = await api.post(`/groups/circles/${group._id}/join`);
+      const id = group._id;
+      _circleCache[id] = true;
+      setGroup(data.group);
+      setIsMember(true);
+      import('@react-native-async-storage/async-storage')
+        .then(({ default: AS }) => AS.setItem(`circle_member_${id}`, '1'))
+        .catch(() => {});
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'No se pudo unir a la fiesta');
     }
   }
 
@@ -973,7 +1019,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 <View style={{ padding:16, alignItems:'center', gap:8 }}>
                   <Text style={{ color:'rgba(255,165,0,0.9)', fontSize:16, fontWeight:'700' }}>Expulsar a {menuSender?.username}</Text>
                   <Text style={{ color: colors.textDim, fontSize:13, textAlign:'center' }}>
-                    El usuario sera expulsado pero podra volver a unirse al grupo.
+                    {group?.isCircle ? 'El usuario sera expulsado pero podra volver a unirse a la fiesta.' : 'El usuario sera expulsado pero podra volver a unirse al grupo.'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -993,7 +1039,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                 <View style={{ padding:16, alignItems:'center', gap:8 }}>
                   <Text style={{ color:'#ff4444', fontSize:16, fontWeight:'700' }}>Banear a {menuSender?.username}</Text>
                   <Text style={{ color: colors.textDim, fontSize:13, textAlign:'center' }}>
-                    El usuario sera baneado y no podra volver a unirse al grupo.
+                    {group?.isCircle ? 'El usuario sera baneado y no podra volver a unirse a esta fiesta.' : 'El usuario sera baneado y no podra volver a unirse al grupo.'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -1032,7 +1078,7 @@ export default function GroupRoomScreen({ route, navigation }) {
             <Ionicons name="arrow-back" size={20} color={colors.textHi} />
           </TouchableOpacity>
           <TouchableOpacity style={s.headerInfo}
-            onPress={() => navigation.navigate('GroupSettings', { group })}>
+            onPress={(isAdmin || isCoAdmin) ? () => navigation.navigate('GroupSettings', { group }) : undefined}>
             {group.imageUrl
               ? <Image source={{ uri: group.imageUrl }} style={s.groupAvatar} />
               : <View style={s.groupAvatarPlaceholder}><Ionicons name="people" size={18} color={colors.c1} /></View>}
@@ -1041,14 +1087,76 @@ export default function GroupRoomScreen({ route, navigation }) {
               <Text style={s.groupMembers}>{group.members?.length || 0} miembros</Text>
             </View>
           </TouchableOpacity>
-          {!isAdmin && (
-            <TouchableOpacity onPress={() => setReportVisible(true)} style={[s.settingsBtn, { marginRight: 4 }]}>
-              <Ionicons name="flag-outline" size={20} color={colors.textDim} />
-            </TouchableOpacity>
+          {group.isCircle ? (
+            <>
+              {(() => {
+                const last3 = [...new Map(
+                  (group?.members || []).map(m => [m.user?._id?.toString(), m])
+                ).values()].slice(-3);
+                if (!last3.length) return null;
+                return (
+                  <View style={s.headerAvatarStack}>
+                    {last3.map((m, idx) => {
+                      const avatarUrl = m.user?.avatarUrl;
+                      const initial   = (m.user?.username || '?')[0].toUpperCase();
+                      return (
+                        <View key={m.user?._id?.toString() || idx} style={[s.headerStackAvatar, idx > 0 && { marginLeft: -8 }]}>
+                          {avatarUrl
+                            ? <Image source={{ uri: avatarUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                            : <Text style={s.headerStackInitial}>{initial}</Text>}
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })()}
+              {isAdmin && (
+                <TouchableOpacity
+                  style={s.settingsBtn}
+                  onPress={() => {
+                    const willDeactivate = group.isActive !== false;
+                    Alert.alert(
+                      willDeactivate ? 'Desactivar círculo' : 'Activar círculo',
+                      willDeactivate ? `¿Desactivar "${group.name}"?` : `¿Activar "${group.name}"?`,
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        {
+                          text: willDeactivate ? 'Desactivar' : 'Activar',
+                          style: willDeactivate ? 'destructive' : 'default',
+                          onPress: async () => {
+                            try {
+                              const { data } = await api.patch(`/groups/circles/${group._id}/toggle-active`);
+                              setGroup(prev => ({ ...prev, isActive: data.group.isActive }));
+                            } catch {
+                              Alert.alert('Error', 'No se pudo cambiar el estado del círculo');
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="power" size={20} color={group.isActive !== false ? '#22c55e' : 'rgba(239,68,68,0.85)'} />
+                </TouchableOpacity>
+              )}
+              {(isAdmin || isCoAdmin) && (
+                <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
+                  <Image source={require('../../assets/chats/menu/ic_menu_settings_4.png')} style={{ width: 20, height: 20, resizeMode: 'contain' }} />
+                </TouchableOpacity>
+              )}
+              {!(isAdmin || isCoAdmin) && (
+                <TouchableOpacity onPress={() => setInfoVisible(true)} style={s.settingsBtn}>
+                  <Image source={require('../../assets/market/icon_notice.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            (isAdmin || isCoAdmin) && (
+              <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
+                <Ionicons name="settings" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            )
           )}
-          <TouchableOpacity onPress={() => navigation.navigate('GroupSettings', { group })} style={s.settingsBtn}>
-            <Ionicons name="settings" size={20} color="#ffffff" />
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -1111,38 +1219,34 @@ export default function GroupRoomScreen({ route, navigation }) {
         {isBanned && (
           <View style={s.bannedBanner}>
             <Ionicons name="ban-outline" size={18} color="#ff4444" />
-            <Text style={s.bannedBannerTxt}>Fuiste baneado de este grupo</Text>
+            <Text style={s.bannedBannerTxt}>
+              {group?.isCircle ? 'Fuiste baneado de esta fiesta' : 'Fuiste baneado de este grupo'}
+            </Text>
             <TouchableOpacity style={s.kickedBtnLeave} onPress={() => navigation.goBack()}>
               <Text style={s.kickedBtnLeaveTxt}>Salir</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Banner bienvenida (añadido recientemente) ── */}
-        {showWelcomeBanner && !isKicked && !isBanned && (
-          <View style={s.welcomeBanner}>
-            <Ionicons name="people-outline" size={18} color={colors.c1} />
-            <Text style={s.welcomeBannerTxt}>Fuiste añadido a este grupo</Text>
-            <View style={s.welcomeBannerBtns}>
-              <TouchableOpacity style={s.kickedBtnLeave} onPress={handleLeaveWelcome}>
-                <Text style={s.kickedBtnLeaveTxt}>Salir</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.kickedBtnJoin} onPress={async () => {
-                setShowWelcomeBanner(false);
-                const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
-                await AsyncStorage.setItem(`group_accepted_${group._id}`, 'true');
-              }}>
-                <Text style={s.kickedBtnJoinTxt}>Quedarme</Text>
-              </TouchableOpacity>
-            </View>
+        {/* ── Barra de union (solo fiestas, no-miembros) ── */}
+        {group?.isCircle && !isMember && !isBanned && !isKicked && !dismissedJoinBar && groupLoaded && (
+          <View style={s.circleJoinBar}>
+            <Text style={s.circleJoinBarTxt}>¿Quieres unirte a esta fiesta?</Text>
+            <TouchableOpacity style={s.circleJoinBarBtn} onPress={handleCircleJoin}>
+              <Text style={s.circleJoinBarBtnTxt}>Unirme</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setDismissedJoinBar(true)} style={s.circleJoinBarDismiss}>
+              <Text style={s.circleJoinBarDismissTxt}>No por ahora</Text>
+            </TouchableOpacity>
           </View>
         )}
+
 
         {/* ── Banner invitación pendiente ── */}
         {isPending && (
           <View style={s.inviteBanner}>
             <Ionicons name="mail-outline" size={18} color={colors.c1} />
-            <Text style={s.inviteBannerTxt}>Te invitaron a unirte a este grupo</Text>
+            <Text style={s.inviteBannerTxt}>{group?.isCircle ? 'Te invitaron a unirte a esta fiesta' : 'Te invitaron a unirte a este grupo'}</Text>
             <View style={s.inviteBannerBtns}>
               <TouchableOpacity style={s.inviteBtnDecline} onPress={handleDeclineInvite}>
                 <Text style={s.inviteBtnDeclineTxt}>Salir</Text>
@@ -1209,28 +1313,29 @@ export default function GroupRoomScreen({ route, navigation }) {
               </View>
             ) : (
               <>
-                <View style={s.inputRow}>
+                <View style={[s.inputRow, inputDisabled && { opacity: 0.45 }]}>
                   <View style={s.inputWrap}>
                     <TextInput
                       style={s.input}
                       value={text}
                       onChangeText={handleTextChange}
-                      placeholder="Mensaje..."
+                      placeholder={!isMember && group?.isCircle ? 'Únete para poder escribir...' : 'Mensaje...'}
                       placeholderTextColor={colors.textDim}
                       multiline
                       maxLength={2000}
                       blurOnSubmit={false}
                       onSubmitEditing={sendMessage}
+                      editable={!inputDisabled}
                     />
                   </View>
                   <TouchableOpacity
-                    style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
+                    style={[s.sendBtn, (!text.trim() || sending || inputDisabled) && s.sendBtnDisabled]}
                     onPress={sendMessage}
-                    disabled={!text.trim() || sending}>
+                    disabled={!text.trim() || sending || inputDisabled}>
                     <Ionicons name="send" size={16} color="#020509" />
                   </TouchableOpacity>
                 </View>
-                <View style={s.mediaBtnRow}>
+                <View style={[s.mediaBtnRow, inputDisabled && { opacity: 0.45 }]}>
                   {isRecording ? (
                     <View style={s.recRow}>
                       <View style={s.recDot} />
@@ -1518,6 +1623,183 @@ export default function GroupRoomScreen({ route, navigation }) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ── Visor de imagen de la fiesta ─────────────────────────────────── */}
+      <Modal visible={imgViewerVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setImgViewerVisible(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setImgViewerVisible(false)}>
+          {group.imageUrl && <Image source={{ uri: group.imageUrl }} style={{ width: '100%', height: '75%' }} resizeMode="contain" />}
+          <TouchableOpacity style={{ position: 'absolute', top: 52, right: 16, padding: 8 }} onPress={() => setImgViewerVisible(false)}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+        </Pressable>
+      </Modal>
+
+      {/* ── Modal info fiesta (no-admin) ──────────────────────────────────── */}
+      <Modal visible={infoVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setInfoVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(2,13,26,0.97)' }} edges={['top', 'bottom']}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' }}>
+            <TouchableOpacity onPress={() => setInfoVisible(false)} style={s.settingsBtn}>
+              <Ionicons name="close" size={22} color={colors.textHi} />
+            </TouchableOpacity>
+            <Text style={{ flex: 1, color: colors.textHi, fontSize: 16, fontWeight: '700', textAlign: 'center' }}>Información</Text>
+            <TouchableOpacity onPress={() => { setInfoVisible(false); setReportVisible(true); }} style={s.settingsBtn}>
+              <Ionicons name="flag-outline" size={20} color={colors.textDim} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 22 }}>
+            {/* Logo + nombre + descripción */}
+            <View style={{ alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity onPress={() => group.imageUrl && setImgViewerVisible(true)} activeOpacity={group.imageUrl ? 0.8 : 1}>
+                {group.imageUrl
+                  ? <Image source={{ uri: group.imageUrl }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 2, borderColor: '#ffffff' }} />
+                  : <View style={{ width: 100, height: 100, borderRadius: 12, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="people" size={44} color={colors.c1} />
+                    </View>
+                }
+              </TouchableOpacity>
+              <Text style={{ color: colors.textHi, fontSize: 20, fontWeight: '800', textAlign: 'center' }}>{group.name}</Text>
+              {!!group.description && (
+                <Text style={{ color: colors.textMid, fontSize: 13, textAlign: 'center', lineHeight: 19 }}>{group.description}</Text>
+              )}
+            </View>
+
+            {/* Reglas */}
+            {group.rules?.length > 0 && (
+              <View style={{ gap: 10 }}>
+                <Text style={{ color: colors.textHi, fontSize: 14, fontWeight: '700' }}>Reglas</Text>
+                {group.rules.map((rule, i) => (
+                  <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                    <Text style={{ color: colors.c1, fontWeight: '700', fontSize: 13, minWidth: 18 }}>{i + 1}.</Text>
+                    <View style={{ flex: 1 }}>
+                      {!!rule.title && <Text style={{ color: colors.textHi, fontSize: 13, fontWeight: '600' }}>{rule.title}</Text>}
+                      {!!rule.description && <Text style={{ color: colors.textMid, fontSize: 12, marginTop: 2 }}>{rule.description}</Text>}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Administradores (fila horizontal) */}
+            {(() => {
+              const admins = (group.members || []).filter(m => m.role === 'admin' || m.role === 'co-admin');
+              if (!admins.length) return null;
+              return (
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: colors.textHi, fontSize: 14, fontWeight: '700' }}>Administradores</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+                    {admins.map((m, i) => {
+                      const mu = m.user?.username ? m.user : null;
+                      return (
+                        <View key={mu?._id || i} style={{ alignItems: 'center', gap: 4, width: 76 }}>
+                          <AvatarWithFrame size={44} avatarUrl={mu?.avatarUrl} username={mu?.username || '?'} profileFrame={mu?.profileFrame} frameUrl={mu?.profileFrameUrl} />
+                          <Text style={{ color: colors.textHi, fontSize: 11, fontWeight: '600', textAlign: 'center' }} numberOfLines={1}>{mu?.username || '?'}</Text>
+                          <View style={[m.role === 'admin' ? s.adminBadge : s.coAdminBadge, { marginLeft: 0, flexShrink: 0 }]}>
+                            <Text style={m.role === 'admin' ? s.adminBadgeTxt : s.coAdminBadgeTxt} numberOfLines={1}>{m.role === 'admin' ? 'Admin' : 'Co-admin'}</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              );
+            })()}
+
+            {/* Miembros normales — grid horizontal */}
+            {(() => {
+              const regulars = (group.members || []).filter(m => m.role === 'member');
+              if (!regulars.length) return null;
+              const visible = regulars.slice(0, 8);
+              const extra = regulars.length - 8;
+              return (
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: colors.textHi, fontSize: 14, fontWeight: '700' }}>{regulars.length} miembro{regulars.length !== 1 ? 's' : ''}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+                    {visible.map((m, i) => {
+                      const mu = m.user?.username ? m.user : null;
+                      return (
+                        <View key={mu?._id || i} style={{ alignItems: 'center', gap: 4, width: 60 }}>
+                          <AvatarWithFrame size={40} avatarUrl={mu?.avatarUrl} username={mu?.username || '?'} profileFrame={mu?.profileFrame} frameUrl={mu?.profileFrameUrl} />
+                          <Text style={{ color: colors.textHi, fontSize: 10, textAlign: 'center' }} numberOfLines={1}>{mu?.username || '?'}</Text>
+                        </View>
+                      );
+                    })}
+                    {extra > 0 && (
+                      <TouchableOpacity
+                        onPress={() => { setMemberSearch(''); setAllMembersVisible(true); }}
+                        style={{ alignItems: 'center', justifyContent: 'center', width: 60, gap: 4 }}
+                      >
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ color: colors.c1, fontSize: 11, fontWeight: '700' }}>+{extra}</Text>
+                        </View>
+                        <Text style={{ color: colors.c1, fontSize: 10, textAlign: 'center' }}>Ver todos</Text>
+                      </TouchableOpacity>
+                    )}
+                  </ScrollView>
+                </View>
+              );
+            })()}
+
+            {/* Botón salir */}
+            {isMember && !(isAdmin && (group.members || []).filter(m => m.role === 'admin').length === 1) && (
+              <TouchableOpacity
+                onPress={() => Alert.alert(
+                  'Salir de la fiesta',
+                  `¿Seguro que quieres salir de "${group.name}"?`,
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Salir', style: 'destructive', onPress: () => { setInfoVisible(false); handleLeaveWelcome(); } },
+                  ]
+                )}
+                style={{ marginTop: 8, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.45)', backgroundColor: 'rgba(239,68,68,0.08)', alignItems: 'center' }}
+              >
+                <Text style={{ color: 'rgba(239,68,68,0.9)', fontSize: 14, fontWeight: '700' }}>Salir de la fiesta</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={{ height: 8 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal "Ver todos los miembros" ─────────────────────────────── */}
+      <Modal visible={allMembersVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setAllMembersVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(2,13,26,0.97)' }} edges={['top', 'bottom']}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' }}>
+            <TouchableOpacity onPress={() => setAllMembersVisible(false)} style={s.settingsBtn}>
+              <Ionicons name="close" size={22} color={colors.textHi} />
+            </TouchableOpacity>
+            <Text style={{ flex: 1, color: colors.textHi, fontSize: 16, fontWeight: '700', textAlign: 'center' }}>Miembros</Text>
+            <View style={{ width: 34 }} />
+          </View>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+            <TextInput
+              value={memberSearch}
+              onChangeText={setMemberSearch}
+              placeholder="Buscar por username..."
+              placeholderTextColor={colors.textDim}
+              style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, color: colors.textHi, fontSize: 13 }}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}>
+            {(group.members || [])
+              .filter(m => m.role === 'member')
+              .filter(m => !memberSearch || (m.user?.username || '').toLowerCase().includes(memberSearch.toLowerCase()))
+              .map((m, i) => {
+                const mu = m.user?.username ? m.user : null;
+                return (
+                  <View key={mu?._id || i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <AvatarWithFrame size={38} avatarUrl={mu?.avatarUrl} username={mu?.username || '?'} profileFrame={mu?.profileFrame} frameUrl={mu?.profileFrameUrl} />
+                    <Text style={{ flex: 1, color: colors.textHi, fontSize: 13, fontWeight: '500' }}>{mu?.username || 'Usuario'}</Text>
+                  </View>
+                );
+              })}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       <ReportModal
         visible={reportVisible}
         onClose={() => setReportVisible(false)}
@@ -1549,6 +1831,8 @@ const s = StyleSheet.create({
   msgSenderName:  { color:'rgba(255,255,255,0.65)', fontSize:11, fontWeight:'700' },
   adminBadge:     { backgroundColor:'rgba(0,200,150,0.15)', borderWidth:1, borderColor:'rgba(0,200,150,0.6)', borderRadius:6, paddingHorizontal:5, paddingVertical:1, marginLeft:5 },
   adminBadgeTxt:  { fontSize:9, color:'#00c896', fontWeight:'700', letterSpacing:0.3 },
+  coAdminBadge:   { backgroundColor:'rgba(0,200,150,0.15)', borderWidth:1, borderColor:'rgba(0,200,150,0.6)', borderRadius:6, paddingHorizontal:5, paddingVertical:1, marginLeft:5 },
+  coAdminBadgeTxt:{ fontSize:9, color:'#00c896', fontWeight:'700', letterSpacing:0.3 },
   platformAdminBadge:    { backgroundColor:'rgba(239,68,68,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(239,68,68,0.35)', paddingHorizontal:4, paddingVertical:1 },
   platformAdminBadgeTxt: { color:'#ef4444', fontSize:7.5, fontWeight:'800', letterSpacing:0.3 },
   platformModBadge:      { backgroundColor:'rgba(251,191,36,0.1)', borderRadius:4, borderWidth:1, borderColor:'rgba(251,191,36,0.35)', paddingHorizontal:4, paddingVertical:1 },
@@ -1616,10 +1900,14 @@ const s = StyleSheet.create({
   kickedBtnJoin: { paddingHorizontal:24, paddingVertical:8, borderRadius:20, backgroundColor:'rgba(0,229,204,0.15)', borderWidth:1, borderColor:'rgba(0,229,204,0.4)' },
   kickedBtnJoinTxt: { color: colors.c1, fontSize:13, fontWeight:'700' },
 
-  // Banner bienvenida
-  welcomeBanner:    { flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, paddingVertical:14, paddingHorizontal:16, backgroundColor:'rgba(0,229,204,0.06)', borderTopWidth:1, borderTopColor:'rgba(0,229,204,0.2)' },
-  welcomeBannerTxt: { color: colors.textMid, fontSize:13, textAlign:'center' },
-  welcomeBannerBtns:{ flexDirection:'row', gap:12, marginTop:4 },
+  // Banner únete a la fiesta
+  circleJoinBar:        { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:14, paddingVertical:9, backgroundColor:'rgba(0,229,204,0.04)', borderTopWidth:1, borderTopColor:'rgba(0,229,204,0.25)' },
+  circleJoinBarTxt:     { flex:1, color: colors.textMid, fontSize:12 },
+  circleJoinBarBtn:     { borderRadius:8, borderWidth:1, borderColor:'rgba(0,229,204,0.4)', backgroundColor:'rgba(0,229,204,0.12)', paddingHorizontal:12, paddingVertical:6 },
+  circleJoinBarBtnTxt:  { color: colors.c1, fontSize:12, fontWeight:'700' },
+  circleJoinBarDismiss: { paddingHorizontal:8, paddingVertical:6 },
+  circleJoinBarDismissTxt: { color: colors.textDim, fontSize:12 },
+
 
   // Popup menciones
   mentionPopup: {
@@ -1693,4 +1981,8 @@ const s = StyleSheet.create({
   giftSendTxt:         { color:colors.black, fontSize:14, fontWeight:'800' },
 
   menuIcon: { width:25, height:25, resizeMode:'contain' },
+
+  headerAvatarStack:  { flexDirection:'row', alignItems:'center', marginRight: 4 },
+  headerStackAvatar:  { width:24, height:24, borderRadius:12, overflow:'hidden', backgroundColor: colors.surface, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor: '#ffffff' },
+  headerStackInitial: { color: colors.textMid, fontSize:9, fontWeight:'700' },
 });
