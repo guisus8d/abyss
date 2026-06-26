@@ -50,7 +50,13 @@ import GiftScreen            from '../screens/GiftScreen';
 import GiftsReceivedScreen   from '../screens/GiftsReceivedScreen';
 import MyGiftsScreen         from '../screens/MyGiftsScreen';
 import TransactionsScreen    from '../screens/TransactionsScreen';
-import LandingScreen         from '../screens/LandingScreen';
+import LandingScreen              from '../screens/LandingScreen';
+import WelcomeScreen              from '../screens/WelcomeScreen';
+import RegisterStep1Screen        from '../screens/RegisterStep1Screen';
+import RegisterStep2Screen        from '../screens/RegisterStep2Screen';
+import RegisterStep3Screen        from '../screens/RegisterStep3Screen';
+import RegisterEmailVerifyScreen  from '../screens/RegisterEmailVerifyScreen';
+import RegisterStep4Screen        from '../screens/RegisterStep4Screen';
 import ChatPhotosScreen      from '../screens/ChatPhotosScreen';
 import ChatAudiosScreen      from '../screens/ChatAudiosScreen';
 import ChatBackgroundScreen  from '../screens/ChatBackgroundScreen';
@@ -144,8 +150,17 @@ export default function AppNavigator() {
             </>
           ) : (
             <>
-              {Platform.OS === 'web' && (
+              {Platform.OS === 'web' ? (
                 <Stack.Screen name="Landing" component={LandingScreen} />
+              ) : (
+                <>
+                  <Stack.Screen name="Welcome"             component={WelcomeScreen} />
+                  <Stack.Screen name="RegisterStep1"       component={RegisterStep1Screen} />
+                  <Stack.Screen name="RegisterStep2"       component={RegisterStep2Screen} />
+                  <Stack.Screen name="RegisterStep3"       component={RegisterStep3Screen} />
+                  <Stack.Screen name="RegisterEmailVerify" component={RegisterEmailVerifyScreen} />
+                  <Stack.Screen name="RegisterStep4"       component={RegisterStep4Screen} />
+                </>
               )}
               <Stack.Screen name="Login"         component={LoginScreen} />
               <Stack.Screen name="PostDetail"    component={PostDetailScreen} />
