@@ -13,6 +13,9 @@ import api from '../services/api';
 import GenderIcon from './GenderIcon';
 import VerifiedIcon from './VerifiedIcon';
 import { renderCommentText, COMMENT_EMOJIS } from '../utils/commentUtils';
+import EmojiPill from './EmojiPill';
+import EmojiPickerSheet from './EmojiPickerSheet';
+import FloatingEmoji from './FloatingEmoji';
 
 const C = {
   card:         '#0b1521',
@@ -347,7 +350,7 @@ function CommentSection({
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 const PostCard = memo(function PostCard({
-  post, currentUserId, onReact, onComment, onDelete, navigation, openPickerId, setOpenPickerId, isGuest,
+  post, currentUserId, onReact, onComment, onDelete, navigation, isGuest,
 }) {
   const goToProfile = useCallback((username) => {
     navigation.navigate('PublicProfile', { username });
@@ -362,6 +365,9 @@ const PostCard = memo(function PostCard({
   const [shareOpen,          setShareOpen]          = useState(false);
   const [showGuestModal,     setShowGuestModal]     = useState(false);
   const [reactorsFilter,     setReactorsFilter]     = useState(null);
+  const [showPicker,         setShowPicker]         = useState(false);
+  const [maxEmojiError,      setMaxEmojiError]      = useState(false);
+  const [float,              setFloat]              = useState(null);
 
   const [liked, setLiked] = useState(() =>
     post.reactions.some(r => (r.user?._id || r.user)?.toString() === currentUserId?.toString() && r.type === 'like')
@@ -373,16 +379,22 @@ const PostCard = memo(function PostCard({
   const sendingRef   = useRef(false);
   const heartScale  = useRef(new Animated.Value(1)).current;
 
-  const { emojiGroups, myEmoji } = useMemo(() => {
+  const { emojiGroups, myEmojiSet } = useMemo(() => {
     const emojiReactions = post.reactions.filter(r => r.type !== 'like');
     const groups = Object.entries(
       emojiReactions.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {})
     ).map(([emoji, count]) => ({ emoji, count }));
-    const mine = emojiReactions.find(r => (r.user?._id || r.user)?.toString() === currentUserId?.toString());
-    return { emojiGroups: groups, myEmoji: mine };
+    const myTypes = emojiReactions
+      .filter(r => (r.user?._id || r.user)?.toString() === currentUserId?.toString())
+      .map(r => r.type);
+    return { emojiGroups: groups, myEmojiSet: new Set(myTypes) };
   }, [post.reactions, currentUserId]);
 
   const ago = useMemo(() => timeAgo(post.createdAt), [post.createdAt]);
+
+  const triggerFloat = useCallback((emoji) => {
+    setFloat({ key: Date.now(), emoji });
+  }, []);
 
   const handleLike = useCallback(() => {
     if (isGuest) { setShowGuestModal(true); return; }
@@ -397,8 +409,9 @@ const PostCard = memo(function PostCard({
       Animated.spring(heartScale, { toValue: 1.6, useNativeDriver: true, speed: 100, bounciness: 20 }),
       Animated.spring(heartScale, { toValue: 1,   useNativeDriver: true, speed: 80,  bounciness: 4  }),
     ]).start();
+    triggerFloat('❤️');
     onReact(post._id, 'like');
-  }, [liked, heartScale, onReact, post._id, isGuest]);
+  }, [liked, heartScale, onReact, post._id, isGuest, triggerFloat]);
 
   const handleDeletePost = useCallback(() => {
     setDeletePostModal(false);
@@ -426,10 +439,25 @@ const PostCard = memo(function PostCard({
     setSending(false);
   }, [commentText, replyToComment, onComment, post._id]);
 
+  const handlePickEmoji = useCallback((emoji) => {
+    setShowPicker(false);
+    const distinctTypes = new Set(
+      post.reactions.filter(r => r.type !== 'like').map(r => r.type)
+    );
+    if (!distinctTypes.has(emoji) && distinctTypes.size >= 20) {
+      setMaxEmojiError(true);
+      setTimeout(() => setMaxEmojiError(false), 3000);
+      return;
+    }
+    triggerFloat(emoji);
+    onReact(post._id, emoji);
+  }, [post.reactions, onReact, post._id, triggerFloat]);
+
   const isAuthor = post.author?._id?.toString() === currentUserId?.toString() ||
                    post.author?.id?.toString()  === currentUserId?.toString();
 
   return (
+    <View style={s.cardOuter}>
     <View style={s.card}>
 
       <ConfirmModal
@@ -539,21 +567,23 @@ const PostCard = memo(function PostCard({
         </TouchableOpacity>
 
         {emojiGroups.map(g => (
-          <TouchableOpacity
+          <EmojiPill
             key={g.emoji}
-            style={[s.emojiPill, myEmoji?.type === g.emoji && s.emojiPillActive]}
-            onPress={() => isGuest ? setShowGuestModal(true) : onReact(post._id, g.emoji)}
+            emoji={g.emoji}
+            count={g.count}
+            isActive={myEmojiSet.has(g.emoji)}
+            onPress={() => {
+              if (isGuest) { setShowGuestModal(true); return; }
+              triggerFloat(g.emoji);
+              onReact(post._id, g.emoji);
+            }}
             onLongPress={() => setReactorsFilter(g.emoji)}
-            activeOpacity={0.7}
-          >
-            <Text style={s.emojiTxt}>{g.emoji}</Text>
-            <Text style={[s.emojiCount, myEmoji?.type === g.emoji && s.emojiCountActive]}>{g.count}</Text>
-          </TouchableOpacity>
+          />
         ))}
 
         <TouchableOpacity
           style={s.emojiAddBtn}
-          onPress={() => isGuest ? setShowGuestModal(true) : setOpenPickerId(prev => prev === post._id ? null : post._id)}
+          onPress={() => isGuest ? setShowGuestModal(true) : setShowPicker(true)}
           activeOpacity={0.7}
         >
           <Text style={s.emojiAddTxt}>+</Text>
@@ -578,6 +608,16 @@ const PostCard = memo(function PostCard({
         </TouchableOpacity>
 
       </View>
+
+      {maxEmojiError && (
+        <Text style={s.maxEmojiErr}>Maximo 20 tipos de emoji por post</Text>
+      )}
+
+      <EmojiPickerSheet
+        visible={showPicker}
+        onSelect={handlePickEmoji}
+        onClose={() => setShowPicker(false)}
+      />
 
       {/* ── Comentarios ── */}
       {showComments && (
@@ -607,6 +647,15 @@ const PostCard = memo(function PostCard({
         onClose={() => setReactorsFilter(null)}
       />
     </View>
+
+    {float && (
+      <FloatingEmoji
+        key={float.key}
+        emoji={float.emoji}
+        onDone={() => setFloat(null)}
+      />
+    )}
+  </View>
   );
 }, (prev, next) =>
   prev.post._id       === next.post._id       &&
@@ -616,7 +665,6 @@ const PostCard = memo(function PostCard({
   prev.post.imageUrl  === next.post.imageUrl  &&
   prev.post.title     === next.post.title     &&
   prev.post.postType  === next.post.postType  &&
-  prev.openPickerId   === next.openPickerId   &&
   prev.isGuest        === next.isGuest
 );
 
@@ -625,8 +673,8 @@ export default PostCard;
 const isWeb = Platform.OS === 'web';
 
 const s = StyleSheet.create({
+  cardOuter: { marginHorizontal: 12, marginTop: 10 },
   card: {
-    marginHorizontal: 12, marginTop: 10,
     backgroundColor: C.card, borderRadius: 20,
     borderWidth: 1, borderColor: C.cardBorder, padding: 14,
     ...(isWeb ? { cursor: 'default' } : {}),
@@ -651,16 +699,12 @@ const s = StyleSheet.create({
   tagPill: { backgroundColor: C.accentDim, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3, borderWidth: 1, borderColor: C.accentBorder },
   tagTxt:  { color: C.accent, fontSize: 11, fontWeight: '600', opacity: 0.85 },
   divider: { height: 1, backgroundColor: C.divider, marginBottom: 10 },
-  actionsRow:      { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, rowGap: 6 },
-  actBtn:          { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 2 },
-  actCount:        { color: C.textDim, fontSize: 12, fontWeight: '500' },
-  emojiPill:       { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.surface, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: C.cardBorder },
-  emojiPillActive: { backgroundColor: C.accentDim, borderColor: C.accentBorder },
-  emojiTxt:        { fontSize: 14 },
-  emojiCount:      { color: C.textDim, fontSize: 11, fontWeight: '600' },
-  emojiCountActive:{ color: C.accent },
-  emojiAddBtn:     { alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: C.cardBorder },
-  emojiAddTxt:     { color: C.textDim, fontSize: 16, fontWeight: '400', lineHeight: 18 },
+  actionsRow:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, rowGap: 6 },
+  actBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 2 },
+  actCount:    { color: C.textDim, fontSize: 12, fontWeight: '500' },
+  emojiAddBtn: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  emojiAddTxt: { color: 'rgba(230,240,255,0.35)', fontSize: 16, fontWeight: '400', lineHeight: 18 },
+  maxEmojiErr: { color: 'rgba(239,68,68,0.75)', fontSize: 11, marginTop: 4 },
   commentsBox:         { marginTop: 14, borderTopWidth: 1, borderTopColor: C.divider, paddingTop: 14 },
   viewAllBtn:          { paddingVertical: 8, alignItems: 'center' },
   viewAllTxt:          { color: C.accent, fontSize: 12, fontWeight: '600' },

@@ -56,7 +56,8 @@ const PARTICLES = Array.from({ length: 16 }, (_, i) => ({
 
 export default function WelcomeScreen({ navigation }) {
   const insets   = useSafeAreaInsets();
-  const [accepted, setAccepted] = useState(false);
+  const [accepted,    setAccepted]    = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -104,7 +105,19 @@ export default function WelcomeScreen({ navigation }) {
             style={s.blockTopLine}
           />
 
-          {/* Checkbox */}
+          {/* Checkbox edad */}
+          <TouchableOpacity
+            style={s.checkRow}
+            onPress={() => setAgeConfirmed(v => !v)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.checkbox, ageConfirmed && s.checkboxOn]}>
+              {ageConfirmed && <Ionicons name="checkmark" size={12} color="#001a18" />}
+            </View>
+            <Text style={s.checkTxt}>Confirmo que tengo 13 anos o mas</Text>
+          </TouchableOpacity>
+
+          {/* Checkbox privacidad */}
           <TouchableOpacity
             style={s.checkRow}
             onPress={() => setAccepted(v => !v)}
@@ -118,9 +131,9 @@ export default function WelcomeScreen({ navigation }) {
 
           {/* Login button */}
           <TouchableOpacity
-            style={[s.btnLogin, !accepted && s.btnDim]}
+            style={[s.btnLogin, !(accepted && ageConfirmed) && s.btnDim]}
             onPress={() => navigation.navigate('Login')}
-            disabled={!accepted}
+            disabled={!(accepted && ageConfirmed)}
             activeOpacity={0.8}
           >
             <Text style={s.btnLoginTxt}>Iniciar sesion</Text>
@@ -129,9 +142,9 @@ export default function WelcomeScreen({ navigation }) {
           {/* Register button */}
           <TouchableOpacity
             onPress={() => navigation.navigate('RegisterStep1', { regData: {} })}
-            disabled={!accepted}
+            disabled={!(accepted && ageConfirmed)}
             activeOpacity={0.85}
-            style={!accepted && s.btnDim}
+            style={!(accepted && ageConfirmed) && s.btnDim}
           >
             <LinearGradient
               colors={['#005c55', '#00b4a0', '#00e5cc']}

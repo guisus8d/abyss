@@ -1284,23 +1284,22 @@ export default function GroupRoomScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
           </View>
-          {!cinemaMinimized && (
-            <View style={{ width: CINEMA_W, backgroundColor: 'rgba(255,255,255,0.08)' }}>
-              <YoutubeIframe
-                ref={playerRef}
-                videoId={cinemaVideoId}
-                height={CINEMA_H}
-                width={CINEMA_W}
-                play={cinemaPlaying}
-                webViewStyle={{ opacity: 0.99 }}
-                onChangeState={handleCinemaStateChange}
-                initialPlayerParams={{ controls: (isAdmin || isCoAdmin) ? 1 : 0 }}
-              />
-              {!(isAdmin || isCoAdmin) && (
-                <View style={StyleSheet.absoluteFill} pointerEvents="box-only" />
-              )}
-            </View>
-          )}
+          <View style={{ width: CINEMA_W, height: cinemaMinimized ? 0 : CINEMA_H, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' }}>
+            <YoutubeIframe
+              ref={playerRef}
+              videoId={cinemaVideoId}
+              height={CINEMA_H}
+              width={CINEMA_W}
+              play={cinemaPlaying}
+              webViewStyle={{ opacity: 0.99 }}
+              webViewProps={!(isAdmin || isCoAdmin) ? { pointerEvents: 'none' } : undefined}
+              onChangeState={handleCinemaStateChange}
+              initialPlayerParams={{ controls: (isAdmin || isCoAdmin) ? 1 : 0 }}
+            />
+            {!(isAdmin || isCoAdmin) && (
+              <View style={StyleSheet.absoluteFill} pointerEvents="box-only" />
+            )}
+          </View>
         </View>
       )}
 
@@ -1470,8 +1469,8 @@ export default function GroupRoomScreen({ route, navigation }) {
                       blurOnSubmit={false}
                       onSubmitEditing={sendMessage}
                       editable={!inputDisabled}
-                      onFocus={() => cinemaVideoId && setCinemaMinimized(true)}
-                      onBlur={() => cinemaVideoId && setCinemaMinimized(false)}
+                      onFocus={() => setCinemaMinimized(true)}
+                      onBlur={() => setCinemaMinimized(false)}
                     />
                   </View>
                   <TouchableOpacity

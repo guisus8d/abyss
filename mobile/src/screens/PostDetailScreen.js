@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, Modal, TouchableOpacity, Image,
   StyleSheet, ActivityIndicator, TextInput, Platform, Alert, Share, Linking,
@@ -14,6 +14,8 @@ import SharePostModal  from '../components/SharePostModal';
 import ReportModal     from '../components/ReportModal';
 import { renderCommentText, COMMENT_EMOJIS } from '../utils/commentUtils';
 import VerifiedIcon from '../components/VerifiedIcon';
+import EmojiPill from '../components/EmojiPill';
+import EmojiPickerSheet from '../components/EmojiPickerSheet';
 
 const C = {
   card:'#0b1521',cardBorder:'rgba(255,255,255,0.07)',surface:'#0d1d2e',
@@ -90,6 +92,8 @@ export default function PostDetailScreen({ route, navigation }) {
   const [commentReactions,   setCommentReactions]    = useState({});
   const [commentPickerFor,   setCommentPickerFor]    = useState(null);
   const [isKeyboardVisible,  setIsKeyboardVisible]   = useState(false);
+  const [showPicker,         setShowPicker]          = useState(false);
+  const [maxEmojiError,      setMaxEmojiError]       = useState(false);
 
   const inputRef   = useRef(null);
   const sendingRef = useRef(false);
@@ -196,6 +200,54 @@ export default function PostDetailScreen({ route, navigation }) {
       setCommentReactions(prev => ({ ...prev, [key]: snapshot || [] }));
     }
   }, [postId, user?._id]);
+
+  const emojiGroups = useMemo(() => {
+    const emojiReactions = (post?.reactions || []).filter(r => r.type !== 'like');
+    return Object.entries(
+      emojiReactions.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {})
+    ).map(([emoji, count]) => ({ emoji, count }));
+  }, [post?.reactions]);
+
+  const myEmoji = useMemo(() => {
+    const myId = user?._id?.toString();
+    return (post?.reactions || []).find(r => r.type !== 'like' && (r.user?._id || r.user)?.toString() === myId);
+  }, [post?.reactions, user?._id]);
+
+  const handleReact = useCallback(async (emoji) => {
+    if (!user) return;
+    setPost(prev => {
+      if (!prev) return prev;
+      const myId = user._id?.toString();
+      const isSame = (prev.reactions || []).find(r => (r.user?._id || r.user)?.toString() === myId && r.type === emoji);
+      const reactions = (prev.reactions || []).filter(r => {
+        const uid = (r.user?._id || r.user)?.toString();
+        if (uid !== myId) return true;
+        return r.type === 'like';
+      });
+      if (!isSame) reactions.push({ user: user._id, type: emoji });
+      return { ...prev, reactions };
+    });
+    try {
+      const { data } = await api.post(`/posts/${postId}/react`, { type: emoji });
+      setPost(prev => prev ? { ...prev, reactions: data.reactions } : prev);
+    } catch (e) {
+      console.warn('handleReact error:', e?.response?.data?.error);
+      loadPost(1);
+    }
+  }, [user, postId, loadPost]);
+
+  const handlePickEmoji = useCallback((emoji) => {
+    setShowPicker(false);
+    const distinctTypes = new Set(
+      (post?.reactions || []).filter(r => r.type !== 'like').map(r => r.type)
+    );
+    if (!distinctTypes.has(emoji) && distinctTypes.size >= 20) {
+      setMaxEmojiError(true);
+      setTimeout(() => setMaxEmojiError(false), 3000);
+      return;
+    }
+    handleReact(emoji);
+  }, [post?.reactions, handleReact]);
 
   if (loading) return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -372,6 +424,27 @@ export default function PostDetailScreen({ route, navigation }) {
           </View>
         ) : null}
 
+        {(emojiGroups.length > 0 || !!user) && (
+          <View style={s.reactionsRow}>
+            {emojiGroups.map(g => (
+              <EmojiPill
+                key={g.emoji}
+                emoji={g.emoji}
+                count={g.count}
+                isActive={myEmoji?.type === g.emoji}
+                onPress={() => handleReact(g.emoji)}
+                onLongPress={() => {}}
+              />
+            ))}
+            {user && (
+              <TouchableOpacity style={s.reactAddBtn} onPress={() => setShowPicker(true)} activeOpacity={0.7}>
+                <Text style={s.reactAddTxt}>+</Text>
+              </TouchableOpacity>
+            )}
+            {maxEmojiError && <Text style={s.maxEmojiErr}>Maximo 20 tipos de emoji</Text>}
+          </View>
+        )}
+
         <View style={s.divider} />
 
         <View style={s.commentsHeader}>
@@ -444,6 +517,12 @@ export default function PostDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : null}
+
+      <EmojiPickerSheet
+        visible={showPicker}
+        onSelect={handlePickEmoji}
+        onClose={() => setShowPicker(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -470,7 +549,11 @@ const s = StyleSheet.create({
   tagsRow: { flexDirection:'row', flexWrap:'wrap', gap:6, paddingHorizontal:16, marginBottom:14 },
   tagPill: { backgroundColor:C.accentDim, borderRadius:20, paddingHorizontal:10, paddingVertical:4, borderWidth:1, borderColor:C.accentBorder },
   tagTxt:  { color:C.accent, fontSize:11, fontWeight:'600' },
-  divider: { height:1, backgroundColor:C.divider, marginHorizontal:16, marginVertical:10 },
+  divider:      { height:1, backgroundColor:C.divider, marginHorizontal:16, marginVertical:10 },
+  reactionsRow: { flexDirection:'row', flexWrap:'wrap', gap:8, paddingHorizontal:16, paddingVertical:8 },
+  reactAddBtn:  { alignItems:'center', justifyContent:'center', backgroundColor:'rgba(255,255,255,0.06)', borderRadius:12, paddingHorizontal:9, paddingVertical:4, borderWidth:1, borderColor:'rgba(255,255,255,0.10)' },
+  reactAddTxt:  { color:'rgba(230,240,255,0.35)', fontSize:16, fontWeight:'400', lineHeight:18 },
+  maxEmojiErr:  { color:'rgba(239,68,68,0.7)', fontSize:11, alignSelf:'center' },
   commentsHeader: { flexDirection:'row', alignItems:'center', gap:6, paddingHorizontal:16, marginBottom:10 },
   commentsTitle:  { color:C.textDim, fontSize:12, fontWeight:'600', letterSpacing:0.5 },
   loadMoreBtn:    { alignItems:'center', paddingVertical:14, marginHorizontal:16, marginTop:4, borderRadius:12, borderWidth:1, borderColor:C.cardBorder },

@@ -4,7 +4,7 @@ import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, RefreshControl,
   ActivityIndicator, Alert, Animated, Platform, Linking,
-  Modal, FlatList, Pressable, Image, Dimensions,
+  Image, Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,14 +23,6 @@ import PostCard        from '../components/PostCard';
 import OrbitUsers      from '../components/OrbitUsers';
 import GuestAuthModal  from '../components/GuestAuthModal';
 
-const EMOJI_LIST = [
-  '❤️','😂','😍','🔥','👏','😮','😢','😡',
-  '🎉','✨','💯','🙌','👍','👎','😎','🤔',
-  '😭','🥹','🤣','😅','😆','😊','🥰','😘',
-  '😏','🙄','😤','🤯','😱','🤩','🥳','😴',
-  '💀','👀','🫶','💪','🤝','✌️','🫠','🫡',
-  '🐐','🚀','💥','⚡','🌊','🍀','💎','🎯',
-];
 
 const TABS = [
   { key: 'todos',     label: 'Para Ti',   icon: 'planet-outline',      endpoint: '/posts' },
@@ -145,7 +137,6 @@ export default function HomeScreen({ navigation }) {
   const { user, logout, updateUser, isGuest } = useAuthStore();
 
   const [unreadNotifs,  setUnreadNotifs]  = useState(0);
-  const [openPickerId,  setOpenPickerId]  = useState(null);
   const [showCompose,   setShowCompose]   = useState(false);
   const [showMenu,      setShowMenu]      = useState(false);
   const [toastBadge,    setToastBadge]    = useState(null);
@@ -250,13 +241,10 @@ export default function HomeScreen({ navigation }) {
     const updatePosts = posts => posts.map(p => {
       if (p._id !== postId) return p;
       const myId   = user._id?.toString();
-      const isSame = p.reactions.find(r => (r.user?._id || r.user)?.toString() === myId && r.type === type);
-      const reactions = p.reactions.filter(r => {
-        const uid = (r.user?._id || r.user)?.toString();
-        if (uid !== myId) return true;
-        return type === 'like' ? r.type !== 'like' : r.type === 'like';
-      });
-      if (!isSame) reactions.push({ user: user._id, type });
+      const already = p.reactions.find(r => (r.user?._id || r.user)?.toString() === myId && r.type === type);
+      const reactions = already
+        ? p.reactions.filter(r => !((r.user?._id || r.user)?.toString() === myId && r.type === type))
+        : [...p.reactions, { user: user._id, type }];
       return { ...p, reactions };
     });
     setTabData(prev => {
@@ -463,8 +451,7 @@ export default function HomeScreen({ navigation }) {
             <View key={`${activeTab}-${p._id}`} style={i > 0 ? s.postGap : null}>
               <PostCard post={p} currentUserId={user?._id} onReact={handleReact}
                 onComment={handleComment} onDelete={handleDelete}
-                openPickerId={openPickerId} setOpenPickerId={setOpenPickerId} navigation={navigation}
-                isGuest={isGuest} />
+                navigation={navigation} isGuest={isGuest} />
             </View>
           ))}
           {currentTab.loading && currentTab.loaded && <View style={s.loadingMore}><ActivityIndicator color={colors.c1} size="small" /></View>}
@@ -476,32 +463,6 @@ export default function HomeScreen({ navigation }) {
           <View style={{ height: 160 }} />
         </View>
       </ScrollView>
-
-      <Modal
-        visible={!!openPickerId}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setOpenPickerId(null)}
-      >
-        <Pressable style={s.epBackdrop} onPress={() => setOpenPickerId(null)}>
-          <Pressable style={s.epSheet} onPress={e => e.stopPropagation()}>
-            <View style={s.epKnob} />
-            <FlatList
-              data={EMOJI_LIST}
-              keyExtractor={item => item}
-              numColumns={8}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={s.epItem}
-                  onPress={() => { handleReact(openPickerId, item); setOpenPickerId(null); }}
-                >
-                  <Text style={s.epEmoji}>{item}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       <CustomTabBar
         navigation={navigation}
@@ -586,11 +547,6 @@ const s = StyleSheet.create({
   endLine:       { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.06)' },
   endTxt:        { color: colors.textDim, fontSize: 11, letterSpacing: 1 },
 
-  epBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  epSheet:    { backgroundColor: '#0d1a24', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30, paddingHorizontal: 8 },
-  epKnob:     { width: 40, height: 4, backgroundColor: colors.c1, borderRadius: 2, alignSelf: 'center', marginVertical: 10 },
-  epItem:     { width: '12.5%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
-  epEmoji:    { fontSize: 26, textAlign: 'center' },
 });
 
 const fs = StyleSheet.create({
