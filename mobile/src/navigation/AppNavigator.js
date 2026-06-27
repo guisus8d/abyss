@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Platform } from 'react-native';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
 
 const AbyssTheme = {
   ...DefaultTheme,
@@ -63,12 +63,14 @@ import ChatBackgroundScreen  from '../screens/ChatBackgroundScreen';
 import ChatSettingsScreen    from '../screens/ChatSettingsScreen';
 import CirclesScreen         from '../screens/CirclesScreen';
 import CircleCreateScreen    from '../screens/CircleCreateScreen';
+import ProyectorWidget       from '../components/ProyectorWidget';
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
 // El panel de moderación solo es accesible desde abyss.social/mod
 // usando autenticación web con JWT de corta duración.
 
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 const linking = {
   prefixes: ['https://abyss.social', 'abyss://'],
@@ -96,7 +98,9 @@ export default function AppNavigator() {
 
   return (
     <SafeAreaProvider>
+      <View style={{ flex: 1 }}>
       <NavigationContainer
+        ref={navigationRef}
         theme={AbyssTheme}
         linking={linking}
         documentTitle={{ formatter: (options, route) => options?.title ? `${options.title} — Abyss` : 'Abyss' }}
@@ -169,6 +173,8 @@ export default function AppNavigator() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
+      <ProyectorWidget navigationRef={navigationRef} />
+      </View>
     </SafeAreaProvider>
   );
 }

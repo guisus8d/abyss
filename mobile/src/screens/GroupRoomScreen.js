@@ -25,6 +25,7 @@ import GenderIcon from '../components/GenderIcon';
 import VerifiedIcon from '../components/VerifiedIcon';
 import { formatCoins } from '../utils/formatCoins';
 import YoutubeIframe from 'react-native-youtube-iframe';
+import { useCinemaStore } from '../store/cinemaStore';
 
 const GROUP_BG_PRESETS = { night: '#020D1A', void: '#050505', purple: '#0D0714', teal: '#030F10' };
 const SCREEN_H = Dimensions.get('window').height;
@@ -310,6 +311,8 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [cinemaPlaying,   setCinemaPlaying]   = useState(true);
   const [cinemaMinimized, setCinemaMinimized] = useState(false);
 
+  const { isProyector, setProyector, clearProyector, setScreenFocused } = useCinemaStore();
+
   const flatRef           = useRef(null);
   const socketRef         = useRef(null);
   const playerRef         = useRef(null);
@@ -363,6 +366,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   }, [messages]);
 
   useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
     if (socketRef.current) {
       socketRef.current.emit('group:join', { groupId: group._id });
     }
@@ -374,6 +378,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         }
       })
       .catch(() => {});
+    return () => setScreenFocused(false);
   }, [group._id]));
 
   useEffect(() => {
@@ -530,6 +535,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     socket.on('circle:cinema:stop', () => {
       setCinemaVideoId(null);
       setCinemaPlaying(true);
+      clearProyector();
     });
     socket.on('circle:cinema:sync', ({ action, currentTime }) => {
       if (action === 'play') {
@@ -933,7 +939,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   const handleCinemaStateChange = useCallback(async (state) => {
     if (state === 'buffering') { cinemaBufferingRef.current = true; return; }
     if (state === 'playing' || state === 'paused') cinemaBufferingRef.current = false;
-    if (!(isAdmin || isCoAdmin)) return;
+    if (!isProyector) return;
     const now = Date.now();
     if (now - lastSyncEmitRef.current < 500) return;
     lastSyncEmitRef.current = now;
@@ -943,10 +949,10 @@ export default function GroupRoomScreen({ route, navigation }) {
       action:  state === 'playing' ? 'play' : 'pause',
       currentTime,
     });
-  }, [group._id, isAdmin, isCoAdmin]);
+  }, [group._id, isProyector]);
 
   useEffect(() => {
-    if (!cinemaVideoId || !(isAdmin || isCoAdmin)) {
+    if (!cinemaVideoId || !isProyector) {
       clearInterval(cinemaIntervalRef.current);
       return;
     }
@@ -959,7 +965,7 @@ export default function GroupRoomScreen({ route, navigation }) {
       socketRef.current?.emit('circle:cinema:sync', { groupId: group._id, action: 'seek', currentTime });
     }, 8000);
     return () => clearInterval(cinemaIntervalRef.current);
-  }, [cinemaVideoId, isAdmin, isCoAdmin, group._id]);
+  }, [cinemaVideoId, isProyector, group._id]);
 
   function handleCinemaStart() {
     if (cinemaStartingRef.current) return;
@@ -974,6 +980,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     setShowCinemaInput(false);
     setCinemaYtUrl('');
     socketRef.current?.emit('circle:cinema:start', { groupId: group._id, videoId, startedBy: user.username });
+    setProyector(group);
     cinemaStartingRef.current = false;
   }
 
@@ -1292,11 +1299,11 @@ export default function GroupRoomScreen({ route, navigation }) {
               width={CINEMA_W}
               play={cinemaPlaying}
               webViewStyle={{ opacity: 0.99 }}
-              webViewProps={!(isAdmin || isCoAdmin) ? { pointerEvents: 'none' } : undefined}
+              webViewProps={!isProyector ? { pointerEvents: 'none' } : undefined}
               onChangeState={handleCinemaStateChange}
-              initialPlayerParams={{ controls: (isAdmin || isCoAdmin) ? 1 : 0 }}
+              initialPlayerParams={{ controls: isProyector ? 1 : 0 }}
             />
-            {!(isAdmin || isCoAdmin) && (
+            {!isProyector && (
               <View style={StyleSheet.absoluteFill} pointerEvents="box-only" />
             )}
           </View>
