@@ -24,8 +24,18 @@ import ReportModal from '../components/ReportModal';
 import GenderIcon from '../components/GenderIcon';
 import VerifiedIcon from '../components/VerifiedIcon';
 import { formatCoins } from '../utils/formatCoins';
+import YoutubeIframe from 'react-native-youtube-iframe';
 
 const GROUP_BG_PRESETS = { night: '#020D1A', void: '#050505', purple: '#0D0714', teal: '#030F10' };
+const SCREEN_H = Dimensions.get('window').height;
+const SCREEN_W = Dimensions.get('window').width;
+const CINEMA_H = Math.round(SCREEN_H * 0.40);
+const CINEMA_W = SCREEN_W - 24; // marginHorizontal: 12 * 2
+
+function extractYoutubeId(url) {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
 const _circleCache = {};
 
 const AVATAR_SLOT = 38;
@@ -291,8 +301,22 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [sendingGift, setSendingGift] = useState(false);
   const [giftErr,     setGiftErr]     = useState('');
 
-  const flatRef        = useRef(null);
-  const socketRef      = useRef(null);
+  // ── Sala de Cine ───────────────────────────────────────────────────────────
+  const [showCinemaMenu,  setShowCinemaMenu]  = useState(false);
+  const [showCinemaInput, setShowCinemaInput] = useState(false);
+  const [cinemaYtUrl,     setCinemaYtUrl]     = useState('');
+  const [cinemaUrlError,  setCinemaUrlError]  = useState('');
+  const [cinemaVideoId,   setCinemaVideoId]   = useState(null);
+  const [cinemaPlaying,   setCinemaPlaying]   = useState(true);
+  const [cinemaMinimized, setCinemaMinimized] = useState(false);
+
+  const flatRef           = useRef(null);
+  const socketRef         = useRef(null);
+  const playerRef         = useRef(null);
+  const lastSyncEmitRef   = useRef(0);
+  const cinemaIntervalRef = useRef(null);
+  const cinemaStartingRef = useRef(false);
+  const cinemaBufferingRef = useRef(false);
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const recordingRef = useRef(null);
   const recTimerRef  = useRef(null);
@@ -389,6 +413,10 @@ export default function GroupRoomScreen({ route, navigation }) {
         socketRef.current.off('group:deleted');
         socketRef.current.off('group:background_updated');
         socketRef.current.off('gift:update');
+        socketRef.current.off('circle:cinema:start');
+        socketRef.current.off('circle:cinema:stop');
+        socketRef.current.off('circle:cinema:sync');
+        clearInterval(cinemaIntervalRef.current);
       }
       clearInterval(recTimerRef.current);
     };
@@ -429,8 +457,9 @@ export default function GroupRoomScreen({ route, navigation }) {
     socket.off('group:banned');
     socket.off('group:deleted');
     socket.off('group:background_updated');
-
-    socket.emit('group:join', { groupId: group._id });
+    socket.off('circle:cinema:start');
+    socket.off('circle:cinema:stop');
+    socket.off('circle:cinema:sync');
 
     socket.on('group:message', ({ groupId, message }) => {
       if (groupId.toString() !== group._id.toString()) return;
@@ -493,6 +522,32 @@ export default function GroupRoomScreen({ route, navigation }) {
       setGroup(prev => ({ ...prev, backgroundUrl }));
     });
 
+    socket.on('circle:cinema:start', ({ videoId }) => {
+      setCinemaVideoId(videoId);
+      setCinemaPlaying(true);
+      setCinemaMinimized(false);
+    });
+    socket.on('circle:cinema:stop', () => {
+      setCinemaVideoId(null);
+      setCinemaPlaying(true);
+    });
+    socket.on('circle:cinema:sync', ({ action, currentTime }) => {
+      if (action === 'play') {
+        setCinemaPlaying(true);
+        if (!cinemaBufferingRef.current) playerRef.current?.seekTo(currentTime ?? 0, true);
+      } else if (action === 'pause') {
+        setCinemaPlaying(false);
+        if (!cinemaBufferingRef.current) playerRef.current?.seekTo(currentTime ?? 0, true);
+      } else if (action === 'seek') {
+        if (cinemaBufferingRef.current) return;
+        playerRef.current?.getCurrentTime().then(t => {
+          if (Math.abs((t ?? 0) - (currentTime ?? 0)) > 5) {
+            playerRef.current?.seekTo(currentTime ?? 0, true);
+          }
+        }).catch(() => {});
+      }
+    });
+
     socket.on('gift:update', ({ giftId, estado, slotsReclamados, reclamadoPor }) => {
       setMessages(prev => prev.map(m => {
         if (m.giftId?.toString() !== giftId?.toString()) return m;
@@ -503,6 +558,8 @@ export default function GroupRoomScreen({ route, navigation }) {
         return { ...m, giftData: { ...(m.giftData || {}), ...patch } };
       }));
     });
+
+    socket.emit('group:join', { groupId: group._id });
   }
 
   function openMenu(msg) {
@@ -873,6 +930,57 @@ export default function GroupRoomScreen({ route, navigation }) {
 
   function cancelAudioPreview() { setAudioPreview(null); recordingRef.current = null; }
 
+  const handleCinemaStateChange = useCallback(async (state) => {
+    if (state === 'buffering') { cinemaBufferingRef.current = true; return; }
+    if (state === 'playing' || state === 'paused') cinemaBufferingRef.current = false;
+    if (!(isAdmin || isCoAdmin)) return;
+    const now = Date.now();
+    if (now - lastSyncEmitRef.current < 500) return;
+    lastSyncEmitRef.current = now;
+    const currentTime = await playerRef.current?.getCurrentTime() ?? 0;
+    socketRef.current?.emit('circle:cinema:sync', {
+      groupId: group._id,
+      action:  state === 'playing' ? 'play' : 'pause',
+      currentTime,
+    });
+  }, [group._id, isAdmin, isCoAdmin]);
+
+  useEffect(() => {
+    if (!cinemaVideoId || !(isAdmin || isCoAdmin)) {
+      clearInterval(cinemaIntervalRef.current);
+      return;
+    }
+    clearInterval(cinemaIntervalRef.current);
+    cinemaIntervalRef.current = setInterval(async () => {
+      const now = Date.now();
+      if (now - lastSyncEmitRef.current < 500) return;
+      lastSyncEmitRef.current = now;
+      const currentTime = await playerRef.current?.getCurrentTime() ?? 0;
+      socketRef.current?.emit('circle:cinema:sync', { groupId: group._id, action: 'seek', currentTime });
+    }, 8000);
+    return () => clearInterval(cinemaIntervalRef.current);
+  }, [cinemaVideoId, isAdmin, isCoAdmin, group._id]);
+
+  function handleCinemaStart() {
+    if (cinemaStartingRef.current) return;
+    cinemaStartingRef.current = true;
+    const videoId = extractYoutubeId(cinemaYtUrl.trim());
+    if (!videoId) {
+      setCinemaUrlError('Link invalido. Pega un link de YouTube valido.');
+      cinemaStartingRef.current = false;
+      return;
+    }
+    setCinemaUrlError('');
+    setShowCinemaInput(false);
+    setCinemaYtUrl('');
+    socketRef.current?.emit('circle:cinema:start', { groupId: group._id, videoId, startedBy: user.username });
+    cinemaStartingRef.current = false;
+  }
+
+  function handleCinemaStop() {
+    socketRef.current?.emit('circle:cinema:stop', { groupId: group._id });
+  }
+
   const blockedIds = (user?.blocked || []).map(b => (b._id || b)?.toString());
 
   const renderMessage = useCallback(({ item, index }) => {
@@ -1160,6 +1268,42 @@ export default function GroupRoomScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
+      {/* ── Panel Sala de Cine ──────────────────────────────────────────────── */}
+      {cinemaVideoId && (
+        <View style={s.cinemaPanelOuter}>
+          <View style={s.cinemaPanelHeader}>
+            <Image source={require('../../assets/chats/Fiesta/ic_panel_screening_room.png')} style={{ width: 16, height: 16, marginRight: 6 }} />
+            <Text style={s.cinemaPanelTitle}>Sala de Cine</Text>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity onPress={() => setCinemaMinimized(v => !v)} activeOpacity={0.8} style={s.cinemaMiniBtn}>
+              <Ionicons name={cinemaMinimized ? 'chevron-down' : 'chevron-up'} size={16} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+            {(isAdmin || isCoAdmin) && (
+              <TouchableOpacity onPress={handleCinemaStop} activeOpacity={0.8} style={s.cinemaPowerBtn}>
+                <Ionicons name="power" size={18} color="#ef4444" />
+              </TouchableOpacity>
+            )}
+          </View>
+          {!cinemaMinimized && (
+            <View style={{ width: CINEMA_W, backgroundColor: 'rgba(255,255,255,0.08)' }}>
+              <YoutubeIframe
+                ref={playerRef}
+                videoId={cinemaVideoId}
+                height={CINEMA_H}
+                width={CINEMA_W}
+                play={cinemaPlaying}
+                webViewStyle={{ opacity: 0.99 }}
+                onChangeState={handleCinemaStateChange}
+                initialPlayerParams={{ controls: (isAdmin || isCoAdmin) ? 1 : 0 }}
+              />
+              {!(isAdmin || isCoAdmin) && (
+                <View style={StyleSheet.absoluteFill} pointerEvents="box-only" />
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* ── Cuerpo ───────────────────────────────────────────────────────────── */}
       <View style={{ flex: 1 }}>
         {loading ? (
@@ -1326,6 +1470,8 @@ export default function GroupRoomScreen({ route, navigation }) {
                       blurOnSubmit={false}
                       onSubmitEditing={sendMessage}
                       editable={!inputDisabled}
+                      onFocus={() => cinemaVideoId && setCinemaMinimized(true)}
+                      onBlur={() => cinemaVideoId && setCinemaMinimized(false)}
                     />
                   </View>
                   <TouchableOpacity
@@ -1365,6 +1511,11 @@ export default function GroupRoomScreen({ route, navigation }) {
                   <TouchableOpacity onPress={openGiftModal} disabled={uploading || isRecording} style={s.mediaBtn}>
                     <Image source={require('../../assets/chats/menu/ic_menu_more_option_v2.png')} style={s.menuIcon} />
                   </TouchableOpacity>
+                  {group?.isCircle && (isAdmin || isCoAdmin) && (
+                    <TouchableOpacity onPress={() => setShowCinemaMenu(true)} disabled={uploading || isRecording} style={s.mediaBtn}>
+                      <Image source={require('../../assets/chats/Fiesta/ic_panel_screening_room.png')} style={s.menuIcon} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}
@@ -1807,6 +1958,71 @@ export default function GroupRoomScreen({ route, navigation }) {
         targetId={group._id}
         targetName={group.name}
       />
+
+      {/* ── Menu Sala de Cine ─────────────────────────────────────────────── */}
+      <Modal visible={showCinemaMenu} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowCinemaMenu(false)}>
+        <Pressable style={s.menuOverlay} onPress={() => setShowCinemaMenu(false)}>
+          <Pressable style={[s.cinemaMenuSheet, { paddingBottom: Math.max(insets.bottom, 20) }]} onPress={e => e.stopPropagation()}>
+            <View style={s.giftHandle} />
+            <Text style={s.cinemaMenuTitle}>Actividades</Text>
+
+            <TouchableOpacity style={s.cinemaMenuItem} onPress={() => { setShowCinemaMenu(false); setShowCinemaInput(true); setCinemaYtUrl(''); setCinemaUrlError(''); }} activeOpacity={0.8}>
+              <Image source={require('../../assets/chats/Fiesta/ic_panel_screening_room.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+              <Text style={s.cinemaMenuItemTxt}>Sala de Cine</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.cinemaMenuItem} onPress={() => { setShowCinemaMenu(false); Alert.alert('Proximo', 'Esta funcion estara disponible pronto.'); }} activeOpacity={0.8}>
+              <Ionicons name="person-outline" size={22} color={colors.textHi} />
+              <Text style={s.cinemaMenuItemTxt}>Rol</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.cinemaMenuItem} onPress={() => { setShowCinemaMenu(false); Alert.alert('Proximo', 'Esta funcion estara disponible pronto.'); }} activeOpacity={0.8}>
+              <Ionicons name="musical-notes-outline" size={22} color={colors.textHi} />
+              <Text style={s.cinemaMenuItemTxt}>Karaoke</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[s.menuItem, s.menuCancel, { marginTop: 8 }]} onPress={() => setShowCinemaMenu(false)}>
+              <Text style={[s.menuItemTxt, { color: colors.textDim, textAlign: 'center', width: '100%' }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── Modal input YouTube ───────────────────────────────────────────── */}
+      <Modal visible={showCinemaInput} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowCinemaInput(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={s.cinemaInputOverlay} onPress={() => { Keyboard.dismiss(); setShowCinemaInput(false); }}>
+            <Pressable style={[s.cinemaInputBox, { paddingBottom: Math.max(insets.bottom, 20) }]} onPress={e => e.stopPropagation()}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <Image source={require('../../assets/chats/Fiesta/ic_panel_screening_room.png')} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
+                <Text style={s.cinemaInputTitle}>Sala de Cine</Text>
+              </View>
+              <Text style={s.cinemaInputLabel}>Link de YouTube</Text>
+              <TextInput
+                style={s.cinemaUrlInput}
+                value={cinemaYtUrl}
+                onChangeText={v => { setCinemaYtUrl(v); setCinemaUrlError(''); }}
+                placeholder="https://youtube.com/watch?v=..."
+                placeholderTextColor={colors.textDim}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              {!!cinemaUrlError && (
+                <Text style={s.cinemaUrlError}>{cinemaUrlError}</Text>
+              )}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <TouchableOpacity style={s.cinemaInputCancel} onPress={() => setShowCinemaInput(false)} activeOpacity={0.8}>
+                  <Text style={s.cinemaInputCancelTxt}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.cinemaInputStart} onPress={handleCinemaStart} activeOpacity={0.8}>
+                  <Text style={s.cinemaInputStartTxt}>Iniciar</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1981,6 +2197,46 @@ const s = StyleSheet.create({
   giftSendTxt:         { color:colors.black, fontSize:14, fontWeight:'800' },
 
   menuIcon: { width:25, height:25, resizeMode:'contain' },
+
+  // Sala de Cine
+  cinemaPanelOuter: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: 12,
+    marginVertical: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  cinemaPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  cinemaPanelTitle: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  cinemaMiniBtn:    { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 6, marginRight: 6 },
+  cinemaPowerBtn:   { backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: 20, padding: 6 },
+  cinemaMenuSheet:    { backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 12, borderWidth: 1, borderColor: colors.borderC },
+  cinemaMenuTitle:    { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
+  cinemaMenuItem:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  cinemaMenuItemTxt:  { color: colors.textHi, fontSize: 15, fontWeight: '500' },
+  cinemaInputOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  cinemaInputBox:     { backgroundColor: colors.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: colors.borderC },
+  cinemaInputTitle:   { color: colors.textHi, fontSize: 16, fontWeight: '700' },
+  cinemaInputLabel:   { color: colors.textDim, fontSize: 12, fontWeight: '600', marginBottom: 8 },
+  cinemaUrlInput:     { backgroundColor: colors.deep, borderRadius: 12, borderWidth: 1, borderColor: colors.border, color: colors.textHi, fontSize: 13, paddingHorizontal: 14, paddingVertical: 11 },
+  cinemaUrlError:     { color: 'rgba(239,68,68,0.9)', fontSize: 12, marginTop: 8 },
+  cinemaInputCancel:  { flex: 1, paddingVertical: 13, borderRadius: 14, borderWidth: 1, borderColor: colors.borderC, alignItems: 'center' },
+  cinemaInputCancelTxt: { color: colors.textDim, fontWeight: '600', fontSize: 14 },
+  cinemaInputStart:   { flex: 1, paddingVertical: 13, borderRadius: 14, backgroundColor: colors.c1, alignItems: 'center' },
+  cinemaInputStartTxt:{ color: colors.black, fontWeight: '800', fontSize: 14 },
 
   headerAvatarStack:  { flexDirection:'row', alignItems:'center', marginRight: 4 },
   headerStackAvatar:  { width:24, height:24, borderRadius:12, overflow:'hidden', backgroundColor: colors.surface, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor: '#ffffff' },

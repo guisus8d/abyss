@@ -92,6 +92,7 @@ export default function ChatsScreen({ navigation }) {
       socket = s;
       s.off('chat:notification');
       s.off('group:notification');
+      s.off('circle:activated');
 
       s.on('chat:notification', ({ chatId, lastMessageText, lastMessage }) => {
         setChats(prev => {
@@ -117,12 +118,19 @@ export default function ChatsScreen({ navigation }) {
           return next.sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage));
         });
       });
+
+      s.on('circle:activated', ({ groupId }) => {
+        setFiestas(prev => prev.map(f =>
+          f._id?.toString() === groupId?.toString() ? { ...f, isActive: true } : f
+        ));
+      });
     });
 
     return () => {
       if (socket) {
         socket.off('chat:notification');
         socket.off('group:notification');
+        socket.off('circle:activated');
       }
     };
   }, []));
