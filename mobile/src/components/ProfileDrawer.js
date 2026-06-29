@@ -251,7 +251,7 @@ const s = StyleSheet.create({
     right: 8,
   },
   cardUsername: {
-    color: '#fff', fontSize: 11, fontWeight: '700',
+    color: '#fff', fontSize: 16, fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   // Stats strip bottom
@@ -272,14 +272,14 @@ const s = StyleSheet.create({
   },
   cardStatDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.18)' },
   cardBioWrap: {
-    position: 'absolute', bottom: 42, left: 8, right: 8,
+    position: 'absolute', top: CARD_AVT + 20, left: 8, right: 8,
     backgroundColor: 'rgba(0,0,0,0.25)',
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   cardBioTxt: {
-    color: '#ffffff', fontSize: 12, textAlign: 'center', lineHeight: 16,
+    color: 'rgba(255,255,255,0.82)', fontSize: 10, fontWeight: '700', textAlign: 'left', lineHeight: 14,
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,

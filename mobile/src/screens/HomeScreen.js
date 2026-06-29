@@ -22,6 +22,7 @@ import AvatarWithFrame from '../components/AvatarWithFrame';
 import PostCard        from '../components/PostCard';
 import OrbitUsers      from '../components/OrbitUsers';
 import GuestAuthModal  from '../components/GuestAuthModal';
+import { getHashtagColor } from '../constants/circleHashtags';
 
 
 const TABS = [
@@ -35,7 +36,6 @@ const INITIAL_TAB_STATE = () => ({ posts: [], page: 1, hasMore: true, loading: f
 const { width: SCREEN_W } = Dimensions.get('window');
 const FIESTA_CARD_W = Math.floor(SCREEN_W * 0.65) - 30;
 const FIESTA_LOGO_H = 150;
-const HASHTAG_COLORS = ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'];
 const MEET_PAD = 14;
 const MEET_GAP = 8;
 const MEET_CARD_W = Math.floor((SCREEN_W - MEET_PAD * 2 - MEET_GAP * 2) / 3);
@@ -104,8 +104,8 @@ function FiestasSection({ fiestas, onPress }) {
             />
             {item.hashtags?.length > 0 && (
               <View style={fs.hashtags}>
-                {item.hashtags.slice(0, 3).map((tag, idx) => {
-                  const c = HASHTAG_COLORS[idx % HASHTAG_COLORS.length];
+                {item.hashtags.slice(0, 3).map((tag) => {
+                  const c = getHashtagColor(tag);
                   return (
                     <View key={tag} style={[fs.hashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
                       <Text style={[fs.hashtagTxt, { color: c }]}>#{tag}</Text>

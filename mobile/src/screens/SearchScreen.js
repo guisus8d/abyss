@@ -5,10 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import { useAuthStore } from '../store/authStore';
+import { CIRCLE_HASHTAGS, getHashtagColor } from '../constants/circleHashtags';
 
 const C = {
   bg:      colors.black,
@@ -21,12 +23,8 @@ const C = {
   textDim: colors.textDim,
 };
 
-const TABS = ['Usuarios', 'Posts'];
+const TABS = ['Usuarios', 'Posts', 'Fiestas'];
 
-const TRENDING_TOPICS = [
-  '#abyss', '#gaming', '#arte', '#música', '#anime',
-  '#tecnología', '#memes', '#design',
-];
 
 // ─── UserRow ──────────────────────────────────────────────────────────────────
 function UserRow({ user, onPress, currentUserId }) {
@@ -118,6 +116,7 @@ export default function SearchScreen({ navigation }) {
   const [activeTab,      setActiveTab]      = useState(0);
   const [userResults,    setUserResults]    = useState([]);
   const [postResults,    setPostResults]    = useState([]);
+  const [circleResults,  setCircleResults]  = useState([]);
   const [suggested,      setSuggested]      = useState([]);
   const [searching,      setSearching]      = useState(false);
   const [loadingSugg,    setLoadingSugg]    = useState(true);
@@ -132,16 +131,18 @@ export default function SearchScreen({ navigation }) {
 
   const doSearch = useCallback((q) => {
     clearTimeout(timer.current);
-    if (q.trim().length < 2) { setUserResults([]); setPostResults([]); return; }
+    if (q.trim().length < 2) { setUserResults([]); setPostResults([]); setCircleResults([]); return; }
     setSearching(true);
     timer.current = setTimeout(async () => {
       try {
-        const [usersRes, postsRes] = await Promise.all([
+        const [usersRes, postsRes, circlesRes] = await Promise.all([
           api.get(`/users/search?q=${q.trim()}`).catch(() => ({ data: { users: [] } })),
           api.get(`/posts/search?q=${q.trim()}`).catch(() => ({ data: { posts: [] } })),
+          api.get(`/groups/circles/search?q=${q.trim()}`).catch(() => ({ data: { circles: [] } })),
         ]);
         setUserResults(usersRes.data.users || []);
         setPostResults(postsRes.data.posts || []);
+        setCircleResults(circlesRes.data.circles || []);
       } catch {}
       finally { setSearching(false); }
     }, 380);
@@ -156,6 +157,7 @@ export default function SearchScreen({ navigation }) {
     setQuery('');
     setUserResults([]);
     setPostResults([]);
+    setCircleResults([]);
     inputRef.current?.focus();
   }
 
@@ -239,6 +241,57 @@ export default function SearchScreen({ navigation }) {
               contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
             />
           )}
+
+          {activeTab === 2 && (
+            <FlatList
+              data={circleResults}
+              keyExtractor={item => item._id}
+              contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: insets.bottom + 20 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[s.srchFiestasCard, !item.isActive && { opacity: 0.45 }]}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('GroupRoom', { group: item })}
+                >
+                  {item.imageUrl
+                    ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    : <View style={[StyleSheet.absoluteFill, { backgroundColor: C.surface }]} />}
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.8)', 'transparent']}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', justifyContent: 'flex-start', padding: 10 }}
+                  >
+                    <Text style={s.srchFiestasName} numberOfLines={2}>{item.name}</Text>
+                  </LinearGradient>
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.75)', 'transparent']}
+                    start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
+                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
+                  />
+                  {item.hashtags?.length > 0 && (
+                    <View style={s.srchFiestasHashtags}>
+                      {item.hashtags.slice(0, 3).map((tag) => {
+                        const c = getHashtagColor(tag);
+                        return (
+                          <View key={tag} style={[s.srchFiestasHashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
+                            <Text style={[s.srchFiestasHashtagTxt, { color: c }]}>#{tag}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                  <View style={s.srchFiestasMembersBadge}>
+                    <Text style={s.srchFiestasMembersBadgeTxt}>{item.membersCount ?? 0} miembros</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={!searching ? (
+                <View style={s.empty}>
+                  <Ionicons name="people-outline" size={36} color={C.textDim} />
+                  <Text style={s.emptyTxt}>Sin fiestas para "{query}"</Text>
+                </View>
+              ) : null}
+            />
+          )}
         </View>
       ) : (
         /* ── ESTADO VACÍO / EXPLORAR ── */
@@ -250,14 +303,14 @@ export default function SearchScreen({ navigation }) {
               <View style={s.section}>
                 <Text style={s.sectionTitle}>TENDENCIAS</Text>
                 <View style={s.trendingGrid}>
-                  {TRENDING_TOPICS.map(tag => (
+                  {CIRCLE_HASHTAGS.map((tag) => (
                     <TouchableOpacity
                       key={tag}
                       style={s.trendingChip}
-                      onPress={() => { setQuery(tag.slice(1)); handleChangeText(tag.slice(1)); }}
+                      onPress={() => { setQuery(tag); handleChangeText(tag); }}
                       activeOpacity={0.75}
                     >
-                      <Text style={s.trendingChipTxt}>{tag}</Text>
+                      <Text style={[s.trendingChipTxt, { color: getHashtagColor(tag) }]}>#{tag}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -335,7 +388,16 @@ const s = StyleSheet.create({
   // Trending
   trendingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   trendingChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  trendingChipTxt:{ color: C.accent, fontSize: 13, fontWeight: '600' },
+  trendingChipTxt:{ fontSize: 13, fontWeight: '600' },
+
+  // Fiestas tab en búsqueda
+  srchFiestasCard:         { width: '62%', alignSelf: 'flex-start', height: 160, borderRadius: 14, overflow: 'hidden', backgroundColor: C.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', shadowColor: '#ffffff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 3 },
+  srchFiestasName:         { color: '#fff', fontSize: 15, fontWeight: '800' },
+  srchFiestasHashtags:     { position: 'absolute', bottom: 8, left: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  srchFiestasHashtagPill:  { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1 },
+  srchFiestasHashtagTxt:   { fontSize: 9, fontWeight: '600' },
+  srchFiestasMembersBadge: { position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  srchFiestasMembersBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '600' },
 
   // Suggested grid
   suggestedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

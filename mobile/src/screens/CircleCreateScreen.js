@@ -8,15 +8,22 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import { postFormData } from '../services/api';
+import { CIRCLE_HASHTAGS, getHashtagColor } from '../constants/circleHashtags';
+
+const MAX_TAGS    = 5;
+const MIN_TAGS    = 3;
+const MAX_CUSTOMS = 1;
 
 export default function CircleCreateScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const [name,        setName]        = useState('');
-  const [description, setDescription] = useState('');
-  const [tagsInput,   setTagsInput]   = useState('');
-  const [imageUri,    setImageUri]    = useState(null);
-  const [loading,     setLoading]     = useState(false);
+  const [name,            setName]            = useState('');
+  const [description,     setDescription]     = useState('');
+  const [selectedTags,    setSelectedTags]    = useState([]);
+  const [customTag,       setCustomTag]       = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [imageUri,        setImageUri]        = useState(null);
+  const [loading,         setLoading]         = useState(false);
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -25,29 +32,45 @@ export default function CircleCreateScreen({ navigation }) {
     if (!result.canceled) setImageUri(result.assets[0].uri);
   }
 
-  function parseTags(raw) {
-    return raw
-      .split(/[\s,]+/)
-      .map(t => t.replace(/^#+/, '').toLowerCase().replace(/[^a-z0-9_]/g, ''))
-      .filter(Boolean);
+  function toggleTag(tag) {
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) return prev.filter(t => t !== tag);
+      if (prev.length >= MAX_TAGS) return prev;
+      return [...prev, tag];
+    });
   }
+
+  function addCustomTag() {
+    const clean = customTag.trim().replace(/^#+/, '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!clean) return;
+    if (selectedTags.includes(clean)) { setCustomTag(''); return; }
+    if (selectedTags.length >= MAX_TAGS) return;
+    setSelectedTags(prev => [...prev, clean]);
+    setCustomTag('');
+    setShowCustomInput(false);
+  }
+
+  const customTags   = selectedTags.filter(t => !CIRCLE_HASHTAGS.includes(t));
+  const canAddCustom = customTags.length < MAX_CUSTOMS && selectedTags.length < MAX_TAGS;
 
   async function handleCreate() {
     if (!name.trim()) {
       Alert.alert('Nombre requerido', 'Dale un nombre a tu fiesta.');
       return;
     }
+    if (selectedTags.length < MIN_TAGS) {
+      Alert.alert('Hashtags requeridos', `Selecciona al menos ${MIN_TAGS} hashtags para tu fiesta.`);
+      return;
+    }
     setLoading(true);
     try {
-      const tags = parseTags(tagsInput);
       const formData = new FormData();
       formData.append('name',        name.trim());
       formData.append('description', description.trim());
-      formData.append('hashtags',    JSON.stringify(tags));
+      formData.append('hashtags',    JSON.stringify(selectedTags));
       if (imageUri) {
         formData.append('image', { uri: imageUri, type: 'image/jpeg', name: 'circle.jpg' });
       }
-
       await postFormData('/groups/circles', formData);
       navigation.goBack();
     } catch (err) {
@@ -56,6 +79,8 @@ export default function CircleCreateScreen({ navigation }) {
       setLoading(false);
     }
   }
+
+  const canCreate = name.trim() && selectedTags.length >= MIN_TAGS && !loading;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -68,9 +93,9 @@ export default function CircleCreateScreen({ navigation }) {
         </TouchableOpacity>
         <Text style={s.headerTitle}>Nueva fiesta</Text>
         <TouchableOpacity
-          style={[s.createBtn, (!name.trim() || loading) && { opacity: 0.4 }]}
+          style={[s.createBtn, !canCreate && { opacity: 0.4 }]}
           onPress={handleCreate}
-          disabled={!name.trim() || loading}
+          disabled={!canCreate}
         >
           {loading
             ? <ActivityIndicator size="small" color={colors.black} />
@@ -119,28 +144,87 @@ export default function CircleCreateScreen({ navigation }) {
 
         {/* Hashtags */}
         <View style={s.field}>
-          <Text style={s.label}>Hashtags</Text>
-          <TextInput
-            style={s.input}
-            placeholder="música, arte, gaming…"
-            placeholderTextColor={colors.textDim}
-            value={tagsInput}
-            onChangeText={setTagsInput}
-            autoCapitalize="none"
-          />
-          <Text style={s.hint}>Separa por coma o espacio. Sin # necesario.</Text>
+          <View style={s.labelRow}>
+            <Text style={s.label}>Hashtags * (mínimo {MIN_TAGS}, máximo {MAX_TAGS})</Text>
+            <Text style={s.tagCount}>{selectedTags.length}/{MAX_TAGS}</Text>
+          </View>
+
+          <View style={s.pillGrid}>
+            {CIRCLE_HASHTAGS.map(tag => {
+              const selected = selectedTags.includes(tag);
+              const color    = getHashtagColor(tag);
+              const disabled = !selected && selectedTags.length >= MAX_TAGS;
+              return (
+                <TouchableOpacity
+                  key={tag}
+                  style={[
+                    s.pill,
+                    selected
+                      ? { borderColor: color, backgroundColor: color + '30' }
+                      : { borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.05)' },
+                    disabled && { opacity: 0.4 },
+                  ]}
+                  onPress={() => toggleTag(tag)}
+                  activeOpacity={0.75}
+                  disabled={disabled}
+                >
+                  <Text style={[s.pillTxt, { color: selected ? color : colors.textMid }]}>#{tag}</Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Tags personalizados ya agregados */}
+            {customTags.map(tag => {
+              const color = getHashtagColor(tag);
+              return (
+                <TouchableOpacity
+                  key={tag}
+                  style={[s.pill, { borderColor: color, backgroundColor: color + '30' }]}
+                  onPress={() => toggleTag(tag)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[s.pillTxt, { color }]}>#{tag}</Text>
+                  <Ionicons name="close" size={11} color={color} style={{ marginLeft: 3 }} />
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Botón "+" */}
+            {canAddCustom && (
+              <TouchableOpacity
+                style={[s.pill, s.pillAdd]}
+                onPress={() => setShowCustomInput(v => !v)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="add" size={15} color={colors.textMid} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Input personalizado */}
+          {showCustomInput && (
+            <View style={s.customInputRow}>
+              <TextInput
+                style={s.customInput}
+                placeholder="tu hashtag"
+                placeholderTextColor={colors.textDim}
+                value={customTag}
+                onChangeText={setCustomTag}
+                autoCapitalize="none"
+                autoFocus
+                maxLength={24}
+                onSubmitEditing={addCustomTag}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={s.customAddBtn} onPress={addCustomTag}>
+                <Text style={s.customAddBtnTxt}>Agregar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <Text style={s.hint}>Mínimo {MIN_TAGS} requeridos · Puedes agregar 1 personalizado</Text>
         </View>
 
-        {/* Preview de tags */}
-        {parseTags(tagsInput).length > 0 && (
-          <View style={s.tagsPreview}>
-            {parseTags(tagsInput).map(t => (
-              <View key={t} style={s.tag}>
-                <Text style={s.tagTxt}>#{t}</Text>
-              </View>
-            ))}
-          </View>
-        )}
       </ScrollView>
     </View>
   );
@@ -160,13 +244,21 @@ const s = StyleSheet.create({
   imgPicker:     { width: 100, height: 100, borderRadius: 24, backgroundColor: colors.surface, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: colors.borderC, gap: 6 },
   imgPickerTxt:  { color: colors.textDim, fontSize: 11, textAlign: 'center' },
 
-  field:         { gap: 6 },
+  field:         { gap: 8 },
+  labelRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label:         { color: colors.textMid, fontSize: 13, fontWeight: '600' },
+  tagCount:      { color: colors.textDim, fontSize: 12 },
   input:         { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.borderC, paddingHorizontal: 14, paddingVertical: 12, color: colors.textHi, fontSize: 15 },
   inputMulti:    { minHeight: 80, textAlignVertical: 'top' },
-  hint:          { color: colors.textDim, fontSize: 12, marginTop: 2 },
+  hint:          { color: colors.textDim, fontSize: 12 },
 
-  tagsPreview:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag:           { backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  tagTxt:        { color: colors.c1, fontSize: 13 },
+  pillGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill:          { flexDirection: 'row', alignItems: 'center', borderRadius: 20, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 5 },
+  pillTxt:       { fontSize: 12, fontWeight: '600' },
+  pillAdd:       { borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.05)' },
+
+  customInputRow:{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  customInput:   { flex: 1, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.borderC, paddingHorizontal: 12, paddingVertical: 9, color: colors.textHi, fontSize: 14 },
+  customAddBtn:  { backgroundColor: colors.c1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  customAddBtnTxt:{ color: colors.black, fontWeight: '700', fontSize: 13 },
 });

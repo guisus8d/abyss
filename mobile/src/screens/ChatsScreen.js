@@ -20,12 +20,12 @@ import CustomTabBar from '../components/CustomTabBar';
 import GenderIcon from '../components/GenderIcon';
 import VerifiedIcon from '../components/VerifiedIcon';
 import ProfileDrawer from '../components/ProfileDrawer';
+import { getHashtagColor } from '../constants/circleHashtags';
 
 // ── AsyncStorage keys ──────────────────────────────────────────────────────
 const SK_PINNED = 'pinnedChats';
 const SK_MUTED  = 'mutedChats';
 const SK_UNREAD = 'unreadOverride';
-const HASHTAG_COLORS = ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'];
 const SK_HIDDEN = 'hiddenChats';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -666,8 +666,8 @@ export default function ChatsScreen({ navigation }) {
                   />
                   {item.hashtags?.length > 0 && (
                     <View style={[s.fiestasHashtags, { position: 'absolute', bottom: 6, left: 6 }]}>
-                      {item.hashtags.slice(0, 5).map((tag, idx) => {
-                        const c = HASHTAG_COLORS[idx % HASHTAG_COLORS.length];
+                      {item.hashtags.slice(0, 5).map((tag) => {
+                        const c = getHashtagColor(tag);
                         return (
                           <View key={tag} style={[s.fiestasHashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
                             <Text style={[s.fiestasHashtagTxt, { color: c }]}>#{tag}</Text>

@@ -73,12 +73,44 @@ router.get('/circles/mine', authMiddleware, async (req, res) => {
 // Fiestas públicas y activas (sin auth requerida)
 router.get('/circles/public', async (req, res) => {
   try {
+    const { hashtag } = req.query;
+    const filter = { isCircle: true, isPublic: true };
+    if (hashtag) filter.hashtags = hashtag;
     const circles = await Group
-      .find({ isCircle: true, isPublic: true, isActive: true })
-      .sort({ membersCount: -1 })
-      .limit(10)
+      .find(filter)
+      .sort({ isActive: -1, membersCount: -1 })
+      .limit(30)
       .select('name imageUrl membersCount hashtags isCircle isPublic isActive');
     res.json({ circles });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/circles/search', authMiddleware, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) return res.json({ circles: [] });
+    const regex = new RegExp(q.trim(), 'i');
+    const circles = await Group.find({
+      isCircle: true,
+      $or: [{ name: regex }, { hashtags: regex }],
+    })
+      .select('name imageUrl membersCount hashtags isActive members')
+      .populate({ path: 'members.user', select: 'username avatarUrl profileFrame profileFrameUrl' })
+      .limit(5)
+      .lean();
+    const mapped = circles.map(c => {
+      const adminMember = (c.members || []).find(m => m.role === 'admin');
+      return {
+        _id: c._id,
+        name: c.name,
+        imageUrl: c.imageUrl,
+        membersCount: c.membersCount,
+        hashtags: c.hashtags,
+        isActive: c.isActive,
+        admin: adminMember?.user || null,
+      };
+    });
+    res.json({ circles: mapped });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -206,7 +238,7 @@ router.delete('/circles/:id/leave', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const groups = await Group.find({ 'members.user': req.user._id })
-      .select('name description imageUrl bgColor members lastMessage lastMessageText lastMessageSender unreadCounts creator')
+      .select('name description imageUrl bgColor members lastMessage lastMessageText lastMessageSender unreadCounts creator isCircle')
       .sort({ lastMessage: -1 });
     res.json({ groups });
   } catch (err) { res.status(500).json({ error: err.message }); }
