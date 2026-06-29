@@ -496,6 +496,7 @@ export default function HomeScreen({ navigation }) {
             else if (key === 'frame')   navigation.navigate('CreateFrame');
             else if (key === 'image')   navigation.navigate('PostImage');
             else if (key === 'news')    navigation.navigate('PostNoticia');
+            else if (key === 'video')   navigation.navigate('VideoPost');
             else if (key === 'channel') navigation.navigate('Circles');
           }} />
       )}

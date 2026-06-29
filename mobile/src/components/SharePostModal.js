@@ -278,9 +278,12 @@ export default function SharePostModal({ visible, onClose, post, currentUserId }
 
   // ── Compartir por plataforma ──────────────────────────────────────────────
   async function handlePlatformShare(platformId) {
-    const text  = post?.content?.slice(0, 100) || 'Mira este post en Abyss';
+    const isVideo = post?.postType === 'video';
+    const text  = isVideo
+      ? (post?.title ? `Video: ${post.title}` : 'Mira este video en Abyss')
+      : (post?.content?.slice(0, 100) || 'Mira este post en Abyss');
     const msg   = `${text}\n\n${postUrl}`;
-    const title = post?.title || 'Post en Abyss';
+    const title = isVideo ? (post?.title || 'Video en Abyss') : (post?.title || 'Post en Abyss');
 
     if (Platform.OS === 'web') {
       if (platformId === 'whatsapp') {

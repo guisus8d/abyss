@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, Image, Modal, FlatList, ActivityIndicator,
   StyleSheet, TextInput, ScrollView, Animated, Platform,
 } from 'react-native';
+import VideoPlayer from './VideoPlayer';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
@@ -533,6 +534,13 @@ const PostCard = memo(function PostCard({
             <Text style={s.newsContent} numberOfLines={3}>{post.content}</Text>
           </View>
         </TouchableOpacity>
+      ) : post.postType === 'video' && post.videoUrl ? (
+        <View>
+          <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: post._id })} activeOpacity={0.8}>
+            {post.title ? <Text style={[s.bodyText, { fontWeight: '600', marginBottom: 6 }]}>{post.title}</Text> : null}
+          </TouchableOpacity>
+          <VideoPlayer post={post} navigation={navigation} />
+        </View>
       ) : (
         <TouchableOpacity
           onPress={() => navigation.navigate('PostDetail', { postId: post._id })}
@@ -663,6 +671,7 @@ const PostCard = memo(function PostCard({
   prev.post.comments  === next.post.comments  &&
   prev.post.content   === next.post.content   &&
   prev.post.imageUrl  === next.post.imageUrl  &&
+  prev.post.videoUrl  === next.post.videoUrl  &&
   prev.post.title     === next.post.title     &&
   prev.post.postType  === next.post.postType  &&
   prev.isGuest        === next.isGuest

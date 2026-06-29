@@ -13,7 +13,8 @@ const CARD_SIZE = 80;
 const OPTIONS = [
   { key: 'news',    icon: 'newspaper', label: 'Noticia', color: colors.c1 },
   { key: 'image',   icon: 'image',     label: 'Imagen',  color: '#f472b6' },
-  { key: 'quick',   icon: 'flash',     label: 'Rápido',  color: '#facc15' },
+  { key: 'quick',   icon: 'flash',     label: 'Rapido',  color: '#facc15' },
+  { key: 'video',   icon: 'videocam',  label: 'Video',   color: colors.c4 },
   { key: 'channel', icon: 'radio',     label: 'Fiestas', color: '#a855f7' },
 ];
 

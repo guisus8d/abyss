@@ -12,6 +12,7 @@ import { useAuthStore } from '../store/authStore';
 import AvatarWithFrame from '../components/AvatarWithFrame';
 import SharePostModal  from '../components/SharePostModal';
 import ReportModal     from '../components/ReportModal';
+import VideoPlayer     from '../components/VideoPlayer';
 import { renderCommentText, COMMENT_EMOJIS } from '../utils/commentUtils';
 import VerifiedIcon from '../components/VerifiedIcon';
 import EmojiPill from '../components/EmojiPill';
@@ -408,6 +409,11 @@ export default function PostDetailScreen({ route, navigation }) {
               {post.title   ? <Text style={s.newsTitle}>{post.title}</Text>     : null}
               {post.content ? <Text style={s.newsContent}>{post.content}</Text> : null}
             </View>
+          </View>
+        ) : post.postType === 'video' && post.videoUrl ? (
+          <View style={s.postWrap}>
+            {post.title ? <Text style={s.postContent}>{post.title}</Text> : null}
+            <VideoPlayer post={post} fullWidth />
           </View>
         ) : (
           <View style={s.postWrap}>
