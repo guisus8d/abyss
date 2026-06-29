@@ -1,84 +1,139 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Image, TouchableOpacity, PanResponder, Animated, StyleSheet, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCinemaStore } from '../store/cinemaStore';
 import { getSocket } from '../services/socket';
 
+const SIZE = 80;
+const { width: SW, height: SH } = Dimensions.get('window');
+
 export default function ProyectorWidget({ navigationRef }) {
   const insets = useSafeAreaInsets();
-  const { isProyector, screenFocused, proyectorGroup, clearProyector } = useCinemaStore();
+  const { isProyector, proyectorGroupId, proyectorGroupImage, clearProyector } = useCinemaStore();
 
-  if (!isProyector || screenFocused) return null;
+  // Track whether the current route is GroupRoom to hide the widget while on it
+  const [isOnGroupRoom, setIsOnGroupRoom] = useState(false);
+  useEffect(() => {
+    if (!navigationRef?.current) return;
+    const check = () => {
+      const route = navigationRef.current?.getCurrentRoute?.();
+      setIsOnGroupRoom(route?.name === 'GroupRoom');
+    };
+    check();
+    const unsub = navigationRef.current?.addListener?.('state', check);
+    return () => unsub?.();
+  }, [navigationRef]);
+
+  const initBottom = 24 + insets.bottom;
+  const initRight  = 16;
+
+  const pan = useRef(new Animated.ValueXY({
+    x: SW - SIZE - initRight,
+    y: SH - SIZE - initBottom,
+  })).current;
+
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4,
+    onPanResponderGrant() {
+      pan.setOffset({ x: pan.x._value, y: pan.y._value });
+      pan.setValue({ x: 0, y: 0 });
+    },
+    onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
+    onPanResponderRelease() {
+      pan.flattenOffset();
+      const clampedX = Math.max(0, Math.min(SW - SIZE, pan.x._value));
+      const clampedY = Math.max(insets.top, Math.min(SH - SIZE - insets.bottom, pan.y._value));
+      pan.setValue({ x: clampedX, y: clampedY });
+    },
+  })).current;
+
+  if (!isProyector || isOnGroupRoom) return null;
 
   function handleVolver() {
     if (navigationRef?.current?.isReady()) {
-      navigationRef.current.navigate('GroupRoom', { group: proyectorGroup });
+      navigationRef.current.navigate('GroupRoom');
     }
   }
 
   function handleStop() {
-    getSocket()?.emit('circle:cinema:proyector:leave', { groupId: proyectorGroup?._id });
+    getSocket()?.emit('circle:cinema:proyector:leave', { groupId: proyectorGroupId });
     clearProyector();
   }
 
   return (
-    <View style={[s.widget, { bottom: Math.max(insets.bottom, 16) + 16 }]}>
-      <Ionicons name="film-outline" size={14} color="rgba(255,255,255,0.7)" style={s.icon} />
-      <Text style={s.label} numberOfLines={1}>Sigues transmitiendo</Text>
-      <TouchableOpacity onPress={handleVolver} activeOpacity={0.8} style={s.volverBtn}>
-        <Text style={s.volverTxt}>Volver</Text>
+    <Animated.View
+      style={[s.widget, { transform: pan.getTranslateTransform() }]}
+      {...panResponder.panHandlers}
+    >
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={s.inner}
+        onPress={handleVolver}
+        delayPressIn={100}
+      >
+        {proyectorGroupImage ? (
+          <Image source={{ uri: proyectorGroupImage }} style={s.bg} resizeMode="cover" />
+        ) : (
+          <View style={[s.bg, s.bgFallback]} />
+        )}
+        <View style={s.overlay} />
+        <Ionicons name="film-outline" size={22} color="rgba(255,255,255,0.85)" />
       </TouchableOpacity>
-      <TouchableOpacity onPress={handleStop} activeOpacity={0.8} style={s.closeBtn}>
-        <Ionicons name="close" size={14} color="rgba(255,255,255,0.6)" />
+
+      <TouchableOpacity style={s.closeBtn} onPress={handleStop} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+        <Ionicons name="close" size={10} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 }
 
 const s = StyleSheet.create({
   widget: {
-    position:        'absolute',
-    right:           16,
-    flexDirection:   'row',
+    position:      'absolute',
+    width:         SIZE,
+    height:        SIZE,
+    borderRadius:  16,
+    overflow:      'visible',
+    elevation:     12,
+    shadowColor:   '#000',
+    shadowOffset:  { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius:  10,
+  },
+  inner: {
+    width:           SIZE,
+    height:          SIZE,
+    borderRadius:    16,
+    overflow:        'hidden',
     alignItems:      'center',
-    backgroundColor: 'rgba(9,21,37,0.95)',
-    borderRadius:    14,
-    borderWidth:     1,
-    borderColor:     'rgba(0,229,204,0.2)',
-    paddingVertical:   8,
-    paddingHorizontal: 10,
-    gap:             8,
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 4 },
-    shadowOpacity:   0.4,
-    shadowRadius:    8,
-    elevation:       10,
-    maxWidth:        280,
+    justifyContent:  'center',
+    borderWidth:     2,
+    borderColor:     '#ffffff',
   },
-  icon: {
-    flexShrink: 0,
+  bg: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
   },
-  label: {
-    color:      'rgba(255,255,255,0.85)',
-    fontSize:   12,
-    fontWeight: '500',
-    flexShrink: 1,
+  bgFallback: {
+    backgroundColor: '#050c14',
   },
-  volverBtn: {
-    backgroundColor: 'rgba(0,229,204,0.15)',
-    borderRadius:    8,
-    paddingVertical:   4,
-    paddingHorizontal: 10,
-    flexShrink: 0,
-  },
-  volverTxt: {
-    color:      '#00e5cc',
-    fontSize:   12,
-    fontWeight: '700',
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2,5,9,0.45)',
   },
   closeBtn: {
-    padding:    4,
-    flexShrink: 0,
+    position:        'absolute',
+    top:             -6,
+    right:           -6,
+    width:           18,
+    height:          18,
+    borderRadius:    9,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderWidth:     1,
+    borderColor:     'rgba(255,255,255,0.2)',
   },
 });

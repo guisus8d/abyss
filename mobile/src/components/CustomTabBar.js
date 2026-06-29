@@ -5,6 +5,7 @@ import { Svg, Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
+import { useAppStore } from '../store/appStore';
 import { colors } from '../theme/colors';
 
 export default function CustomTabBar({
@@ -16,6 +17,7 @@ export default function CustomTabBar({
 }) {
   const insets = useSafeAreaInsets();
   const { isGuest } = useAuthStore();
+  const { unreadChatsCount } = useAppStore();
   const [navBotonesH, setNavBotonesH] = useState(0);
 
   function guard(callback) {
@@ -87,6 +89,13 @@ export default function CustomTabBar({
               size={20}
               color={activeTab === 'chats' ? colors.c1 : colors.textDim}
             />
+            {unreadChatsCount > 0 && (
+              <View style={[s.chatBadge, unreadChatsCount > 9 && s.chatBadgeWide]}>
+                <Text style={s.chatBadgeTxt}>
+                  {unreadChatsCount > 9 ? '9+' : unreadChatsCount}
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={[s.niLbl, activeTab === 'chats' && { color: colors.c1 }]}>
             Chat
@@ -126,4 +135,13 @@ const s = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
   },
   rhombusIcon: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+
+  chatBadge: {
+    position: 'absolute', top: -4, right: -4,
+    backgroundColor: '#ef4444',
+    minWidth: 16, height: 16, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  chatBadgeWide: { paddingHorizontal: 3 },
+  chatBadgeTxt:  { color: '#fff', fontSize: 9, fontWeight: '700' },
 });

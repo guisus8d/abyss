@@ -12,6 +12,7 @@ import { colors } from '../theme/colors';
 import api from '../services/api';
 import CoinIcon from './CoinIcon';
 import { formatCoins } from '../utils/formatCoins';
+import RewardedAdSection from './RewardedAdSection';
 
 const collectibleIcon = require('../../assets/coleccionables/ic_collectible.png');
 
@@ -125,6 +126,13 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
                   <Text style={s.cardUsername} numberOfLines={1}>{user?.username}</Text>
                 </View>
 
+                {/* Bio: encima del strip de nivel/XP */}
+                {user?.bioType === 'text' && user?.bio ? (
+                  <View style={s.cardBioWrap}>
+                    <Text style={s.cardBioTxt} numberOfLines={3}>{user.bio}</Text>
+                  </View>
+                ) : null}
+
                 {/* Stats strip: bottom */}
                 <View style={s.cardStats}>
                   <View style={s.cardStat}>
@@ -141,7 +149,7 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
 
               <View style={s.cardAvatarWrap}>
                 {avatarUrl
-                  ? <Image source={{ uri: avatarUrl }} style={s.cardAvatarImg} />
+                  ? <Image source={{ uri: avatarUrl }} style={s.cardAvatarImg} resizeMode="cover" />
                   : <View style={s.cardAvatarFallback}>
                       <Text style={s.cardAvatarLetter}>{user?.username?.[0]?.toUpperCase()}</Text>
                     </View>
@@ -166,6 +174,8 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
               </View>
             </View>
           </View>
+
+          <RewardedAdSection />
 
           {/* ── Menú ── */}
           <View style={s.section}>
@@ -261,15 +271,29 @@ const s = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.5,
   },
   cardStatDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.18)' },
+  cardBioWrap: {
+    position: 'absolute', bottom: 42, left: 8, right: 8,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  cardBioTxt: {
+    color: '#ffffff', fontSize: 12, textAlign: 'center', lineHeight: 16,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   cardAvatarWrap: {
     position: 'absolute', top: -(CARD_AVT * -0.15), left: 12,
     width: CARD_AVT, height: CARD_AVT, borderRadius: CARD_AVT / 2,
     overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)',
     zIndex: 10, backgroundColor: colors.deep,
   },
-  cardAvatarImg:      { width: '100%', height: '100%' },
+  cardAvatarImg:      { width: CARD_AVT, height: CARD_AVT },
   cardAvatarFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   cardAvatarLetter:   { color: colors.textHi, fontSize: 16, fontWeight: '700' },
+
 
   // Wallet card
   walletWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },

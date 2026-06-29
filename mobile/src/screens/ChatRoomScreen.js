@@ -18,6 +18,7 @@ import GiftBubble from '../components/GiftBubble';
 import { Ionicons }    from '@expo/vector-icons';
 import { colors }      from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
+import { useAppStore } from '../store/appStore';
 import api              from '../services/api';
 import { connectSocket } from '../services/socket';
 import AsyncStorage     from '@react-native-async-storage/async-storage';
@@ -298,6 +299,7 @@ export default function ChatRoomScreen({ route, navigation }) {
   const { chat, other } = route.params;
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
+  const { markChatRead } = useAppStore();
   const myId = user?._id?.toString() ?? '';
 
   const [messages,           setMessages]           = useState([]);
@@ -420,6 +422,7 @@ export default function ChatRoomScreen({ route, navigation }) {
 
       s.emit('chat:join', { chatId: chat._id.toString() });
       s.emit('chat:read', { chatId: chat._id.toString() });
+      markChatRead(chat._id.toString());
 
       s.on('chat:message', ({ chatId, message }) => {
         if (chatId.toString() !== chat._id.toString()) return;

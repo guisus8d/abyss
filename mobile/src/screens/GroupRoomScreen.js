@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
+import { useAppStore } from '../store/appStore';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
 import { useFocusEffect } from '@react-navigation/native';
@@ -249,13 +250,19 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
+const _grpBgCache = new Map();
+
 // ─── GroupRoomScreen ──────────────────────────────────────────────────────────
 export default function GroupRoomScreen({ route, navigation }) {
   const { group: initialGroup } = route.params;
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
+  const { markChatRead } = useAppStore();
 
-  const [group,         setGroup]         = useState(initialGroup);
+  const [group, setGroup] = useState(() => {
+    const cachedBg = _grpBgCache.get(initialGroup._id?.toString());
+    return cachedBg !== undefined ? { ...initialGroup, backgroundUrl: cachedBg } : initialGroup;
+  });
   const [messages,      setMessages]      = useState([]);
   const [text,          setText]          = useState('');
   const [loading,       setLoading]       = useState(true);
@@ -311,7 +318,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [cinemaPlaying,   setCinemaPlaying]   = useState(true);
   const [cinemaMinimized, setCinemaMinimized] = useState(false);
 
-  const { isProyector, setProyector, clearProyector, setScreenFocused } = useCinemaStore();
+  const { isProyector, setProyector, clearProyector } = useCinemaStore();
 
   const flatRef           = useRef(null);
   const socketRef         = useRef(null);
@@ -320,6 +327,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   const cinemaIntervalRef = useRef(null);
   const cinemaStartingRef = useRef(false);
   const cinemaBufferingRef = useRef(false);
+  const cinemaPausedRef = useRef(false);
   const keyboardOffset = useRef(new Animated.Value(0)).current;
   const recordingRef = useRef(null);
   const recTimerRef  = useRef(null);
@@ -366,19 +374,19 @@ export default function GroupRoomScreen({ route, navigation }) {
   }, [messages]);
 
   useFocusEffect(useCallback(() => {
-    setScreenFocused(true);
+    markChatRead(group._id?.toString());
     if (socketRef.current) {
       socketRef.current.emit('group:join', { groupId: group._id });
     }
     api.get(`/groups/${group._id}`)
       .then(({ data }) => {
+        _grpBgCache.set(data.group._id?.toString(), data.group.backgroundUrl ?? null);
         setGroup(data.group);
         if (!data.isPending) {
           api.post(`/groups/${group._id}/read`).catch(() => {});
         }
       })
       .catch(() => {});
-    return () => setScreenFocused(false);
   }, [group._id]));
 
   useEffect(() => {
@@ -527,23 +535,28 @@ export default function GroupRoomScreen({ route, navigation }) {
       setGroup(prev => ({ ...prev, backgroundUrl }));
     });
 
-    socket.on('circle:cinema:start', ({ videoId }) => {
+    socket.on('circle:cinema:start', ({ groupId, videoId }) => {
+      if (groupId?.toString() !== group._id?.toString()) return;
       setCinemaVideoId(videoId);
       setCinemaPlaying(true);
       setCinemaMinimized(false);
     });
-    socket.on('circle:cinema:stop', () => {
+    socket.on('circle:cinema:stop', ({ groupId }) => {
+      if (groupId?.toString() !== group._id?.toString()) return;
       setCinemaVideoId(null);
       setCinemaPlaying(true);
       clearProyector();
     });
-    socket.on('circle:cinema:sync', ({ action, currentTime }) => {
+    socket.on('circle:cinema:sync', ({ groupId, action, currentTime }) => {
+      if (groupId?.toString() !== group._id?.toString()) return;
       if (action === 'play') {
         setCinemaPlaying(true);
-        if (!cinemaBufferingRef.current) playerRef.current?.seekTo(currentTime ?? 0, true);
+        playerRef.current?.getCurrentTime().then(t => {
+          if (Math.abs((t ?? 0) - (currentTime ?? 0)) > 5)
+            playerRef.current?.seekTo(currentTime ?? 0, true);
+        }).catch(() => {});
       } else if (action === 'pause') {
         setCinemaPlaying(false);
-        if (!cinemaBufferingRef.current) playerRef.current?.seekTo(currentTime ?? 0, true);
       } else if (action === 'seek') {
         if (cinemaBufferingRef.current) return;
         playerRef.current?.getCurrentTime().then(t => {
@@ -939,9 +952,11 @@ export default function GroupRoomScreen({ route, navigation }) {
   const handleCinemaStateChange = useCallback(async (state) => {
     if (state === 'buffering') { cinemaBufferingRef.current = true; return; }
     if (state === 'playing' || state === 'paused') cinemaBufferingRef.current = false;
+    if (state === 'paused')  cinemaPausedRef.current = true;
+    if (state === 'playing') cinemaPausedRef.current = false;
     if (!isProyector) return;
     const now = Date.now();
-    if (now - lastSyncEmitRef.current < 500) return;
+    if (state !== 'paused' && now - lastSyncEmitRef.current < 500) return;
     lastSyncEmitRef.current = now;
     const currentTime = await playerRef.current?.getCurrentTime() ?? 0;
     socketRef.current?.emit('circle:cinema:sync', {
@@ -958,6 +973,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     }
     clearInterval(cinemaIntervalRef.current);
     cinemaIntervalRef.current = setInterval(async () => {
+      if (cinemaPausedRef.current) return;
       const now = Date.now();
       if (now - lastSyncEmitRef.current < 500) return;
       lastSyncEmitRef.current = now;
@@ -980,7 +996,7 @@ export default function GroupRoomScreen({ route, navigation }) {
     setShowCinemaInput(false);
     setCinemaYtUrl('');
     socketRef.current?.emit('circle:cinema:start', { groupId: group._id, videoId, startedBy: user.username });
-    setProyector(group);
+    setProyector(group._id, group.imageUrl);
     cinemaStartingRef.current = false;
   }
 
@@ -1179,8 +1195,8 @@ export default function GroupRoomScreen({ route, navigation }) {
       </Modal>
 
       <ImageBackground
-        source={group.backgroundUrl?.startsWith('http') ? { uri: group.backgroundUrl } : require('../../assets/chat-bg.jpeg')}
-        style={{ flex: 1, backgroundColor: '#050c14' }}
+        source={!group.backgroundUrl ? null : group.backgroundUrl.startsWith('http') ? { uri: group.backgroundUrl } : require('../../assets/chat-bg.jpeg')}
+        style={{ flex: 1, backgroundColor: '#020509' }}
         resizeMode="cover"
       >
         <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor: GROUP_BG_PRESETS[group.backgroundUrl] ?? 'rgba(2,5,9,0.6)' }} pointerEvents="none" />
@@ -1304,7 +1320,10 @@ export default function GroupRoomScreen({ route, navigation }) {
               initialPlayerParams={{ controls: isProyector ? 1 : 0 }}
             />
             {!isProyector && (
-              <View style={StyleSheet.absoluteFill} pointerEvents="box-only" />
+              <View
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                pointerEvents="box-only"
+              />
             )}
           </View>
         </View>

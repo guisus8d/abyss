@@ -18,6 +18,8 @@ const AbyssTheme = {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
+import { useAppStore } from '../store/appStore';
+import { connectSocket, getSocket } from '../services/socket';
 import LoginScreen           from '../screens/LoginScreen';
 import HomeScreen            from '../screens/HomeScreen';
 import ChatsScreen           from '../screens/ChatsScreen';
@@ -64,6 +66,9 @@ import ChatSettingsScreen    from '../screens/ChatSettingsScreen';
 import CirclesScreen         from '../screens/CirclesScreen';
 import CircleCreateScreen    from '../screens/CircleCreateScreen';
 import ProyectorWidget       from '../components/ProyectorWidget';
+const MeetTextScreen = Platform.OS !== 'web'
+  ? require('../screens/MeetTextScreen').default
+  : () => null;
 
 // ModPanelScreen eliminado intencionalmente por seguridad.
 // El panel de moderación solo es accesible desde abyss.social/mod
@@ -86,7 +91,46 @@ const linking = {
 
 export default function AppNavigator() {
   const { user, isRestoring, restoreSession, isGuest } = useAuthStore();
+  const { addUnreadChatId } = useAppStore();
+
   useEffect(() => { restoreSession(); }, []);
+
+  // ── Listeners globales de notificaciones de chat ───────────────────────────
+  // Se registran una sola vez cuando el usuario está autenticado y permanecen
+  // activos independientemente de qué pantalla esté visible.
+  useEffect(() => {
+    if (!user) return;
+
+    const chatHandler = ({ chatId }) => {
+      const route = navigationRef.getCurrentRoute();
+      const inThisChat =
+        route?.name === 'ChatRoom' &&
+        route?.params?.chat?._id?.toString() === chatId?.toString();
+      if (!inThisChat) addUnreadChatId(chatId?.toString());
+    };
+
+    const groupHandler = ({ groupId }) => {
+      const route = navigationRef.getCurrentRoute();
+      const inThisGroup =
+        route?.name === 'GroupRoom' &&
+        route?.params?.group?._id?.toString() === groupId?.toString();
+      if (!inThisGroup) addUnreadChatId(groupId?.toString());
+    };
+
+    let mounted = true;
+    connectSocket().then(socket => {
+      if (!mounted) return;
+      socket.on('chat:notification',  chatHandler);
+      socket.on('group:notification', groupHandler);
+    });
+
+    return () => {
+      mounted = false;
+      const socket = getSocket();
+      socket?.off('chat:notification',  chatHandler);
+      socket?.off('group:notification', groupHandler);
+    };
+  }, [user?._id]);
 
   if (isRestoring) {
     return (
@@ -132,7 +176,7 @@ export default function AppNavigator() {
               <Stack.Screen name="FrameDetail"     component={FrameDetailScreen} />
               <Stack.Screen name="FrameSelector"   component={FrameSelectorScreen} />
               <Stack.Screen name="CreateGroup"     component={CreateGroupScreen} />
-              <Stack.Screen name="GroupRoom"       component={GroupRoomScreen} />
+              <Stack.Screen name="GroupRoom"       component={GroupRoomScreen} options={{ detachPreviousScreen: false }} />
               <Stack.Screen name="GroupSettings"   component={GroupSettingsScreen} />
               <Stack.Screen name="Circles"         component={CirclesScreen} />
               <Stack.Screen name="CircleCreate"    component={CircleCreateScreen} />
@@ -151,6 +195,7 @@ export default function AppNavigator() {
               <Stack.Screen name="ChatAudios"      component={ChatAudiosScreen}     options={{ headerShown: false }} />
               <Stack.Screen name="ChatBackground"  component={ChatBackgroundScreen} options={{ headerShown: false }} />
               <Stack.Screen name="ChatSettings"    component={ChatSettingsScreen}   options={{ headerShown: false }} />
+              <Stack.Screen name="MeetText"        component={MeetTextScreen}        options={{ headerShown: false }} />
             </>
           ) : (
             <>

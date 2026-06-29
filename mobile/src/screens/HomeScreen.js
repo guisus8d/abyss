@@ -41,16 +41,25 @@ const MEET_GAP = 8;
 const MEET_CARD_W = Math.floor((SCREEN_W - MEET_PAD * 2 - MEET_GAP * 2) / 3);
 const MEET_CARD_H = Math.round(MEET_CARD_W * (242 / 314)); // ratio nativo de los bg_*.9.png (314×242)
 
-function MeetSection() {
+function MeetSection({ navigation, waitingCount }) {
   return (
     <View style={ms.wrap}>
-      <View style={ms.card}>
+      <TouchableOpacity
+        style={ms.card}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('MeetText')}
+      >
         <Image source={require('../../assets/meet/bg_text_match_entrance.9.png')} style={ms.img} resizeMode="contain" />
         <Text style={ms.label}>{'Meet\nText'}</Text>
         <View style={ms.iconWrap}>
           <Image source={require('../../assets/meet/icon_text_match_hd.webp')} style={ms.iconImg} resizeMode="contain" />
         </View>
-      </View>
+        {waitingCount > 0 && (
+          <View style={ms.badge}>
+            <Text style={ms.badgeTxt}>{waitingCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
       <View style={ms.card}>
         <Image source={require('../../assets/meet/bg_voice_match_entrance.9.png')} style={ms.img} resizeMode="contain" />
         <Text style={ms.label}>{'Meet\nVoice'}</Text>
@@ -155,6 +164,7 @@ export default function HomeScreen({ navigation }) {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [refreshing,    setRefreshing]    = useState(false);
   const [fiestas,       setFiestas]       = useState([]);
+  const [meetWaiting,   setMeetWaiting]   = useState(0);
   const [activeTab,     setActiveTab]     = useState('todos');
   const [tabData,       setTabData]       = useState({
     todos:     INITIAL_TAB_STATE(),
@@ -183,6 +193,12 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     api.get('/groups/circles/public')
       .then(({ data }) => setFiestas(data.circles || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    api.get('/meet/text/waiting-count')
+      .then(({ data }) => setMeetWaiting(data.count || 0))
       .catch(() => {});
   }, []);
 
@@ -414,7 +430,7 @@ export default function HomeScreen({ navigation }) {
         scrollEventThrottle={400}>
         <View style={{ height: 70 + insets.top }} />
         <OrbitUsers navigation={navigation} />
-        <MeetSection />
+        <MeetSection navigation={navigation} waitingCount={meetWaiting} />
         <FiestasSection
           fiestas={fiestas}
           onPress={item => isGuest ? setShowGuestModal(true) : navigation.navigate('GroupRoom', { group: item })}
@@ -589,4 +605,16 @@ const ms = StyleSheet.create({
     justifyContent: 'center',
   },
   iconImg:  { width: 40, height: 40 },
+  badge: {
+    position:        'absolute',
+    top:             6,
+    right:           6,
+    backgroundColor: colors.c1,
+    borderRadius:    10,
+    minWidth:        18,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    alignItems:      'center',
+  },
+  badgeTxt: { color: colors.black, fontSize: 9, fontWeight: '800' },
 });

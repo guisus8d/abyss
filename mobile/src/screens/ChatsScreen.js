@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, Image,
   StyleSheet, StatusBar, ActivityIndicator,
@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
+import { useAppStore } from '../store/appStore';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
 import AvatarWithFrame from '../components/AvatarWithFrame';
@@ -63,6 +64,7 @@ const AVATAR_SIZE = 48;
 export default function ChatsScreen({ navigation }) {
   const { user, logout } = useAuthStore();
   const insets   = useSafeAreaInsets();
+  const { resetUnreadFromIds } = useAppStore();
 
   const [tab,         setTab]         = useState('privado');
   const [chats,       setChats]       = useState([]);
@@ -82,55 +84,73 @@ export default function ChatsScreen({ navigation }) {
   const [fiestas,         setFiestas]         = useState([]);
   const [drawerOpen,     setDrawerOpen]     = useState(false);
 
+  // ── Sincronización exacta del badge con los datos reales cargados ──────────
+  useEffect(() => {
+    if (!user) return;
+    const myId = user._id?.toString();
+    const ids = [
+      ...chats
+        .filter(c => !mutedIds.has(c._id?.toString()) && (c.unread || 0) > 0)
+        .map(c => c._id?.toString()),
+      ...groups
+        .filter(g => !g.isCircle && !mutedIds.has(g._id?.toString()) && (g.unreadCounts?.[myId] || 0) > 0)
+        .map(g => g._id?.toString()),
+    ];
+    resetUnreadFromIds(ids);
+  }, [chats, groups, mutedIds]);
+
   // ── Load & sockets ────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
     loadAll();
     loadStorageState();
     let socket = null;
 
+    // Guardamos referencias para poder quitar SOLO estos handlers al salir,
+    // sin matar los listeners globales registrados en AppNavigator.
+    const chatHandler = ({ chatId, lastMessageText, lastMessage }) => {
+      setChats(prev => {
+        const next = prev.map(c =>
+          c._id?.toString() === chatId?.toString()
+            ? { ...c, lastMessageText, lastMessage, unread: (c.unread || 0) + 1 }
+            : c
+        );
+        return next.sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage));
+      });
+    };
+
+    const groupHandler = ({ groupId, lastMessageText, lastMessage, lastMessageSender }) => {
+      setGroups(prev => {
+        const myIdStr = user._id?.toString();
+        const next = prev.map(g => {
+          if (g._id?.toString() !== groupId?.toString()) return g;
+          const prevCount = g.unreadCounts?.[myIdStr] || 0;
+          return {
+            ...g, lastMessageText, lastMessage, lastMessageSender,
+            unreadCounts: { ...(g.unreadCounts || {}), [myIdStr]: prevCount + 1 },
+          };
+        });
+        return next.sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage));
+      });
+    };
+
+    const circleHandler = ({ groupId }) => {
+      setFiestas(prev => prev.map(f =>
+        f._id?.toString() === groupId?.toString() ? { ...f, isActive: true } : f
+      ));
+    };
+
     connectSocket().then(s => {
       socket = s;
-      s.off('chat:notification');
-      s.off('group:notification');
-      s.off('circle:activated');
-
-      s.on('chat:notification', ({ chatId, lastMessageText, lastMessage }) => {
-        setChats(prev => {
-          const next = prev.map(c =>
-            c._id?.toString() === chatId?.toString()
-              ? { ...c, lastMessageText, lastMessage, unread: (c.unread || 0) + 1 }
-              : c
-          );
-          return next.sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage));
-        });
-      });
-      s.on('group:notification', ({ groupId, lastMessageText, lastMessage, lastMessageSender }) => {
-        setGroups(prev => {
-          const myIdStr = user._id?.toString();
-          const next = prev.map(g => {
-            if (g._id?.toString() !== groupId?.toString()) return g;
-            const prevCount = g.unreadCounts?.[myIdStr] || 0;
-            return {
-              ...g, lastMessageText, lastMessage, lastMessageSender,
-              unreadCounts: { ...(g.unreadCounts || {}), [myIdStr]: prevCount + 1 },
-            };
-          });
-          return next.sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage));
-        });
-      });
-
-      s.on('circle:activated', ({ groupId }) => {
-        setFiestas(prev => prev.map(f =>
-          f._id?.toString() === groupId?.toString() ? { ...f, isActive: true } : f
-        ));
-      });
+      s.on('chat:notification',  chatHandler);
+      s.on('group:notification', groupHandler);
+      s.on('circle:activated',   circleHandler);
     });
 
     return () => {
       if (socket) {
-        socket.off('chat:notification');
-        socket.off('group:notification');
-        socket.off('circle:activated');
+        socket.off('chat:notification',  chatHandler);
+        socket.off('group:notification', groupHandler);
+        socket.off('circle:activated',   circleHandler);
       }
     };
   }, []));
