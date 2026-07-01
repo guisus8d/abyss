@@ -61,6 +61,9 @@
     .h-role{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--gold);font-size:9px;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:20px}
     .h-logout{background:none;border:1px solid var(--border);color:var(--dim);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s;display:flex;align-items:center;gap:6px}
     .h-logout:hover{border-color:var(--red-border);color:var(--red)}
+    .h-nav{display:flex;align-items:center;gap:6px;margin-left:8px}
+    .h-nav-btn{background:none;border:1px solid var(--border);color:var(--dim);padding:5px 13px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;transition:all .2s;white-space:nowrap}
+    .h-nav-btn:hover{border-color:rgba(0,229,204,.4);color:var(--accent)}
 
     .wrap{max-width:1060px;margin:0 auto;padding:28px 24px}
 
@@ -239,6 +242,10 @@
       <span>MOD PANEL</span>
     </div>
     <span id="h-badge" class="h-badge"></span>
+    <div class="h-nav">
+      <button class="h-nav-btn" onclick="openPanel('/mod/bugs')">Bugs</button>
+      <button class="h-nav-btn" onclick="openPanel('/mod/reports')">Reportes</button>
+    </div>
     <div class="h-user">
       <span id="h-uname"></span>
       <span id="h-role" class="h-role"></span>
@@ -409,8 +416,14 @@
 
 <script>
 const API='https://abyss-production-7171.up.railway.app/api';
+const BACKEND='https://abyss-production-7171.up.railway.app';
 const MOD_PIN='482937';
 let tok=localStorage.getItem('mod_tok')||'',me=null;
+
+function openPanel(path){
+  if(!tok){alert('Sesion no iniciada');return;}
+  window.open(BACKEND+path+'?token='+encodeURIComponent(tok),'_blank');
+}
 let reportFilter='pending',activeReportId=null,banTarget=null,srchTimer=null;
 
 const REASONS={spam:'Spam',hate:'Discurso de odio',harassment:'Acoso',violence:'Contenido violento',nsfw:'Contenido inapropiado',misinformation:'Desinformación',other:'Otro'};
