@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, Image,
-  StyleSheet, ActivityIndicator, StatusBar, Dimensions,
+  View, Text, TouchableOpacity, Image, FlatList,
+  StyleSheet, ActivityIndicator, StatusBar, Dimensions, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,43 +11,68 @@ import { colors } from '../theme/colors';
 import api from '../services/api';
 import { CIRCLE_HASHTAGS, getHashtagColor } from '../constants/circleHashtags';
 
-const SCREEN_W = Dimensions.get('window').width;
-const CARD_W   = Math.floor(SCREEN_W * 0.42);
-const CARD_H   = 100;
+const SCREEN_W  = Dimensions.get('window').width;
+const CARD_W    = Math.floor((SCREEN_W - 12 * 2 - 8) / 2);
+const CARD_H    = 100;
+const PAGE_SIZE = 8;
 
 export default function CirclesScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const [circles,      setCircles]      = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [loadingMore,  setLoadingMore]  = useState(false);
+  const [hasMore,      setHasMore]      = useState(true);
   const [activeFilter, setActiveFilter] = useState('todos');
+  const pageRef = useRef(1);
 
   useFocusEffect(useCallback(() => {
     load();
-  }, []));
+  }, [activeFilter]));
 
   async function load() {
     setLoading(true);
+    pageRef.current = 1;
     try {
-      const { data } = await api.get('/groups/circles/public');
+      const params = { limit: PAGE_SIZE, page: 1 };
+      if (activeFilter !== 'todos' && activeFilter !== 'populares') params.hashtag = activeFilter;
+      const { data } = await api.get('/groups/circles/public', { params });
       setCircles(data.circles || []);
+      setHasMore(data.hasMore ?? false);
     } catch {
       setCircles([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   }
 
-  const displayedCircles = useMemo(() => {
-    if (activeFilter === 'todos') {
-      return [...circles].sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0) || (b.membersCount || 0) - (a.membersCount || 0));
+  async function loadMore() {
+    if (!hasMore || loadingMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = pageRef.current + 1;
+      const params = { limit: PAGE_SIZE, page: nextPage };
+      if (activeFilter !== 'todos' && activeFilter !== 'populares') params.hashtag = activeFilter;
+      const { data } = await api.get('/groups/circles/public', { params });
+      const incoming = data.circles || [];
+      if (incoming.length > 0) {
+        setCircles(prev => [...prev, ...incoming]);
+        pageRef.current = nextPage;
+      }
+      setHasMore(data.hasMore ?? false);
+    } catch {
+      // keep current list on error
+    } finally {
+      setLoadingMore(false);
     }
+  }
+
+  const displayedCircles = useMemo(() => {
     if (activeFilter === 'populares') {
       return [...circles].sort((a, b) => (b.membersCount || 0) - (a.membersCount || 0));
     }
-    return [...circles]
-      .filter(c => (c.hashtags || []).includes(activeFilter))
-      .sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0));
+    return circles;
   }, [circles, activeFilter]);
 
   const pills = useMemo(() => [
@@ -57,8 +82,63 @@ export default function CirclesScreen({ navigation }) {
   ], []);
 
   function emptyText() {
-    if (activeFilter === 'todos' || activeFilter === 'populares') return 'No hay fiestas públicas aún';
-    return `No hay fiestas con #${activeFilter} aún`;
+    if (activeFilter === 'todos' || activeFilter === 'populares') return 'No hay fiestas publicas aun';
+    return `No hay fiestas con #${activeFilter} aun`;
+  }
+
+  function renderCard({ item }) {
+    return (
+      <TouchableOpacity
+        style={[s.card, !item.isActive && { opacity: 0.45 }]}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('GroupRoom', { group: item })}
+      >
+        {item.imageUrl
+          ? <Image
+              source={{ uri: item.imageUrl }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              fadeDuration={Platform.OS === 'android' ? 0 : undefined}
+            />
+          : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
+
+        <LinearGradient
+          colors={['rgba(0,0,0,0.8)', 'transparent']}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', justifyContent: 'flex-start', padding: 7 }}
+        >
+          <Text style={s.cardName} numberOfLines={2}>{item.name}</Text>
+        </LinearGradient>
+
+        <LinearGradient
+          colors={['rgba(0,0,0,0.75)', 'transparent']}
+          start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
+          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
+        />
+
+        {item.hashtags?.length > 0 && (
+          <View style={s.cardHashtags}>
+            {item.hashtags.slice(0, 2).map((tag) => {
+              const c = getHashtagColor(tag);
+              return (
+                <View key={tag} style={[s.cardHashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
+                  <Text style={[s.cardHashtagTxt, { color: c }]}>#{tag}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        <View style={s.cardMembersBadge}>
+          <Text style={s.cardMembersBadgeTxt}>{item.membersCount ?? 0}</Text>
+          <Ionicons name="people" size={8} color="#fff" />
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  function renderFooter() {
+    if (!loadingMore) return null;
+    return <ActivityIndicator color={colors.c1} style={{ marginVertical: 20 }} />;
   }
 
   return (
@@ -104,51 +184,22 @@ export default function CirclesScreen({ navigation }) {
           <Text style={s.emptyTxt}>{emptyText()}</Text>
         </View>
       ) : (
-        <View style={[s.cardsRow, { paddingBottom: insets.bottom + 16 }]}>
-          {displayedCircles.map(item => (
-            <TouchableOpacity
-              key={item._id}
-              style={[s.card, !item.isActive && { opacity: 0.45 }]}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('GroupRoom', { group: item })}
-            >
-              {item.imageUrl
-                ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
-
-              <LinearGradient
-                colors={['rgba(0,0,0,0.8)', 'transparent']}
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', justifyContent: 'flex-start', padding: 7 }}
-              >
-                <Text style={s.cardName} numberOfLines={2}>{item.name}</Text>
-              </LinearGradient>
-
-              <LinearGradient
-                colors={['rgba(0,0,0,0.75)', 'transparent']}
-                start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
-                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
-              />
-
-              {item.hashtags?.length > 0 && (
-                <View style={s.cardHashtags}>
-                  {item.hashtags.slice(0, 2).map((tag) => {
-                    const c = getHashtagColor(tag);
-                    return (
-                      <View key={tag} style={[s.cardHashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
-                        <Text style={[s.cardHashtagTxt, { color: c }]}>#{tag}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-
-              <View style={s.cardMembersBadge}>
-                <Text style={s.cardMembersBadgeTxt}>{item.membersCount ?? 0}</Text>
-                <Ionicons name="people" size={8} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <FlatList
+          data={displayedCircles}
+          keyExtractor={item => item._id}
+          renderItem={renderCard}
+          numColumns={2}
+          contentContainerStyle={[s.cardsContent, { paddingBottom: insets.bottom + 16 }]}
+          columnWrapperStyle={s.columnWrapper}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={renderFooter}
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+        />
       )}
     </View>
   );
@@ -165,7 +216,8 @@ const s = StyleSheet.create({
   pill:       { borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
   pillTxt:    { fontSize: 11, fontWeight: '600' },
 
-  cardsRow:   { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8, paddingTop: 16 },
+  cardsContent:   { paddingHorizontal: 12, paddingTop: 16 },
+  columnWrapper:  { gap: 8, marginBottom: 8 },
 
   card:         { width: CARD_W, height: CARD_H, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   cardName:     { color: '#fff', fontSize: 10, fontWeight: '800' },

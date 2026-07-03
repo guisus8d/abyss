@@ -67,6 +67,9 @@ import ChatSettingsScreen    from '../screens/ChatSettingsScreen';
 import CirclesScreen         from '../screens/CirclesScreen';
 import CircleCreateScreen    from '../screens/CircleCreateScreen';
 import ProyectorWidget       from '../components/ProyectorWidget';
+import WelcomeModal          from '../components/WelcomeModal';
+import BugReportBubble       from '../components/BugReportBubble';
+import BugReportScreen        from '../screens/BugReportScreen';
 const MeetTextScreen = Platform.OS !== 'web'
   ? require('../screens/MeetTextScreen').default
   : () => null;
@@ -198,6 +201,7 @@ export default function AppNavigator() {
               <Stack.Screen name="ChatBackground"  component={ChatBackgroundScreen} options={{ headerShown: false }} />
               <Stack.Screen name="ChatSettings"    component={ChatSettingsScreen}   options={{ headerShown: false }} />
               <Stack.Screen name="MeetText"        component={MeetTextScreen}        options={{ headerShown: false }} />
+              <Stack.Screen name="BugReport"      component={BugReportScreen}       options={{ headerShown: false }} />
             </>
           ) : (
             <>
@@ -221,6 +225,8 @@ export default function AppNavigator() {
         </Stack.Navigator>
       </NavigationContainer>
       <ProyectorWidget navigationRef={navigationRef} />
+      <WelcomeModal navigationRef={navigationRef} />
+      {/* user && <BugReportBubble navigationRef={navigationRef} /> */}
       </View>
     </SafeAreaProvider>
   );

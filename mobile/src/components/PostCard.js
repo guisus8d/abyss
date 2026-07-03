@@ -4,7 +4,9 @@ import {
   StyleSheet, TextInput, ScrollView, Animated, Platform,
 } from 'react-native';
 import VideoPlayer from './VideoPlayer';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { getHashtagColor } from '../constants/circleHashtags';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import AvatarWithFrame from './AvatarWithFrame';
@@ -348,6 +350,21 @@ function CommentSection({
   );
 }
 
+function getPostPreview(post) {
+  if (!post.content) return '';
+  try {
+    if (post.content.startsWith('[')) {
+      const blocks = JSON.parse(post.content);
+      return blocks
+        .filter(b => b.type === 'text' && b.text?.trim())
+        .map(b => b.text)
+        .join(' ')
+        .slice(0, 120);
+    }
+  } catch {}
+  return post.content?.slice(0, 120) || '';
+}
+
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 const PostCard = memo(function PostCard({
@@ -507,7 +524,11 @@ const PostCard = memo(function PostCard({
               <VerifiedIcon isCreator={post.author.isCreator} />
             </View>
           </TouchableOpacity>
-          <Text style={s.meta}>XP {post.author.xp} · {ago}</Text>
+          <Text style={s.meta}>
+            {post.postType === 'circle_share'
+              ? `compartio una fiesta · ${ago}`
+              : `XP ${post.author.xp} · ${ago}`}
+          </Text>
         </View>
 
         {isAuthor && (
@@ -518,7 +539,57 @@ const PostCard = memo(function PostCard({
       </View>
 
       {/* ── Contenido ── */}
-      {post.postType === 'news' ? (
+      {post.postType === 'circle_share' ? (() => {
+        const goToCircle = () => navigation.navigate('GroupRoom', {
+          group: {
+            _id:      post.circleRef,
+            name:     post.title,
+            isCircle: true,
+            imageUrl: post.imageUrl,
+            members:  [],
+            messages: [],
+          },
+        });
+        return (
+          <TouchableOpacity style={s.circleShareCard} onPress={goToCircle} activeOpacity={0.88}>
+            {/* Banner */}
+            <View style={s.circleShareBanner}>
+              {post.imageUrl
+                ? <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                : <View style={[StyleSheet.absoluteFill, { backgroundColor: C.surface }]} />}
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.82)']}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={s.circleShareBannerContent}>
+                {post.tags?.length > 0 && (
+                  <View style={s.circleShareHashtags}>
+                    {post.tags.slice(0, 4).map((tag, i) => {
+                      const color = getHashtagColor(tag);
+                      return (
+                        <View key={i} style={[s.circleSharePill, { borderColor: color + '55', backgroundColor: color + '18' }]}>
+                          <Text style={[s.circleSharePillTxt, { color }]}>#{tag}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+                <Text style={s.circleShareName} numberOfLines={2}>{post.title}</Text>
+              </View>
+            </View>
+            {/* Footer */}
+            <View style={s.circleShareFooter}>
+              <View style={s.circleShareMeta}>
+                <Ionicons name="people-outline" size={13} color={C.textMid} />
+                <Text style={s.circleShareMetaTxt}>{post.membersCount || 0} miembros</Text>
+              </View>
+              <TouchableOpacity style={s.circleShareJoinBtn} onPress={goToCircle} activeOpacity={0.8}>
+                <Text style={s.circleShareJoinTxt}>Unirse a la fiesta</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        );
+      })() : post.postType === 'news' ? (
         <TouchableOpacity
           style={s.newsCard}
           onPress={() => navigation.navigate('PostDetail', { postId: post._id })}
@@ -531,7 +602,7 @@ const PostCard = memo(function PostCard({
               <Text style={s.newsBadgeTxt}>NOTICIA</Text>
             </View>
             {post.title ? <Text style={s.newsTitle}>{post.title}</Text> : null}
-            <Text style={s.newsContent} numberOfLines={3}>{post.content}</Text>
+            <Text style={s.newsContent} numberOfLines={3}>{getPostPreview(post)}</Text>
           </View>
         </TouchableOpacity>
       ) : post.postType === 'video' && post.videoUrl ? (
@@ -747,6 +818,20 @@ const s = StyleSheet.create({
   commentReactAddTxt:{ color: C.textDim, fontSize: 12, lineHeight: 14 },
   commentEmojiPicker:{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, gap: 4, backgroundColor: C.surface, borderRadius: 10, borderWidth: 1, borderColor: C.cardBorder, padding: 6 },
   commentEmojiBtn:  { padding: 3 },
+
+  // circle_share
+  circleShareCard:         { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,229,204,0.2)', overflow: 'hidden', marginBottom: 12, backgroundColor: C.surface },
+  circleShareBanner:       { width: '100%', height: 200, position: 'relative' },
+  circleShareBannerContent:{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14, gap: 8 },
+  circleShareName:         { color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: 0.2 },
+  circleShareHashtags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  circleSharePill:         { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2 },
+  circleSharePillTxt:      { fontSize: 10, fontWeight: '700' },
+  circleShareFooter:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
+  circleShareMeta:         { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  circleShareMetaTxt:      { color: C.textMid, fontSize: 13 },
+  circleShareJoinBtn:      { backgroundColor: C.accent, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
+  circleShareJoinTxt:      { color: '#000', fontSize: 13, fontWeight: '800' },
 });
 
 const rm = StyleSheet.create({

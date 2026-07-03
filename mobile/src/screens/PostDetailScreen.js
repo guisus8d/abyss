@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, Modal, TouchableOpacity, Image,
   StyleSheet, ActivityIndicator, TextInput, Platform, Alert, Share, Linking,
-  KeyboardAvoidingView, Keyboard,
+  KeyboardAvoidingView, Keyboard, ImageBackground,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,6 +71,78 @@ const cm = StyleSheet.create({
   btnCancelTxt: { color:C.textDim, fontWeight:'600', fontSize:14 },
   btnDanger:    { flex:1, paddingVertical:13, borderRadius:14, backgroundColor:'rgba(239,68,68,0.75)', alignItems:'center' },
   btnDangerTxt: { color:'#fff', fontWeight:'700', fontSize:14 },
+});
+
+function parseBlocks(content) {
+  if (!content || !content.startsWith('[')) return null;
+  try { return JSON.parse(content); } catch { return null; }
+}
+
+function NewsContent({ post }) {
+  const blocks = parseBlocks(post.content);
+
+  const coverImage = post.imageUrl ? (
+    post.imageLink ? (
+      <TouchableOpacity onPress={() => Linking.openURL(post.imageLink)} activeOpacity={0.85}>
+        <Image source={{ uri: post.imageUrl }} style={ncs.cover} resizeMode="cover" />
+      </TouchableOpacity>
+    ) : (
+      <Image source={{ uri: post.imageUrl }} style={ncs.cover} resizeMode="cover" />
+    )
+  ) : null;
+
+  const inner = (
+    <View style={ncs.inner}>
+      {coverImage}
+      <View style={ncs.body}>
+        <View style={ncs.badge}>
+          <Ionicons name="newspaper-outline" size={11} color="rgba(251,191,36,1)" />
+          <Text style={ncs.badgeTxt}>NOTICIA</Text>
+        </View>
+        {post.title ? <Text style={ncs.title}>{post.title}</Text> : null}
+        {blocks ? (
+          blocks.map((b, i) => {
+            if (b.type === 'text') {
+              return b.text ? <Text key={i} style={ncs.content}>{b.text}</Text> : null;
+            }
+            if (b.type === 'image' && b.url) {
+              const img = <Image key={i} source={{ uri: b.url }} style={ncs.blockImg} resizeMode="cover" />;
+              return b.link ? (
+                <TouchableOpacity key={i} onPress={() => Linking.openURL(b.link)} activeOpacity={0.85}>
+                  {img}
+                </TouchableOpacity>
+              ) : img;
+            }
+            return null;
+          })
+        ) : (
+          post.content ? <Text style={ncs.content}>{post.content}</Text> : null
+        )}
+      </View>
+    </View>
+  );
+
+  if (post.backgroundUrl) {
+    return (
+      <ImageBackground source={{ uri: post.backgroundUrl }} style={ncs.bgWrap}>
+        <View style={ncs.bgOverlay}>{inner}</View>
+      </ImageBackground>
+    );
+  }
+  return inner;
+}
+
+const ncs = StyleSheet.create({
+  bgWrap:   { width: '100%' },
+  bgOverlay:{ backgroundColor: 'rgba(0,0,0,0.55)' },
+  inner:    { overflow: 'hidden' },
+  cover:    { width: '100%', aspectRatio: 16 / 9 },
+  body:     { padding: 16, gap: 10 },
+  badge:    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(234,179,8,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
+  badgeTxt: { color: 'rgba(251,191,36,1)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  title:    { color: '#e8f4f8', fontSize: 20, fontWeight: '700', lineHeight: 28 },
+  content:  { color: 'rgba(230,240,255,0.75)', fontSize: 15, lineHeight: 24 },
+  blockImg: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10 },
 });
 
 export default function PostDetailScreen({ route, navigation }) {
@@ -399,17 +471,7 @@ export default function PostDetailScreen({ route, navigation }) {
         </TouchableOpacity>
 
         {isNews ? (
-          <View style={s.newsWrap}>
-            {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.newsCover} resizeMode="contain" /> : null}
-            <View style={s.newsBody}>
-              <View style={s.newsBadge}>
-                <Ionicons name="newspaper-outline" size={11} color={C.gold} />
-                <Text style={s.newsBadgeTxt}>NOTICIA</Text>
-              </View>
-              {post.title   ? <Text style={s.newsTitle}>{post.title}</Text>     : null}
-              {post.content ? <Text style={s.newsContent}>{post.content}</Text> : null}
-            </View>
-          </View>
+          <NewsContent post={post} />
         ) : post.postType === 'video' && post.videoUrl ? (
           <View style={s.postWrap}>
             {post.title ? <Text style={s.postContent}>{post.title}</Text> : null}

@@ -27,12 +27,18 @@ import VerifiedIcon from '../components/VerifiedIcon';
 import { formatCoins } from '../utils/formatCoins';
 import YoutubeIframe from 'react-native-youtube-iframe';
 import { useCinemaStore } from '../store/cinemaStore';
+import RoleManagerModal from '../components/RoleManagerModal';
+import RoleHexAvatar from '../components/RoleHexAvatar';
+import Svg, { Defs, ClipPath, Polygon, Rect, Image as SvgImage } from 'react-native-svg';
 
 const GROUP_BG_PRESETS = { night: '#020D1A', void: '#050505', purple: '#0D0714', teal: '#030F10' };
 const SCREEN_H = Dimensions.get('window').height;
 const SCREEN_W = Dimensions.get('window').width;
-const CINEMA_H = Math.round(SCREEN_H * 0.40);
 const CINEMA_W = SCREEN_W - 24; // marginHorizontal: 12 * 2
+const CINEMA_H = Math.round(CINEMA_W * 9 / 16);
+const ROLE_PANEL_HEADER_H = 36;
+const ROLE_PANEL_GRID_H   = 220; // 2 filas x 5 columnas: ~95px de card x2 + gap + padding vertical
+const ROLE_PANEL_H = ROLE_PANEL_HEADER_H + ROLE_PANEL_GRID_H;
 
 function extractYoutubeId(url) {
   const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -99,6 +105,30 @@ function SystemMessage({ msg, isCircle }) {
   );
 }
 
+// ─── Mensaje de bienvenida ────────────────────────────────────────────────────
+function WelcomeMessage({ msg }) {
+  return (
+    <View style={{ marginBottom: 4, paddingLeft: AVATAR_SLOT + 8, paddingRight: 16, paddingVertical: 2 }}>
+      <View style={{
+        backgroundColor: 'rgba(0,229,204,0.06)',
+        borderRadius: 10,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,229,204,0.18)',
+        alignSelf: 'flex-start',
+        maxWidth: '85%',
+      }}>
+        <Text style={{ color: 'rgba(0,229,204,0.7)', fontSize: 10, fontWeight: '700', marginBottom: 4, letterSpacing: 0.5 }}>
+          MENSAJE DE BIENVENIDA
+        </Text>
+        <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, lineHeight: 19 }}>
+          {msg.text}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 // ─── SharedPostBubble ─────────────────────────────────────────────────────────
 function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
   if (!sharedPost?.postId) return null;
@@ -132,7 +162,7 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
-  msg, prevMsg, isMe, user, group, isAdmin, blockedIds,
+  msg, prevMsg, isMe, user, group, isAdmin, blockedIds, activeRoles,
   navigation, onOpenMenu, onReply, onFullImg, onGiftAction, onGiftClaim,
 }) {
   const sender       = msg.sender;
@@ -141,6 +171,7 @@ const MessageBubble = memo(function MessageBubble({
   const sameAsPrev   = prevMsg && prevMsg.type !== 'system' && prevSenderId === thisSenderId;
   const showAvatar   = !sameAsPrev && msg.type !== 'system';
   const senderIsBlocked = !isMe && blockedIds?.includes((sender?._id || sender)?.toString());
+  const senderRole   = activeRoles?.[thisSenderId];
 
   if (msg.type === 'system') {
     return <SystemMessage msg={msg} isCircle={!!group?.isCircle} />;
@@ -175,6 +206,11 @@ const MessageBubble = memo(function MessageBubble({
             )}
           </View>
         )}
+        {showAvatar && senderRole && (
+          <Text style={[s.roleNameTag, isMe ? s.roleNameTagMe : s.roleNameTagThem, { color: senderRole.borderColor || '#fff' }]}>
+            {senderRole.roleName}
+          </Text>
+        )}
 
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
           <TouchableOpacity
@@ -182,7 +218,14 @@ const MessageBubble = memo(function MessageBubble({
             onPress={() => !isMe && navigation.navigate('PublicProfile', { username: sender?.username })}
             activeOpacity={isMe ? 1 : 0.7}
           >
-            {showAvatar && (
+            {showAvatar && senderRole && (
+              <RoleHexAvatar
+                avatarUrl={isMe ? user?.avatarUrl : sender?.avatarUrl}
+                size={30}
+                borderColor={senderRole.borderColor}
+              />
+            )}
+            {showAvatar && !senderRole && (
               <AvatarWithFrame
                 size={30}
                 avatarUrl={isMe ? user?.avatarUrl : sender?.avatarUrl}
@@ -250,16 +293,115 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
+const ROLE_HEX_POINTS = '50,2 93,30 93,68 50,98 7,68 7,30'; // matches mask_role_foreground.png outline
+
+// ─── RoleCard ─────────────────────────────────────────────────────────────────
+function RoleCard({ role, myUserId, onTake, onRelease }) {
+  const taker      = role.takenBy;
+  const takerId    = (taker?._id || taker)?.toString();
+  const isMine     = !!takerId && takerId === myUserId?.toString();
+  const isTaken    = !!takerId;
+  const avatarOpacity = !isTaken ? 1 : isMine ? 1 : 0.35;
+  const clipId = `roleHex-${role._id}`;
+
+  function handlePress() {
+    if (isMine) {
+      Alert.alert(
+        '¿Retirarte el rol?',
+        undefined,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Retirar', style: 'destructive', onPress: () => onRelease(role._id) },
+        ]
+      );
+    } else if (!isTaken) {
+      Alert.alert(
+        '¿Tomar este rol?',
+        undefined,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Tomar', onPress: () => onTake(role._id) },
+        ]
+      );
+    }
+  }
+
+  return (
+    <TouchableOpacity
+      style={s.roleCard}
+      activeOpacity={isTaken && !isMine ? 1 : 0.8}
+      disabled={isTaken && !isMine}
+      onPress={handlePress}
+    >
+      <LinearGradient
+        colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']}
+        style={s.roleCardGradient}
+      >
+        <View style={{ position: 'relative', width: 44, height: 44 }}>
+          <View style={[s.roleAvatarWrap, { opacity: avatarOpacity }]}>
+            <Svg width={44} height={44} viewBox="0 0 100 100" style={s.roleAvatarBg}>
+              <Defs>
+                <ClipPath id={clipId}>
+                  <Polygon points={ROLE_HEX_POINTS} />
+                </ClipPath>
+              </Defs>
+              <SvgImage
+                href={{ uri: role.imageUrl }}
+                x="0" y="0" width="100" height="100"
+                preserveAspectRatio="xMidYMid slice"
+                clipPath={`url(#${clipId})`}
+              />
+              {isMine && (
+                <Rect x="0" y="0" width="100" height="100" fill="rgba(0,229,204,0.2)" clipPath={`url(#${clipId})`} />
+              )}
+            </Svg>
+            <Image
+              source={require('../../assets/chats/Fiesta/rol/mask_role_foreground.png')}
+              style={s.roleAvatarMask}
+              resizeMode="contain"
+            />
+          </View>
+          {isTaken && taker?.avatarUrl && (
+            <Image source={{ uri: taker.avatarUrl }} style={s.roleCardTakerAvatar} />
+          )}
+        </View>
+        <Text style={s.roleCardName} numberOfLines={1} ellipsizeMode="tail">
+          {role.name}
+        </Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+}
+
+// ─── EmptyRoleSlot ────────────────────────────────────────────────────────────
+function EmptyRoleSlot({ canManage, onPress }) {
+  return (
+    <TouchableOpacity
+      style={s.roleCard}
+      activeOpacity={canManage ? 0.8 : 1}
+      onPress={onPress}
+    >
+      <View style={s.roleCardGradient}>
+        <Image
+          source={require('../../assets/chats/Fiesta/rol/mask_over_take_role.png')}
+          style={[s.roleCardImg, { opacity: 0.4 }]}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 const _grpBgCache = new Map();
 
 // ─── GroupRoomScreen ──────────────────────────────────────────────────────────
 export default function GroupRoomScreen({ route, navigation }) {
-  const { group: initialGroup } = route.params;
+  const { group: initialGroup } = route.params || {};
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { markChatRead } = useAppStore();
 
   const [group, setGroup] = useState(() => {
+    if (!initialGroup) return {};
     const cachedBg = _grpBgCache.get(initialGroup._id?.toString());
     return cachedBg !== undefined ? { ...initialGroup, backgroundUrl: cachedBg } : initialGroup;
   });
@@ -318,6 +460,14 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [cinemaPlaying,   setCinemaPlaying]   = useState(true);
   const [cinemaMinimized, setCinemaMinimized] = useState(false);
 
+  // ── Sala de Rol ────────────────────────────────────────────────────────────
+  const [roleplayActive,    setRoleplayActive]    = useState(false);
+  const [roles,             setRoles]             = useState([]);
+  const [myRole,            setMyRole]            = useState(null);
+  const [activeRoles,       setActiveRoles]       = useState({}); // { [userId]: {roleId, roleName, roleImageUrl, borderColor} }
+  const [showRoleplayPanel, setShowRoleplayPanel] = useState(true);
+  const [showRoleManager,   setShowRoleManager]   = useState(false);
+
   const { isProyector, setProyector, clearProyector } = useCinemaStore();
 
   const flatRef           = useRef(null);
@@ -373,6 +523,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     return result;
   }, [messages]);
 
+  const roleGridData = useMemo(() => {
+    const empties = Math.max(0, 10 - roles.length);
+    return [...roles, ...Array.from({ length: empties }, (_, i) => ({ _id: `empty_${i}`, __empty: true }))];
+  }, [roles]);
+
   useFocusEffect(useCallback(() => {
     markChatRead(group._id?.toString());
     if (socketRef.current) {
@@ -382,12 +537,30 @@ export default function GroupRoomScreen({ route, navigation }) {
       .then(({ data }) => {
         _grpBgCache.set(data.group._id?.toString(), data.group.backgroundUrl ?? null);
         setGroup(data.group);
+        setRoleplayActive(!!data.group.roleplayActive);
+        if (data.group.roleplayActive) fetchRoles();
         if (!data.isPending) {
           api.post(`/groups/${group._id}/read`).catch(() => {});
         }
       })
       .catch(() => {});
-  }, [group._id]));
+
+    // Proyector: reanudar video automáticamente cuando el WebView se reactiva
+    if (isProyector && cinemaVideoId) {
+      const t = setTimeout(() => {
+        setCinemaPlaying(false);
+        setTimeout(() => {
+          setCinemaPlaying(true);
+          playerRef.current?.getCurrentTime().then(currentTime => {
+            socketRef.current?.emit('circle:cinema:sync', {
+              groupId: group._id, action: 'play', currentTime,
+            });
+          }).catch(() => {});
+        }, 100);
+      }, 500);
+      return () => clearTimeout(t);
+    }
+  }, [group._id, isProyector, cinemaVideoId]));
 
   useEffect(() => {
     const eventShow = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -429,6 +602,11 @@ export default function GroupRoomScreen({ route, navigation }) {
         socketRef.current.off('circle:cinema:start');
         socketRef.current.off('circle:cinema:stop');
         socketRef.current.off('circle:cinema:sync');
+        socketRef.current.off('circle:roleplay:start');
+        socketRef.current.off('circle:roleplay:stop');
+        socketRef.current.off('circle:role:taken');
+        socketRef.current.off('circle:role:released');
+        socketRef.current.off('circle:roles:updated');
         clearInterval(cinemaIntervalRef.current);
       }
       clearInterval(recTimerRef.current);
@@ -447,6 +625,8 @@ export default function GroupRoomScreen({ route, navigation }) {
       if (myId && data.group.bannedUsers?.some(b => b?.toString() === myId)) {
         setIsBanned(true);
       }
+      setRoleplayActive(!!data.group.roleplayActive);
+      if (data.group.roleplayActive) fetchRoles();
       if (!data.isPending) {
         const { data: msgData } = await api.get(`/groups/${group._id}/messages?limit=50`);
         setMessages(msgData.messages || []);
@@ -473,6 +653,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     socket.off('circle:cinema:start');
     socket.off('circle:cinema:stop');
     socket.off('circle:cinema:sync');
+    socket.off('circle:roleplay:start');
+    socket.off('circle:roleplay:stop');
+    socket.off('circle:role:taken');
+    socket.off('circle:role:released');
+    socket.off('circle:roles:updated');
 
     socket.on('group:message', ({ groupId, message }) => {
       if (groupId.toString() !== group._id.toString()) return;
@@ -565,6 +750,40 @@ export default function GroupRoomScreen({ route, navigation }) {
           }
         }).catch(() => {});
       }
+    });
+
+    socket.on('circle:roleplay:start', ({ groupId }) => {
+      if (groupId?.toString() !== group._id?.toString()) return;
+      setRoleplayActive(true);
+      setShowRoleplayPanel(true);
+      fetchRoles();
+    });
+    socket.on('circle:roleplay:stop', ({ groupId }) => {
+      if (groupId?.toString() !== group._id?.toString()) return;
+      setRoleplayActive(false);
+      setMyRole(null);
+      setActiveRoles({});
+      setRoles([]);
+    });
+    socket.on('circle:role:taken', ({ roleId, userId, username, roleImageUrl, roleName, borderColor }) => {
+      const takerMember = group.members?.find(m => (m.user?._id || m.user)?.toString() === userId);
+      const takerAvatar = takerMember?.user?.avatarUrl || null;
+      setActiveRoles(prev => ({ ...prev, [userId]: { roleId, roleName, roleImageUrl, borderColor } }));
+      setRoles(prev => prev.map(r => r._id === roleId ? { ...r, takenBy: { _id: userId, username, avatarUrl: takerAvatar } } : r));
+      if (userId === user?._id?.toString()) setMyRole({ _id: roleId, name: roleName, imageUrl: roleImageUrl, borderColor });
+    });
+    socket.on('circle:role:released', ({ roleId, userId }) => {
+      setActiveRoles(prev => {
+        if (!prev[userId]) return prev;
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      setRoles(prev => prev.map(r => r._id === roleId ? { ...r, takenBy: null } : r));
+      if (userId === user?._id?.toString()) setMyRole(null);
+    });
+    socket.on('circle:roles:updated', () => {
+      fetchRoles();
     });
 
     socket.on('gift:update', ({ giftId, estado, slotsReclamados, reclamadoPor }) => {
@@ -660,6 +879,16 @@ export default function GroupRoomScreen({ route, navigation }) {
       _circleCache[id] = true;
       setGroup(data.group);
       setIsMember(true);
+      if (data.group?.welcomeMessage?.trim()) {
+        setMessages(prev => [...prev, {
+          _id: `welcome_${Date.now()}`,
+          type: 'welcome',
+          text: data.group.welcomeMessage,
+          createdAt: new Date().toISOString(),
+          sender: null,
+        }]);
+        setTimeout(() => flatRef.current?.scrollToOffset({ offset: 0, animated: true }), 80);
+      }
       import('@react-native-async-storage/async-storage')
         .then(({ default: AS }) => AS.setItem(`circle_member_${id}`, '1'))
         .catch(() => {});
@@ -673,10 +902,14 @@ export default function GroupRoomScreen({ route, navigation }) {
       const { data } = await api.post(`/groups/${group._id}/invite/accept`);
       setGroup(data.group);
       const { data: msgData } = await api.get(`/groups/${group._id}/messages?limit=50`);
-      setMessages(msgData.messages || []);
+      const welcomeExtra = data.group?.welcomeMessage?.trim()
+        ? [{ _id: `welcome_${Date.now()}`, type: 'welcome', text: data.group.welcomeMessage, createdAt: new Date().toISOString(), sender: null }]
+        : [];
+      setMessages([...(msgData.messages || []), ...welcomeExtra]);
       setHasMore(msgData.hasMore ?? false);
       msgSkipRef.current = 50;
       api.post(`/groups/${group._id}/read`).catch(() => {});
+      if (welcomeExtra.length) setTimeout(() => flatRef.current?.scrollToOffset({ offset: 0, animated: true }), 80);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'No se pudo aceptar la invitación');
     }
@@ -996,12 +1229,64 @@ export default function GroupRoomScreen({ route, navigation }) {
     setShowCinemaInput(false);
     setCinemaYtUrl('');
     socketRef.current?.emit('circle:cinema:start', { groupId: group._id, videoId, startedBy: user.username });
-    setProyector(group._id, group.imageUrl);
+    setProyector(group, group.imageUrl);
     cinemaStartingRef.current = false;
   }
 
   function handleCinemaStop() {
     socketRef.current?.emit('circle:cinema:stop', { groupId: group._id });
+  }
+
+  async function fetchRoles() {
+    try {
+      const { data } = await api.get(`/roles/${group._id}`);
+      setRoles(data.roles || []);
+      const nextActive = {};
+      let mine = null;
+      (data.roles || []).forEach(r => {
+        if (!r.takenBy) return;
+        const takerId = (r.takenBy._id || r.takenBy).toString();
+        nextActive[takerId] = { roleId: r._id, roleName: r.name, roleImageUrl: r.imageUrl, borderColor: r.borderColor };
+        if (takerId === user?._id?.toString()) mine = { _id: r._id, name: r.name, imageUrl: r.imageUrl, borderColor: r.borderColor };
+      });
+      setActiveRoles(nextActive);
+      setMyRole(mine);
+    } catch (e) { console.log('fetchRoles error:', e.message); }
+  }
+
+  async function handleToggleRoleplay() {
+    setShowCinemaMenu(false);
+    try {
+      const { data } = await api.post(`/groups/circles/${group._id}/toggle-roleplay`);
+      const nowActive = !!data.group.roleplayActive;
+      setRoleplayActive(nowActive);
+      if (nowActive) {
+        setShowRoleplayPanel(true);
+        fetchRoles();
+      } else {
+        setMyRole(null);
+        setActiveRoles({});
+        setRoles([]);
+      }
+    } catch (e) {
+      Alert.alert('Error', e?.response?.data?.error || 'No se pudo cambiar la Sala de Rol');
+    }
+  }
+
+  async function handleTakeRole(roleId) {
+    try {
+      await api.post(`/roles/${roleId}/take`);
+    } catch (e) {
+      Alert.alert('Error', e?.response?.data?.error || 'No se pudo tomar el rol');
+    }
+  }
+
+  async function handleReleaseRole(roleId) {
+    try {
+      await api.post(`/roles/${roleId}/release`);
+    } catch (e) {
+      Alert.alert('Error', e?.response?.data?.error || 'No se pudo soltar el rol');
+    }
   }
 
   const blockedIds = (user?.blocked || []).map(b => (b._id || b)?.toString());
@@ -1013,6 +1298,9 @@ export default function GroupRoomScreen({ route, navigation }) {
           <Text style={s.datePillTxt}>{item.label}</Text>
         </View>
       );
+    }
+    if (item.type === 'welcome') {
+      return <WelcomeMessage msg={item} />;
     }
     const isMe = (item.sender?._id || item.sender)?.toString() === user?._id?.toString();
     const nextItem = flatListData[index + 1];
@@ -1026,6 +1314,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         group={group}
         isAdmin={isAdmin}
         blockedIds={blockedIds}
+        activeRoles={activeRoles}
         navigation={navigation}
         onOpenMenu={openMenu}
         onReply={setReplyTo}
@@ -1033,7 +1322,7 @@ export default function GroupRoomScreen({ route, navigation }) {
         onGiftClaim={handleGroupGiftClaim}
       />
     );
-  }, [flatListData, user, group, isAdmin, handleGroupGiftClaim]);
+  }, [flatListData, user, group, isAdmin, handleGroupGiftClaim, activeRoles]);
 
   const menuIsMe   = menuMsg && (menuMsg.sender?._id || menuMsg.sender)?.toString() === user?._id?.toString();
   const menuSender = menuMsg?.sender;
@@ -1054,6 +1343,11 @@ export default function GroupRoomScreen({ route, navigation }) {
     : !!giftFrame && giftCantidadNum >= 1
         && giftCantidadNum <= (giftFrame?.unidadesEnMano || 0)
         && frameCost <= (user?.coins || 0);
+
+  if (!initialGroup) {
+    navigation.goBack();
+    return null;
+  }
 
   return (
     <View style={s.root}>
@@ -1291,6 +1585,14 @@ export default function GroupRoomScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
+      {/* ── Anuncio fijo ─────────────────────────────────────────────────────── */}
+      {!!group.announcementBanner && (
+        <View style={s.announcementBanner}>
+          <Ionicons name="megaphone-outline" size={13} color={colors.c1} />
+          <Text style={s.announcementBannerTxt} numberOfLines={2}>{group.announcementBanner}</Text>
+        </View>
+      )}
+
       {/* ── Panel Sala de Cine ──────────────────────────────────────────────── */}
       {cinemaVideoId && (
         <View style={s.cinemaPanelOuter}>
@@ -1307,7 +1609,7 @@ export default function GroupRoomScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
           </View>
-          <View style={{ width: CINEMA_W, height: cinemaMinimized ? 0 : CINEMA_H, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' }}>
+          <View style={{ width: CINEMA_W, height: cinemaMinimized ? 0 : CINEMA_H, overflow: 'hidden', backgroundColor: 'transparent' }}>
             <YoutubeIframe
               ref={playerRef}
               videoId={cinemaVideoId}
@@ -1326,6 +1628,48 @@ export default function GroupRoomScreen({ route, navigation }) {
               />
             )}
           </View>
+        </View>
+      )}
+
+      {/* ── Panel Sala de Rol ──────────────────────────────────────────────── */}
+      {roleplayActive && (
+        <View style={[s.rolePanelOuter, showRoleplayPanel && { height: ROLE_PANEL_H }]}>
+          <View style={s.rolePanelHeader}>
+            <Image source={require('../../assets/chats/Fiesta/icon_chatroom_roleplay.png')} style={{ width: 16, height: 16, marginRight: 6 }} />
+            <Text style={s.rolePanelTitle}>Sala de Rol</Text>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity onPress={() => setShowRoleplayPanel(v => !v)} activeOpacity={0.8} style={s.cinemaMiniBtn}>
+              <Ionicons name={showRoleplayPanel ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+            {(isAdmin || isCoAdmin) && (
+              <TouchableOpacity onPress={handleToggleRoleplay} activeOpacity={0.8} style={s.cinemaPowerBtn}>
+                <Ionicons name="power" size={18} color="#ef4444" />
+              </TouchableOpacity>
+            )}
+          </View>
+          {showRoleplayPanel && (
+            <FlatList
+              data={roleGridData}
+              keyExtractor={r => r._id}
+              numColumns={5}
+              scrollEnabled={false}
+              columnWrapperStyle={{ gap: 6, paddingHorizontal: 12 }}
+              contentContainerStyle={{ gap: 10, paddingVertical: 10 }}
+              renderItem={({ item }) => (
+                item.__empty ? (
+                  <EmptyRoleSlot
+                    canManage={isAdmin || isCoAdmin}
+                    onPress={() => {
+                      if (isAdmin || isCoAdmin) setShowRoleManager(true);
+                      else Alert.alert('Sala de Rol', 'El admin aún no ha creado roles');
+                    }}
+                  />
+                ) : (
+                  <RoleCard role={item} myUserId={user?._id} onTake={handleTakeRole} onRelease={handleReleaseRole} />
+                )
+              )}
+            />
+          )}
         </View>
       )}
 
@@ -1538,7 +1882,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                   </TouchableOpacity>
                   {group?.isCircle && (isAdmin || isCoAdmin) && (
                     <TouchableOpacity onPress={() => setShowCinemaMenu(true)} disabled={uploading || isRecording} style={s.mediaBtn}>
-                      <Image source={require('../../assets/chats/Fiesta/ic_panel_screening_room.png')} style={s.menuIcon} />
+                      <Image source={require('../../assets/chats/Fiesta/icon_activity_open.webp')} style={s.menuIcon} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1867,13 +2211,18 @@ export default function GroupRoomScreen({ route, navigation }) {
                     {admins.map((m, i) => {
                       const mu = m.user?.username ? m.user : null;
                       return (
-                        <View key={mu?._id || i} style={{ alignItems: 'center', gap: 4, width: 76 }}>
+                        <TouchableOpacity
+                          key={mu?._id || i}
+                          style={{ alignItems: 'center', gap: 4, width: 76 }}
+                          activeOpacity={0.7}
+                          onPress={() => { if (mu?.username) { setInfoVisible(false); navigation.navigate('PublicProfile', { username: mu.username }); } }}
+                        >
                           <AvatarWithFrame size={44} avatarUrl={mu?.avatarUrl} username={mu?.username || '?'} profileFrame={mu?.profileFrame} frameUrl={mu?.profileFrameUrl} />
                           <Text style={{ color: colors.textHi, fontSize: 11, fontWeight: '600', textAlign: 'center' }} numberOfLines={1}>{mu?.username || '?'}</Text>
                           <View style={[m.role === 'admin' ? s.adminBadge : s.coAdminBadge, { marginLeft: 0, flexShrink: 0 }]}>
                             <Text style={m.role === 'admin' ? s.adminBadgeTxt : s.coAdminBadgeTxt} numberOfLines={1}>{m.role === 'admin' ? 'Admin' : 'Co-admin'}</Text>
                           </View>
-                        </View>
+                        </TouchableOpacity>
                       );
                     })}
                   </ScrollView>
@@ -1894,10 +2243,15 @@ export default function GroupRoomScreen({ route, navigation }) {
                     {visible.map((m, i) => {
                       const mu = m.user?.username ? m.user : null;
                       return (
-                        <View key={mu?._id || i} style={{ alignItems: 'center', gap: 4, width: 60 }}>
+                        <TouchableOpacity
+                          key={mu?._id || i}
+                          style={{ alignItems: 'center', gap: 4, width: 60 }}
+                          activeOpacity={0.7}
+                          onPress={() => { if (mu?.username) { setInfoVisible(false); navigation.navigate('PublicProfile', { username: mu.username }); } }}
+                        >
                           <AvatarWithFrame size={40} avatarUrl={mu?.avatarUrl} username={mu?.username || '?'} profileFrame={mu?.profileFrame} frameUrl={mu?.profileFrameUrl} />
                           <Text style={{ color: colors.textHi, fontSize: 10, textAlign: 'center' }} numberOfLines={1}>{mu?.username || '?'}</Text>
-                        </View>
+                        </TouchableOpacity>
                       );
                     })}
                     {extra > 0 && (
@@ -1966,10 +2320,16 @@ export default function GroupRoomScreen({ route, navigation }) {
               .map((m, i) => {
                 const mu = m.user?.username ? m.user : null;
                 return (
-                  <View key={mu?._id || i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity
+                    key={mu?._id || i}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                    activeOpacity={0.7}
+                    onPress={() => { if (mu?.username) { setAllMembersVisible(false); navigation.navigate('PublicProfile', { username: mu.username }); } }}
+                  >
                     <AvatarWithFrame size={38} avatarUrl={mu?.avatarUrl} username={mu?.username || '?'} profileFrame={mu?.profileFrame} frameUrl={mu?.profileFrameUrl} />
                     <Text style={{ flex: 1, color: colors.textHi, fontSize: 13, fontWeight: '500' }}>{mu?.username || 'Usuario'}</Text>
-                  </View>
+                    <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                  </TouchableOpacity>
                 );
               })}
           </ScrollView>
@@ -1984,6 +2344,14 @@ export default function GroupRoomScreen({ route, navigation }) {
         targetName={group.name}
       />
 
+      <RoleManagerModal
+        visible={showRoleManager}
+        onClose={() => setShowRoleManager(false)}
+        groupId={group._id}
+        roles={roles}
+        onChanged={fetchRoles}
+      />
+
       {/* ── Menu Sala de Cine ─────────────────────────────────────────────── */}
       <Modal visible={showCinemaMenu} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowCinemaMenu(false)}>
         <Pressable style={s.menuOverlay} onPress={() => setShowCinemaMenu(false)}>
@@ -1996,8 +2364,8 @@ export default function GroupRoomScreen({ route, navigation }) {
               <Text style={s.cinemaMenuItemTxt}>Sala de Cine</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.cinemaMenuItem} onPress={() => { setShowCinemaMenu(false); Alert.alert('Proximo', 'Esta funcion estara disponible pronto.'); }} activeOpacity={0.8}>
-              <Ionicons name="person-outline" size={22} color={colors.textHi} />
+            <TouchableOpacity style={s.cinemaMenuItem} onPress={handleToggleRoleplay} activeOpacity={0.8}>
+              <Image source={require('../../assets/chats/Fiesta/icon_chatroom_roleplay.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
               <Text style={s.cinemaMenuItemTxt}>Rol</Text>
             </TouchableOpacity>
 
@@ -2070,6 +2438,9 @@ const s = StyleSheet.create({
   msgSenderRow:   { flexDirection:'row', alignItems:'center', gap:6, marginLeft: AVATAR_SLOT + 8, marginBottom:4 },
   msgSenderRowMe: { flexDirection:'row-reverse', marginLeft:0, marginRight: AVATAR_SLOT + 8, marginBottom:4 },
   msgSenderName:  { color:'rgba(255,255,255,0.65)', fontSize:11, fontWeight:'700' },
+  roleNameTag:     { fontSize:10, fontStyle:'italic', marginBottom:4 },
+  roleNameTagThem: { marginLeft: AVATAR_SLOT + 8, textAlign:'left' },
+  roleNameTagMe:   { marginRight: AVATAR_SLOT + 8, textAlign:'right' },
   adminBadge:     { backgroundColor:'rgba(0,200,150,0.15)', borderWidth:1, borderColor:'rgba(0,200,150,0.6)', borderRadius:6, paddingHorizontal:5, paddingVertical:1, marginLeft:5 },
   adminBadgeTxt:  { fontSize:9, color:'#00c896', fontWeight:'700', letterSpacing:0.3 },
   coAdminBadge:   { backgroundColor:'rgba(0,200,150,0.15)', borderWidth:1, borderColor:'rgba(0,200,150,0.6)', borderRadius:6, paddingHorizontal:5, paddingVertical:1, marginLeft:5 },
@@ -2241,13 +2612,46 @@ const s = StyleSheet.create({
   cinemaPanelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'transparent',
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   cinemaPanelTitle: { color: '#fff', fontSize: 12, fontWeight: '600' },
   cinemaMiniBtn:    { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 6, marginRight: 6 },
   cinemaPowerBtn:   { backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: 20, padding: 6 },
+
+  // Sala de Rol
+  rolePanelOuter: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: 12,
+    marginVertical: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  rolePanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  rolePanelTitle: { color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  roleCard:         { flex: 1 },
+  roleCardGradient: { borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', padding: 6 },
+  roleCardImg:            { width: 44, height: 44 },
+  roleAvatarWrap:         { width: 44, height: 44 },
+  roleAvatarBg:           { width: '100%', height: '100%' },
+  roleAvatarMask:         { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
+  roleCardTakerAvatar:    { position: 'absolute', bottom: -3, right: -3, width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.black },
+  roleCardName:           { color: 'rgba(255,255,255,0.85)', fontSize: 9, marginTop: 4, textAlign: 'center', alignSelf: 'stretch' },
   cinemaMenuSheet:    { backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 12, borderWidth: 1, borderColor: colors.borderC },
   cinemaMenuTitle:    { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
   cinemaMenuItem:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -2266,4 +2670,7 @@ const s = StyleSheet.create({
   headerAvatarStack:  { flexDirection:'row', alignItems:'center', marginRight: 4 },
   headerStackAvatar:  { width:24, height:24, borderRadius:12, overflow:'hidden', backgroundColor: colors.surface, alignItems:'center', justifyContent:'center', borderWidth:1.5, borderColor: '#ffffff' },
   headerStackInitial: { color: colors.textMid, fontSize:9, fontWeight:'700' },
+
+  announcementBanner:    { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:14, paddingVertical:8, backgroundColor:'rgba(0,229,204,0.07)', borderBottomWidth:1, borderBottomColor:'rgba(0,229,204,0.18)' },
+  announcementBannerTxt: { flex:1, color:colors.c1, fontSize:12, fontWeight:'600', lineHeight:17 },
 });

@@ -17,13 +17,14 @@ import RewardedAdSection from './RewardedAdSection';
 const collectibleIcon = require('../../assets/coleccionables/ic_collectible.png');
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = Math.min(width * 0.72, 300);
+const DRAWER_WIDTH = width * 0.92;
 
-const CARD_PAD = 12;
-const CARD_W   = DRAWER_WIDTH - CARD_PAD *2;
-const CARD_H   = Math.round(CARD_W * (485 / 637));
-const PNG_W    = Math.round(CARD_W * 1);
-const PNG_H    = Math.round(PNG_W * (485 / 637));
+const CARD_PAD   = 12;
+const CARD_W     = Math.min(width * 0.72, 270);
+const CARD_RATIO = 1.20;
+const CARD_H     = Math.round(CARD_W / CARD_RATIO);
+const PNG_W      = CARD_W;
+const PNG_H      = CARD_H;
 const CARD_AVT = 88;
 
 function MenuItem({ icon, label, onPress, badge }) {
@@ -90,7 +91,11 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
       </TouchableWithoutFeedback>
 
       <Animated.View style={[s.drawer, { transform: [{ translateX }] }]}>
-        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        >
 
           {/* ── Abyss Card ── */}
           <View style={[s.cardSection, { paddingTop: insets.top + CARD_AVT / 2 + 10 }]}>
@@ -217,7 +222,6 @@ export default function ProfileDrawer({ visible, onClose, user, onLogout, onNavi
             </TouchableOpacity>
           </View>
 
-          <View style={{ height: insets.bottom + 24 }} />
         </ScrollView>
       </Animated.View>
     </View>
@@ -296,21 +300,21 @@ const s = StyleSheet.create({
 
 
   // Wallet card
-  walletWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  walletWrap: { paddingLeft: 12, paddingRight: 55, paddingTop: 12, paddingBottom: 4 },
   walletCard: {
     flexDirection: 'row',
     backgroundColor: colors.card,
     borderRadius: 16, borderWidth: 1, borderColor: colors.border,
     overflow: 'hidden',
   },
-  walletSection: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 5 },
+  walletSection: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 4 },
   walletDivider: { width: 1, backgroundColor: colors.border, marginVertical: 14 },
   walletValue:   { color: colors.textHi, fontSize: 15, fontWeight: '800' },
   walletLabel:   { color: colors.textDim, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
 
   // Menú
   section:  { marginBottom: 4, paddingTop: 8 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 13 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 10 },
   iconBox: {
     width: 38, height: 38, borderRadius: 11,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,

@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 import { connectSocket } from '../services/socket';
+import { useAuthStore } from '../store/authStore';
 
 const CHAT_DURATION     = 6; // TODO: volver a 300 antes de producción
 const DECISION_DURATION = 30;
@@ -23,6 +24,7 @@ function formatTime(s) {
 
 export default function MeetTextScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { user: me } = useAuthStore();
 
   const [phase,           setPhase]           = useState('select');
   const [genderPref,      setGenderPref]      = useState('any');
@@ -92,6 +94,7 @@ export default function MeetTextScreen({ navigation }) {
       socketRef.current = socket;
 
       socket.on('meet:matched', ({ roomId, startedAt, partner }) => {
+        console.log('[MEET] matched payload:', JSON.stringify({ roomId, partner }));
         roomIdRef.current = roomId;
         socket.emit('meet:join_room', { roomId });
         setPartnerData(partner || null);
@@ -117,7 +120,13 @@ export default function MeetTextScreen({ navigation }) {
         console.log('[meet:match-accepted] socket payload:', JSON.stringify({ chatId, partner }));
         clearDecisionTimer();
         navigation.replace('ChatRoom', {
-          chat:  { _id: chatId },
+          chat: {
+            _id: chatId,
+            participants: [
+              { _id: me?._id, username: me?.username, avatarUrl: me?.avatarUrl, profileFrame: me?.profileFrame, profileFrameUrl: me?.profileFrameUrl },
+              { _id: partner?._id, username: partner?.username, avatarUrl: partner?.avatarUrl, profileFrame: partner?.profileFrame, profileFrameUrl: partner?.profileFrameUrl },
+            ],
+          },
           other: {
             avatarUrl:       partner?.avatarUrl       || null,
             username:        partner?.username         || 'Usuario',
@@ -275,7 +284,13 @@ export default function MeetTextScreen({ navigation }) {
       console.log('[match-decision] response:', JSON.stringify(data));
       if (data.chatId) {
         navigation.replace('ChatRoom', {
-          chat:  { _id: data.chatId },
+          chat: {
+            _id: data.chatId,
+            participants: [
+              { _id: me?._id, username: me?.username, avatarUrl: me?.avatarUrl, profileFrame: me?.profileFrame, profileFrameUrl: me?.profileFrameUrl },
+              { _id: data.partner?._id, username: data.partner?.username, avatarUrl: data.partner?.avatarUrl, profileFrame: data.partner?.profileFrame, profileFrameUrl: data.partner?.profileFrameUrl },
+            ],
+          },
           other: {
             avatarUrl:       data.partner?.avatarUrl       || null,
             username:        data.partner?.username         || 'Usuario',
@@ -310,21 +325,29 @@ export default function MeetTextScreen({ navigation }) {
           <Text style={s.genderLabel}>Quiero hablar con</Text>
           <View style={s.genderRow}>
             {[
-              { key: 'male',   label: 'Hombre' },
-              { key: 'female', label: 'Mujer' },
-              { key: 'any',    label: 'Cualquiera' },
-            ].map(opt => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[s.genderPill, genderPref === opt.key && s.genderPillActive]}
-                onPress={() => setGenderPref(opt.key)}
-                activeOpacity={0.7}
-              >
-                <Text style={[s.genderPillText, genderPref === opt.key && s.genderPillTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+              { key: 'male',   label: 'Hombre',    src: require('../../assets/generos/male_selected.png') },
+              { key: 'female', label: 'Mujer',      src: require('../../assets/generos/female_selected.png') },
+              { key: 'any',    label: 'Cualquiera', src: require('../../assets/generos/gender_unknown_selected_1.png') },
+            ].map(opt => {
+              const active = genderPref === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={s.genderOption}
+                  onPress={() => setGenderPref(opt.key)}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={opt.src}
+                    style={[s.genderIcon, { opacity: active ? 1 : 0.4 }]}
+                    resizeMode="contain"
+                  />
+                  <Text style={[s.genderPillText, active && s.genderPillTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -392,7 +415,7 @@ export default function MeetTextScreen({ navigation }) {
               style={[StyleSheet.absoluteFill, { borderRadius: 36 }]}
             />
           </View>
-          <Text style={s.anonLabel}>Identidad oculta</Text>
+          <Text style={s.anonLabel}>Desconocido</Text>
         </View>
 
         <FlatList
@@ -566,15 +589,11 @@ const s = StyleSheet.create({
 
   genderSection: { alignItems: 'center', gap: 12, width: '100%' },
   genderLabel:   { color: colors.textMid, fontSize: 13 },
-  genderRow:     { flexDirection: 'row', gap: 8 },
-  genderPill: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 1,
-    borderColor: colors.borderC, backgroundColor: colors.surface,
-  },
-  genderPillActive:     { backgroundColor: 'rgba(0,229,204,0.12)', borderColor: colors.c1 },
-  genderPillText:       { color: colors.textMid, fontSize: 13, fontWeight: '600' },
-  genderPillTextActive: { color: colors.c1 },
+  genderRow:     { flexDirection: 'row', gap: 20, justifyContent: 'center' },
+  genderOption:  { alignItems: 'center', gap: 2, paddingVertical: 8, paddingHorizontal: 12 },
+  genderIcon:    { width: 72, height: 72 },
+  genderPillText:       { color: colors.textMid, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  genderPillTextActive: { color: colors.textHi, fontWeight: '700' },
 
   waitingHint: { color: colors.textDim, fontSize: 12 },
 

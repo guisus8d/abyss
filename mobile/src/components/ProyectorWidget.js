@@ -10,20 +10,16 @@ const { width: SW, height: SH } = Dimensions.get('window');
 
 export default function ProyectorWidget({ navigationRef }) {
   const insets = useSafeAreaInsets();
-  const { isProyector, proyectorGroupId, proyectorGroupImage, clearProyector } = useCinemaStore();
+  const { isProyector, proyectorGroupId, proyectorGroupImage, proyectorGroup, clearProyector } = useCinemaStore();
 
-  // Track whether the current route is GroupRoom to hide the widget while on it
   const [isOnGroupRoom, setIsOnGroupRoom] = useState(false);
   useEffect(() => {
-    if (!navigationRef?.current) return;
-    const check = () => {
-      const route = navigationRef.current?.getCurrentRoute?.();
+    const interval = setInterval(() => {
+      const route = navigationRef?.current?.getCurrentRoute?.();
       setIsOnGroupRoom(route?.name === 'GroupRoom');
-    };
-    check();
-    const unsub = navigationRef.current?.addListener?.('state', check);
-    return () => unsub?.();
-  }, [navigationRef]);
+    }, 300);
+    return () => clearInterval(interval);
+  }, []);
 
   const initBottom = 24 + insets.bottom;
   const initRight  = 16;
@@ -52,8 +48,8 @@ export default function ProyectorWidget({ navigationRef }) {
   if (!isProyector || isOnGroupRoom) return null;
 
   function handleVolver() {
-    if (navigationRef?.current?.isReady()) {
-      navigationRef.current.navigate('GroupRoom');
+    if (navigationRef?.current?.isReady() && proyectorGroup) {
+      navigationRef.current.navigate('GroupRoom', { group: proyectorGroup });
     }
   }
 

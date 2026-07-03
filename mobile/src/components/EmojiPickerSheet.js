@@ -42,7 +42,7 @@ function EmojiPickerSheet({ visible, onSelect, onClose }) {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={p.backdrop} onPress={onClose}>
+      <View style={p.backdrop}>
         <Pressable
           style={[p.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
           onPress={e => e.stopPropagation()}
@@ -58,7 +58,7 @@ function EmojiPickerSheet({ visible, onSelect, onClose }) {
             showsVerticalScrollIndicator={false}
           />
         </Pressable>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -66,7 +66,7 @@ function EmojiPickerSheet({ visible, onSelect, onClose }) {
 export default memo(EmojiPickerSheet);
 
 const p = StyleSheet.create({
-  backdrop: { flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' },
+  backdrop: { flex:1, justifyContent:'flex-end' },
   sheet:    { backgroundColor:'#0b1521', borderTopLeftRadius:22, borderTopRightRadius:22, borderWidth:1, borderColor:'rgba(255,255,255,0.07)', paddingTop:12 },
   handle:   { width:38, height:4, backgroundColor:'rgba(255,255,255,0.15)', borderRadius:2, alignSelf:'center', marginBottom:12 },
   item:     { alignItems:'center', justifyContent:'center' },

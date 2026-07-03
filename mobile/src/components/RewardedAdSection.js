@@ -191,7 +191,7 @@ export default function RewardedAdSection() {
           {loading ? (
             <ActivityIndicator size="small" color={colors.black} />
           ) : (
-            <Text style={s.buttonText}>Ver anuncio</Text>
+            <Text style={s.buttonText}>Completar</Text>
           )}
         </TouchableOpacity>
       )}
@@ -201,31 +201,32 @@ export default function RewardedAdSection() {
 
 const s = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 24,
+    marginLeft: 12,
+    marginRight: 55,
+    marginTop: 8,
+    marginBottom: 8,
     backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    padding: 16,
-    gap: 12,
+    borderRadius: 12,
+    padding: 8,
+    gap: 6,
   },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   title: {
     color: colors.textHi,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
   },
   subtitle: {
     color: colors.textDim,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 10,
+    marginTop: 1,
   },
   coinsBadge: {
     flexDirection: 'row',
@@ -248,7 +249,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   progressTrack: {
-    height: 8,
+    height: 5,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 4,
     overflow: 'hidden',
@@ -266,24 +267,27 @@ const s = StyleSheet.create({
 
   rewardText: {
     color: colors.textMid,
-    fontSize: 12,
+    fontSize: 11,
+    flexShrink: 1,
   },
 
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    alignSelf: 'flex-start',
+    gap: 4,
     backgroundColor: colors.c1,
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 7,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
   },
   buttonDisabled: {
     opacity: 0.4,
   },
   buttonText: {
     color: colors.black,
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '700',
   },
 
@@ -291,16 +295,19 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 6,
     backgroundColor: 'rgba(0,229,204,0.08)',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(0,229,204,0.2)',
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
   },
   completedText: {
     color: colors.c1,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+    flexShrink: 1,
   },
 });

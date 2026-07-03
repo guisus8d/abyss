@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { disconnectSocket } from '../services/socket';
 import { registerForPushNotifications } from '../utils/pushNotifications';
+import { useAppStore } from './appStore';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abyss-production-7171.up.railway.app/api';
 
@@ -48,6 +49,7 @@ export const useAuthStore = create((set) => ({
       set({ user: data.user, token: data.token, isLoading: false });
       api.patch('/users/me/active').catch(() => {});
       registerForPushNotifications().catch(() => {});
+      useAppStore.getState().checkAndShowWelcomeModal();
       return { success: true };
     } catch (err) {
       set({ isLoading: false });
@@ -71,6 +73,7 @@ export const useAuthStore = create((set) => ({
       }
       await AsyncStorage.setItem('token', data.token);
       set({ user: data.user, token: data.token, isLoading: false });
+      useAppStore.getState().checkAndShowWelcomeModal();
       return { success: true };
     } catch (err) {
       set({ isLoading: false });
@@ -81,6 +84,7 @@ export const useAuthStore = create((set) => ({
   logout: async () => {
     disconnectSocket();
     await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('welcomeModalShown_v1').catch(() => {});
     set({ user: null, token: null, isGuest: false });
   },
 

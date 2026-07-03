@@ -148,6 +148,29 @@ const storeLogoStorage = new CloudinaryStorage({
 });
 const uploadStoreLogo = multer({ storage: storeLogoStorage, limits: { fileSize: 5 * 1024 * 1024 } });
 
+// ── Imagen de grupo / círculo (logo / banner) ────────────────────────────────
+const groupImageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder:          'abbys/group-images',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    resource_type:   'auto',
+    transformation:  [{ width: 1280, crop: 'limit', quality: 'auto:best' }],
+  },
+});
+const uploadGroupImage = multer({ storage: groupImageStorage, limits: { fileSize: 10 * 1024 * 1024 } });
+
+// ── Imágenes de rol (Sala de Rol) ─────────────────────────────────────────────
+const roleImageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder:          'abbys/role-images',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation:  [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+  },
+});
+const uploadRoleImage = multer({ storage: roleImageStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+
 // ── Fondos de grupo ───────────────────────────────────────────────────────────
 const groupBgStorage = new CloudinaryStorage({
   cloudinary,
@@ -159,6 +182,17 @@ const groupBgStorage = new CloudinaryStorage({
 });
 const uploadGroupBg = multer({ storage: groupBgStorage, limits: { fileSize: 8 * 1024 * 1024 } });
 
+// ── Fondos de posts de noticias ───────────────────────────────────────────────
+const postBgStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder:          'abbys/post-backgrounds',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation:  [{ width: 1600, crop: 'limit', quality: 'auto:best' }],
+  },
+});
+const uploadPostBg = multer({ storage: postBgStorage, limits: { fileSize: 8 * 1024 * 1024 } });
+
 // ── Videos de posts ───────────────────────────────────────────────────────────
 const videoPostStorage = new CloudinaryStorage({
   cloudinary,
@@ -169,6 +203,17 @@ const videoPostStorage = new CloudinaryStorage({
   },
 });
 const uploadVideoPost = multer({ storage: videoPostStorage, limits: { fileSize: 50 * 1024 * 1024 } });
+
+// ── Bug reports ───────────────────────────────────────────────────────────────
+const bugReportStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder:          'abbys/bug-reports',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation:  [{ width: 1280, crop: 'limit', quality: 'auto:good' }],
+  },
+});
+const uploadBugReport = multer({ storage: bugReportStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
 const audioStorage = new CloudinaryStorage({
@@ -184,9 +229,13 @@ const uploadAudio = multer({ storage: audioStorage, limits: { fileSize: 20 * 102
 module.exports = {
   cloudinary,
   uploadAvatar,
+  uploadRoleImage,
+  uploadGroupImage,
+  uploadBugReport,
   uploadGroupBg,
   uploadPost,
   uploadVideoPost,
+  uploadPostBg,
   uploadBanner,
   uploadCardBg,
   uploadBlock,

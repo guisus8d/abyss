@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useAppStore = create((set) => ({
   updateRequired: false,
@@ -29,4 +30,14 @@ export const useAppStore = create((set) => ({
     const next = new Set(ids.filter(Boolean));
     return { _unreadChatIds: next, unreadChatsCount: next.size };
   }),
+
+  // ── Modal de bienvenida ───────────────────────────────────────────────────────
+  showWelcomeModal: false,
+  setShowWelcomeModal: (v) => set({ showWelcomeModal: v }),
+  checkAndShowWelcomeModal: async () => {
+    try {
+      const shown = await AsyncStorage.getItem('welcomeModalShown_v1');
+      if (!shown) set({ showWelcomeModal: true });
+    } catch (_) {}
+  },
 }));

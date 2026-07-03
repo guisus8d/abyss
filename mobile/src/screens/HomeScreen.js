@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity,
+  View, Text, TextInput, ScrollView, FlatList, TouchableOpacity,
   StyleSheet, StatusBar, RefreshControl,
   ActivityIndicator, Alert, Animated, Platform, Linking,
   Image, Dimensions,
@@ -78,45 +78,71 @@ function MeetSection({ navigation, waitingCount }) {
   );
 }
 
-function FiestasSection({ fiestas, onPress }) {
+const FiestaCard = React.memo(function FiestaCard({ item, onPress }) {
+  return (
+    <TouchableOpacity style={fs.card} activeOpacity={0.8} onPress={() => onPress(item)}>
+      {item.imageUrl
+        ? <Image
+            source={{ uri: item.imageUrl }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            fadeDuration={Platform.OS === 'android' ? 0 : undefined}
+          />
+        : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.8)', 'transparent']}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', justifyContent: 'flex-start', padding: 10 }}
+      >
+        <Text style={fs.name} numberOfLines={2}>{item.name}</Text>
+      </LinearGradient>
+      <LinearGradient
+        colors={['rgba(0,0,0,0.75)', 'transparent']}
+        start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
+      />
+      {item.hashtags?.length > 0 && (
+        <View style={fs.hashtags}>
+          {item.hashtags.slice(0, 3).map((tag) => {
+            const c = getHashtagColor(tag);
+            return (
+              <View key={tag} style={[fs.hashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
+                <Text style={[fs.hashtagTxt, { color: c }]}>#{tag}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+});
+
+function FiestasSection({ fiestas, onPress, onViewAll }) {
   if (!fiestas || fiestas.length === 0) return null;
   return (
     <View style={fs.wrap}>
       <View style={fs.headerRow}>
         <Text style={fs.title}>Fiestas</Text>
+        <TouchableOpacity onPress={onViewAll} activeOpacity={0.7}>
+          <Text style={fs.verTodas}>Ver todas</Text>
+        </TouchableOpacity>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={fs.scroll}>
-        {fiestas.map(item => (
-          <TouchableOpacity key={item._id} style={fs.card} activeOpacity={0.8} onPress={() => onPress(item)}>
-            {item.imageUrl
-              ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-              : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
-            <LinearGradient
-              colors={['rgba(0,0,0,0.8)', 'transparent']}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', justifyContent: 'flex-start', padding: 10 }}
-            >
-              <Text style={fs.name} numberOfLines={2}>{item.name}</Text>
-            </LinearGradient>
-            <LinearGradient
-              colors={['rgba(0,0,0,0.75)', 'transparent']}
-              start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
-              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
-            />
-            {item.hashtags?.length > 0 && (
-              <View style={fs.hashtags}>
-                {item.hashtags.slice(0, 3).map((tag) => {
-                  const c = getHashtagColor(tag);
-                  return (
-                    <View key={tag} style={[fs.hashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
-                      <Text style={[fs.hashtagTxt, { color: c }]}>#{tag}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <FlatList
+        horizontal
+        data={fiestas}
+        keyExtractor={item => item._id}
+        renderItem={({ item }) => <FiestaCard item={item} onPress={onPress} />}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={fs.scroll}
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        windowSize={3}
+        removeClippedSubviews={true}
+        getItemLayout={(_, index) => ({
+          length: FIESTA_CARD_W + 10,
+          offset: (FIESTA_CARD_W + 10) * index,
+          index,
+        })}
+      />
     </View>
   );
 }
@@ -434,6 +460,7 @@ export default function HomeScreen({ navigation }) {
         <FiestasSection
           fiestas={fiestas}
           onPress={item => isGuest ? setShowGuestModal(true) : navigation.navigate('GroupRoom', { group: item })}
+          onViewAll={() => isGuest ? setShowGuestModal(true) : navigation.navigate('Circles')}
         />
 
         {/* Tab bar */}
@@ -568,8 +595,9 @@ const s = StyleSheet.create({
 
 const fs = StyleSheet.create({
   wrap:            { marginTop: 16, marginBottom: 20 },
-  headerRow:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 10 },
+  headerRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, marginBottom: 10 },
   title:           { color: colors.textHi, fontSize: 16, fontWeight: '700' },
+  verTodas:        { color: colors.c1, fontSize: 13, fontWeight: '700' },
   scroll:          { paddingHorizontal: 14, gap: 10 },
   card:            { width: FIESTA_CARD_W, height: FIESTA_LOGO_H, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', shadowColor: '#ffffff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 3 },
   name:            { color: '#fff', fontSize: 15, fontWeight: '800' },

@@ -27,7 +27,7 @@ export default function CircleCreateScreen({ navigation }) {
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.85,
+      mediaTypes: ['images'], allowsEditing: false, quality: 1,
     });
     if (!result.canceled) setImageUri(result.assets[0].uri);
   }
@@ -69,7 +69,9 @@ export default function CircleCreateScreen({ navigation }) {
       formData.append('description', description.trim());
       formData.append('hashtags',    JSON.stringify(selectedTags));
       if (imageUri) {
-        formData.append('image', { uri: imageUri, type: 'image/jpeg', name: 'circle.jpg' });
+        const ext      = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+        const mimeType = ext === 'gif' ? 'image/gif' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        formData.append('image', { uri: imageUri, type: mimeType, name: `circle.${ext}` });
       }
       await postFormData('/groups/circles', formData);
       navigation.goBack();
@@ -241,7 +243,7 @@ const s = StyleSheet.create({
 
   body:          { padding: 20, gap: 20 },
 
-  imgPicker:     { width: 100, height: 100, borderRadius: 24, backgroundColor: colors.surface, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: colors.borderC, gap: 6 },
+  imgPicker:     { width: '100%', height: 170, borderRadius: 12, backgroundColor: colors.surface, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: colors.borderC, gap: 6 },
   imgPickerTxt:  { color: colors.textDim, fontSize: 11, textAlign: 'center' },
 
   field:         { gap: 8 },

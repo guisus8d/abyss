@@ -45,7 +45,9 @@
       "favicon": "./assets/favicon.png",
       "template": "./web/index.html"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "newArchEnabled": true,
     "plugins": [
       "react-native-edge-to-edge",
@@ -58,7 +60,8 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-localization"
     ],
     "extra": {
       "eas": {

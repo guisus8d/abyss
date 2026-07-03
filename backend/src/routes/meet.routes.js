@@ -63,12 +63,14 @@ router.post('/text/join', authMiddleware, async (req, res) => {
       const matchUser = await User.findById(match.user).select('username avatarUrl profileFrame profileFrameUrl').lean();
 
       const partnerForJoiner = {
+        _id:             matchUser?._id             || match.user,
         avatarUrl:       matchUser?.avatarUrl       || null,
         username:        matchUser?.username         || 'Usuario',
         profileFrame:    matchUser?.profileFrame     || null,
         profileFrameUrl: matchUser?.profileFrameUrl  || null,
       };
       const partnerForWaiter = {
+        _id:             me?._id             || userId,
         avatarUrl:       me?.avatarUrl       || null,
         username:        me?.username         || 'Usuario',
         profileFrame:    me?.profileFrame     || null,
@@ -129,20 +131,23 @@ router.post('/text/match-decision', authMiddleware, async (req, res) => {
     });
 
     if (partnerDeleted) {
-      // Ambos aceptaron — nosotros ganamos la carrera → crear chat
+      // Ambos aceptaron — nosotros ganamos la carrera → crear chat (o reutilizar si ya existe)
       await MeetSession.deleteOne({ user: userId });
-      const [chat, userA, userB] = await Promise.all([
-        Chat.create({ participants: [userId, mySession.matchedWith], lastMessageText: '' }),
+      const [existing, userA, userB] = await Promise.all([
+        Chat.findOne({ participants: { $all: [userId, mySession.matchedWith], $size: 2 } }),
         User.findById(userId).select('username avatarUrl profileFrame profileFrameUrl').lean(),
         User.findById(mySession.matchedWith).select('username avatarUrl profileFrame profileFrameUrl').lean(),
       ]);
+      const chat = existing || await Chat.create({ participants: [userId, mySession.matchedWith], lastMessageText: '' });
       const partnerForA = {
+        _id:             userB?._id             || mySession.matchedWith,
         avatarUrl:       userB?.avatarUrl       || null,
         username:        userB?.username         || 'Usuario',
         profileFrame:    userB?.profileFrame     || null,
         profileFrameUrl: userB?.profileFrameUrl  || null,
       };
       const partnerForB = {
+        _id:             userA?._id             || userId,
         avatarUrl:       userA?.avatarUrl       || null,
         username:        userA?.username         || 'Usuario',
         profileFrame:    userA?.profileFrame     || null,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, StatusBar,
+  View, Text, TouchableOpacity, StyleSheet, StatusBar, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,9 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 
 const GENDERS = [
-  { key: 'hombre',            label: 'Hombre' },
-  { key: 'mujer',             label: 'Mujer' },
-  { key: 'prefiero-no-decir', label: 'Prefiero no decirlo' },
+  { key: 'hombre',            label: 'Hombre',             src: require('../../assets/generos/male_selected.png') },
+  { key: 'mujer',             label: 'Mujer',               src: require('../../assets/generos/female_selected.png') },
+  { key: 'prefiero-no-decir', label: 'Prefiero no decirlo', src: require('../../assets/generos/gender_unknown_selected_1.png') },
 ];
 
 function StepDots({ current }) {
@@ -70,19 +70,15 @@ export default function RegisterStep2Screen({ navigation, route }) {
             return (
               <TouchableOpacity
                 key={g.key}
-                style={[s.option, active && s.optionActive]}
+                style={s.option}
                 onPress={() => setGender(g.key)}
                 activeOpacity={0.75}
               >
-                {active && (
-                  <LinearGradient
-                    colors={['rgba(0,229,204,0.1)', 'rgba(41,121,255,0.1)']}
-                    style={StyleSheet.absoluteFill}
-                  />
-                )}
-                <View style={[s.optionRadio, active && s.optionRadioActive]}>
-                  {active && <View style={s.optionRadioDot} />}
-                </View>
+                <Image
+                  source={g.src}
+                  style={[s.optionIcon, { opacity: active ? 1 : 0.4 }]}
+                  resizeMode="contain"
+                />
                 <Text style={[s.optionLbl, active && s.optionLblActive]}>
                   {g.label}
                 </Text>
@@ -119,24 +115,14 @@ const s = StyleSheet.create({
   title:    { fontSize: 22, fontWeight: '700', color: '#e8f4f8', marginBottom: 6 },
   subtitle: { fontSize: 13, color: 'rgba(232,244,248,0.4)', marginBottom: 36, lineHeight: 18 },
 
-  optionsWrap: { gap: 12 },
+  optionsWrap: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
   option: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingVertical: 18, paddingHorizontal: 20,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 16, overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    alignItems: 'center', gap: 2,
+    paddingVertical: 16, paddingHorizontal: 12,
   },
-  optionActive: { borderColor: 'rgba(0,229,204,0.35)' },
-  optionRadio: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  optionRadioActive: { borderColor: '#00e5cc' },
-  optionRadioDot:    { width: 9, height: 9, borderRadius: 4.5, backgroundColor: '#00e5cc' },
-  optionLbl:         { fontSize: 15, color: 'rgba(232,244,248,0.5)', fontWeight: '500' },
-  optionLblActive:   { color: '#e8f4f8', fontWeight: '600' },
+  optionIcon:      { width: 72, height: 72 },
+  optionLbl:       { fontSize: 12, color: 'rgba(232,244,248,0.5)', fontWeight: '500', textAlign: 'center' },
+  optionLblActive: { color: '#e8f4f8', fontWeight: '600' },
 
   btnNext:    { borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   btnNextTxt: { color: '#001a18', fontSize: 12, fontWeight: '800', letterSpacing: 3 },

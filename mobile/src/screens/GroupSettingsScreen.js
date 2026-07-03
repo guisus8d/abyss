@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, ScrollView, StatusBar, ActivityIndicator,
-  Alert, Modal, FlatList, Dimensions, Platform,
+  Alert, Modal, FlatList, Dimensions, Platform, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,15 +49,29 @@ export default function GroupSettingsScreen({ route, navigation }) {
   const [showBanned,     setShowBanned]     = useState(false);
   const [bannedUsers,    setBannedUsers]    = useState([]);
   const [loadingBanned,  setLoadingBanned]  = useState(false);
-  const [savingBg,       setSavingBg]       = useState(false);
+  const [savingBg,           setSavingBg]           = useState(false);
+  const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+  const [savingWelcome,      setSavingWelcome]      = useState(false);
+  const [sharingCircle,      setSharingCircle]      = useState(false);
 
   // Circle-specific state
+  const [editWelcomeMsg,   setEditWelcomeMsg]   = useState(initialGroup.welcomeMessage || '');
+  const [editAnnouncement, setEditAnnouncement] = useState(initialGroup.announcementBanner || '');
   const [rules,        setRules]        = useState(initialGroup.rules || []);
   const [editRules,    setEditRules]    = useState(initialGroup.rules || []);
   const [editingRules, setEditingRules] = useState(false);
   const [savingRules,  setSavingRules]  = useState(false);
   const [toggling,     setToggling]     = useState(false);
   const [settingRole,  setSettingRole]  = useState(null);
+
+  const fadeHero       = useRef(new Animated.Value(0)).current;
+  const fadeGeneral    = useRef(new Animated.Value(0)).current;
+  const fadeAnuncio    = useRef(new Animated.Value(0)).current;
+  const fadeBienvenida = useRef(new Animated.Value(0)).current;
+  const fadeMiembros   = useRef(new Animated.Value(0)).current;
+  const fadeReglas     = useRef(new Animated.Value(0)).current;
+  const fadeFondo      = useRef(new Animated.Value(0)).current;
+  const fadeDanger     = useRef(new Animated.Value(0)).current;
 
   const isAdmin = group?.members?.some(
     m => (m.user?._id || m.user)?.toString() === user?._id?.toString() && m.role === 'admin'
@@ -81,6 +95,47 @@ export default function GroupSettingsScreen({ route, navigation }) {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!group.isCircle) return;
+    Animated.stagger(55, [
+      fadeHero, fadeGeneral, fadeAnuncio, fadeBienvenida,
+      fadeMiembros, fadeReglas, fadeFondo, fadeDanger,
+    ].map(v => Animated.timing(v, { toValue: 1, duration: 280, useNativeDriver: true }))).start();
+  }, []);
+
+  // ── Guardar anuncio (inline, sin FormData) ────────────────────────────────
+  async function saveAnnouncement() {
+    setSavingAnnouncement(true);
+    try {
+      const { data } = await api.patch(`/groups/${group._id}`, { announcementBanner: editAnnouncement.trim() });
+      setGroup(prev => ({ ...prev, announcementBanner: data.group.announcementBanner }));
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo guardar el anuncio');
+    } finally { setSavingAnnouncement(false); }
+  }
+
+  // ── Compartir fiesta como post ────────────────────────────────────────────
+  async function shareCircle() {
+    setSharingCircle(true);
+    try {
+      await api.post(`/groups/circles/${group._id}/share`);
+      Alert.alert('Fiesta compartida', 'Tu fiesta ya aparece en el feed de tus seguidores.');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo compartir la fiesta');
+    } finally { setSharingCircle(false); }
+  }
+
+  // ── Guardar mensaje de bienvenida (inline, sin FormData) ──────────────────
+  async function saveWelcomeMsg() {
+    setSavingWelcome(true);
+    try {
+      const { data } = await api.patch(`/groups/${group._id}`, { welcomeMessage: editWelcomeMsg.trim() });
+      setGroup(prev => ({ ...prev, welcomeMessage: data.group.welcomeMessage }));
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo guardar el mensaje');
+    } finally { setSavingWelcome(false); }
+  }
 
   // ── Imagen ────────────────────────────────────────────────────────────────
   async function pickEditImage() {
@@ -107,6 +162,8 @@ export default function GroupSettingsScreen({ route, navigation }) {
           return;
         }
         formData.append('hashtags', JSON.stringify(editHashtags.map(h => h.tag)));
+        formData.append('welcomeMessage', editWelcomeMsg.trim());
+        formData.append('announcementBanner', editAnnouncement.trim());
       }
       if (editImage) {
         if (Platform.OS === 'web') {
@@ -530,7 +587,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
         <StatusBar barStyle="light-content" />
         {sharedModals}
 
-        {/* Agregar miembros */}
+        {/* Modal: agregar miembros */}
         <Modal visible={showAdd} animationType="slide" onRequestClose={() => setShowAdd(false)}>
           <View style={[s.root, { paddingTop: insets.top }]}>
             <View style={s.modalHeader}>
@@ -593,301 +650,428 @@ export default function GroupSettingsScreen({ route, navigation }) {
 
         <ScrollView style={{ backgroundColor: colors.black }} showsVerticalScrollIndicator={false} contentContainerStyle={cs.scroll}>
 
-          {/* Hero */}
-          <View style={cs.hero}>
-            {currentImage
-              ? <Image source={{ uri: currentImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-              : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
-            <LinearGradient
-              colors={['rgba(0,0,0,0.7)', 'transparent']}
-              style={[StyleSheet.absoluteFill, { height: '50%' }]}
-            />
-            <LinearGradient
-              colors={['rgba(0,0,0,0.8)', 'transparent']}
-              start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
-              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' }}
-            />
+          {/* ── HERO BANNER ─────────────────────────────────────────────── */}
+          <Animated.View style={{ opacity: fadeHero }}>
+            <View style={cs.hero}>
+              {currentImage
+                ? <Image source={{ uri: currentImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />}
+              <LinearGradient
+                colors={['rgba(0,0,0,0.65)', 'transparent']}
+                style={[StyleSheet.absoluteFill, { height: '50%' }]}
+              />
+              <LinearGradient
+                colors={['rgba(0,0,0,0.85)', 'transparent']}
+                start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }}
+                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '65%' }}
+              />
 
-            <View style={cs.heroContent}>
-              <View style={[cs.activeBadge, !group.isActive && cs.inactiveBadge]}>
-                <Text style={[cs.activeBadgeTxt, !group.isActive && cs.inactiveBadgeTxt]}>
-                  {group.isActive ? 'ACTIVA' : 'APAGADA'}
-                </Text>
-              </View>
-              <Text style={cs.heroTitle} numberOfLines={2}>{group.name}</Text>
-            </View>
-
-            {/* Editar imagen */}
-            {canManage && (
-              <TouchableOpacity style={cs.editImgBtn} onPress={pickEditImage}>
-                <Ionicons name="camera-outline" size={17} color="#fff" />
-              </TouchableOpacity>
-            )}
-
-            {/* Toggle activa */}
-            {canManage && (
-              <TouchableOpacity
-                style={[cs.toggleBtn, group.isActive ? cs.toggleBtnOn : cs.toggleBtnOff]}
-                onPress={toggleActive}
-                disabled={toggling}>
-                {toggling
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons
-                      name="power"
-                      size={20}
-                      color={group.isActive ? 'rgba(239,68,68,0.9)' : 'rgba(0,229,204,0.9)'}
-                    />}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* ── SECCION: GENERAL ─────────────────────────────────────────── */}
-          <Text style={cs.sectionLabel}>GENERAL</Text>
-          <View style={s.card}>
-            {canManage && editing ? (
-              <View style={{ padding: 16, gap: 12 }}>
-                <TextInput
-                  style={cs.fieldInput}
-                  value={editName}
-                  onChangeText={setEditName}
-                  placeholder="Nombre de la fiesta"
-                  placeholderTextColor={colors.textDim}
-                  maxLength={60}
-                />
-                <TextInput
-                  style={[cs.fieldInput, { minHeight: 72, textAlignVertical: 'top' }]}
-                  value={editDesc}
-                  onChangeText={setEditDesc}
-                  placeholder="Descripcion (opcional)"
-                  placeholderTextColor={colors.textDim}
-                  multiline
-                  maxLength={200}
-                />
-
-                {/* Hashtags */}
-                <View style={cs.hashtagsWrap}>
-                  {editHashtags.map(({ tag, color }) => (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[cs.hashtagPillEdit, { borderColor: color + '55', backgroundColor: color + '18' }]}
-                      onPress={() => removeHashtag(tag)}>
-                      <Text style={[cs.hashtagPillEditTxt, { color }]}>#{tag}</Text>
-                      <Ionicons name="close" size={11} color={color} style={{ marginLeft: 4 }} />
-                    </TouchableOpacity>
-                  ))}
-                  {editHashtags.length < 5 && (
-                    <View style={cs.hashtagAddRow}>
-                      <TextInput
-                        style={cs.hashtagInput}
-                        value={newHashtag}
-                        onChangeText={t => setNewHashtag(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                        placeholder="hashtag"
-                        placeholderTextColor={colors.textDim}
-                        maxLength={20}
-                        onSubmitEditing={addHashtag}
-                        returnKeyType="done"
-                      />
-                      <TouchableOpacity
-                        onPress={addHashtag}
-                        disabled={editHashtags.length >= 5}
-                        style={[cs.hashtagAddBtn, editHashtags.length >= 5 && { opacity: 0.35 }]}>
-                        <Ionicons name="add" size={16} color={colors.c1} />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity
-                    style={cs.cancelBtn}
-                    onPress={() => {
-                      setEditing(false);
-                      setEditImage(null);
-                      setEditName(group.name);
-                      setEditDesc(group.description || '');
-                      setEditHashtags(
-                        (group.hashtags || []).map((tag, i) => ({
-                          tag,
-                          color: ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'][i % 6],
-                        }))
-                      );
-                    }}>
-                    <Text style={cs.cancelBtnTxt}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[cs.saveBtn, { flex: 2 }]} onPress={saveEdit} disabled={saving}>
-                    {saving
-                      ? <ActivityIndicator size="small" color={colors.black} />
-                      : <Text style={cs.saveBtnTxt}>Guardar</Text>}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View>
-                <View style={cs.fieldReadRow}>
-                  <Text style={cs.fieldLabel}>Nombre</Text>
-                  <Text style={cs.fieldValue}>{group.name}</Text>
-                </View>
-                <View style={[cs.fieldReadRow, cs.fieldRowBorder]}>
-                  <Text style={cs.fieldLabel}>Descripcion</Text>
-                  <Text style={cs.fieldValue}>{group.description || '—'}</Text>
-                </View>
-                <View style={[cs.fieldReadRow, cs.fieldRowBorder]}>
-                  <Text style={cs.fieldLabel}>Hashtags</Text>
-                  {group.hashtags?.length > 0
-                    ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
-                        {group.hashtags.map((t, i) => {
-                          const c = ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'][i % 6];
-                          return (
-                            <View key={t} style={[cs.hashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
-                              <Text style={[cs.hashtagPillTxt, { color: c }]}>#{t}</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    : <Text style={cs.fieldValue}>—</Text>}
-                </View>
-                {canManage && (
-                  <TouchableOpacity
-                    style={cs.editSectionBtn}
-                    onPress={() => setEditing(true)}>
-                    <Text style={cs.editSectionBtnTxt}>Editar</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
-
-          {/* ── SECCION: REGLAS ──────────────────────────────────────────── */}
-          <Text style={cs.sectionLabel}>REGLAS</Text>
-          <View style={s.card}>
-            {editingRules && canManage ? (
-              <View style={{ padding: 16, gap: 10 }}>
-                {editRules.map((rule, i) => (
-                  <View key={i} style={cs.ruleEditRow}>
-                    <Text style={cs.ruleNum}>{i + 1}.</Text>
-                    <TextInput
-                      style={cs.ruleInput}
-                      value={rule}
-                      onChangeText={t => updateRule(i, t)}
-                      placeholder="Escribe la regla..."
-                      placeholderTextColor={colors.textDim}
-                      maxLength={200}
-                    />
-                    <TouchableOpacity onPress={() => removeRule(i)} style={{ padding: 4 }}>
-                      <Ionicons name="close-circle" size={20} color="rgba(239,68,68,0.7)" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                {editRules.length < 10 && (
-                  <TouchableOpacity style={cs.addRuleBtn} onPress={addRule}>
-                    <Ionicons name="add-circle-outline" size={16} color={colors.c1} />
-                    <Text style={cs.addRuleTxt}>Agregar regla</Text>
-                  </TouchableOpacity>
-                )}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                  <TouchableOpacity
-                    style={cs.cancelBtn}
-                    onPress={() => { setEditingRules(false); setEditRules([...rules]); }}>
-                    <Text style={cs.cancelBtnTxt}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[cs.saveBtn, { flex: 2 }]} onPress={saveRules} disabled={savingRules}>
-                    {savingRules
-                      ? <ActivityIndicator size="small" color={colors.black} />
-                      : <Text style={cs.saveBtnTxt}>Guardar</Text>}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View>
-                {rules.length === 0 ? (
-                  <Text style={[s.emptyTxt, { margin: 16 }]}>
-                    {canManage ? 'Sin reglas. Agrega hasta 10.' : 'Sin reglas definidas.'}
+              {/* Badge + nombre (bottom-left) */}
+              <View style={cs.heroContent}>
+                <View style={[cs.activeBadge, !group.isActive && cs.inactiveBadge]}>
+                  <View style={[cs.activeDot, !group.isActive && cs.inactiveDot]} />
+                  <Text style={[cs.activeBadgeTxt, !group.isActive && cs.inactiveBadgeTxt]}>
+                    {group.isActive ? 'ACTIVA' : 'APAGADA'}
                   </Text>
-                ) : (
-                  rules.map((rule, i) => (
-                    <View key={i} style={[cs.ruleReadRow, i > 0 && cs.fieldRowBorder]}>
-                      <Text style={cs.ruleNum}>{i + 1}.</Text>
-                      <Text style={cs.ruleTxt}>{rule}</Text>
-                    </View>
-                  ))
-                )}
-                {canManage && (
-                  <TouchableOpacity
-                    style={cs.editSectionBtn}
-                    onPress={() => { setEditRules([...rules]); setEditingRules(true); }}>
-                    <Text style={cs.editSectionBtnTxt}>Editar reglas</Text>
-                  </TouchableOpacity>
-                )}
+                </View>
+                <Text style={cs.heroTitle} numberOfLines={2}>{group.name}</Text>
               </View>
-            )}
-          </View>
 
-          {/* ── SECCION: MIEMBROS ─────────────────────────────────────────── */}
-          <Text style={cs.sectionLabel}>MIEMBROS ({memberCount})</Text>
-          <View style={s.card}>
-            {group.members?.map((m, i) => {
-              const memberId  = (m.user?._id || m.user)?.toString();
-              const isMe      = memberId === user?._id?.toString();
-              const memberUser = typeof m.user === 'object' ? m.user : null;
-              const canKickThis = canManage && !isMe && m.role !== 'admin' &&
-                                  !(m.role === 'co-admin' && !isAdmin);
-              return (
-                <View key={memberId || i} style={[cs.memberInlineRow, i > 0 && cs.fieldRowBorder]}>
-                  <AvatarWithFrame
-                    size={38}
-                    avatarUrl={memberUser?.avatarUrl}
-                    username={memberUser?.username || '?'}
-                    profileFrame={memberUser?.profileFrame}
-                    frameUrl={memberUser?.profileFrameUrl}
+              {/* Camara: bottom-left (encima del badge si no hay canManage, oculto si no) */}
+              {canManage && (
+                <TouchableOpacity style={cs.editImgBtn} onPress={pickEditImage} activeOpacity={0.7}>
+                  <Ionicons name="camera-outline" size={17} color="#fff" />
+                </TouchableOpacity>
+              )}
+
+              {/* Power: top-right */}
+              {canManage && (
+                <TouchableOpacity
+                  style={[cs.toggleBtn, group.isActive ? cs.toggleBtnOn : cs.toggleBtnOff]}
+                  onPress={toggleActive}
+                  disabled={toggling}
+                  activeOpacity={0.7}>
+                  {toggling
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons
+                        name="power"
+                        size={20}
+                        color={group.isActive ? 'rgba(239,68,68,0.9)' : 'rgba(0,229,204,0.9)'}
+                      />}
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* ── CARD: GENERAL ───────────────────────────────────────────── */}
+          <Animated.View style={{ opacity: fadeGeneral }}>
+            <View style={cs.card}>
+              <View style={cs.cardHeader}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.textDim} />
+                <Text style={cs.cardTitle}>GENERAL</Text>
+              </View>
+              {canManage && editing ? (
+                <View style={{ padding: 16, gap: 12 }}>
+                  <TextInput
+                    style={cs.fieldInput}
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Nombre de la fiesta"
+                    placeholderTextColor={colors.textDim}
+                    maxLength={60}
                   />
-                  <View style={{ flex: 1, marginLeft: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={s.memberName} numberOfLines={1}>{memberUser?.username || 'Usuario'}</Text>
-                    {m.role !== 'member' && (
-                      <View style={m.role === 'admin' ? s.adminBadge : s.coAdminBadge}>
-                        <Text style={m.role === 'admin' ? s.adminBadgeTxt : s.coAdminBadgeTxt}>
-                          {m.role === 'admin' ? 'Admin' : 'Co-admin'}
-                        </Text>
+                  <TextInput
+                    style={[cs.fieldInput, { minHeight: 72, textAlignVertical: 'top' }]}
+                    value={editDesc}
+                    onChangeText={setEditDesc}
+                    placeholder="Descripcion (opcional)"
+                    placeholderTextColor={colors.textDim}
+                    multiline
+                    maxLength={200}
+                  />
+
+                  {/* Hashtags */}
+                  <View style={cs.hashtagsWrap}>
+                    {editHashtags.map(({ tag, color }) => (
+                      <TouchableOpacity
+                        key={tag}
+                        style={[cs.hashtagPillEdit, { borderColor: color + '55', backgroundColor: color + '18' }]}
+                        onPress={() => removeHashtag(tag)}>
+                        <Text style={[cs.hashtagPillEditTxt, { color }]}>#{tag}</Text>
+                        <Ionicons name="close" size={11} color={color} style={{ marginLeft: 4 }} />
+                      </TouchableOpacity>
+                    ))}
+                    {editHashtags.length < 5 && (
+                      <View style={cs.hashtagAddRow}>
+                        <TextInput
+                          style={cs.hashtagInput}
+                          value={newHashtag}
+                          onChangeText={t => setNewHashtag(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                          placeholder="hashtag"
+                          placeholderTextColor={colors.textDim}
+                          maxLength={20}
+                          onSubmitEditing={addHashtag}
+                          returnKeyType="done"
+                        />
+                        <TouchableOpacity
+                          onPress={addHashtag}
+                          disabled={editHashtags.length >= 5}
+                          style={[cs.hashtagAddBtn, editHashtags.length >= 5 && { opacity: 0.35 }]}>
+                          <Ionicons name="add" size={16} color={colors.c1} />
+                        </TouchableOpacity>
                       </View>
                     )}
                   </View>
-                  {isAdmin && !isMe && m.role !== 'admin' && (
+
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
-                      style={cs.coAdminBtn}
-                      onPress={() => toggleCoAdmin(memberId, m.role)}
-                      disabled={settingRole === memberId}>
-                      {settingRole === memberId
-                        ? <ActivityIndicator size="small" color={colors.c1} />
-                        : <Text style={cs.coAdminBtnTxt}>
-                            {m.role === 'co-admin' ? 'Quitar' : 'Co-admin'}
-                          </Text>}
+                      style={cs.cancelBtn}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setEditing(false);
+                        setEditImage(null);
+                        setEditName(group.name);
+                        setEditDesc(group.description || '');
+                        setEditHashtags(
+                          (group.hashtags || []).map((tag, i) => ({
+                            tag,
+                            color: ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'][i % 6],
+                          }))
+                        );
+                      }}>
+                      <Text style={cs.cancelBtnTxt}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[cs.saveBtn, { flex: 2 }]} onPress={saveEdit} disabled={saving} activeOpacity={0.7}>
+                      {saving
+                        ? <ActivityIndicator size="small" color={colors.black} />
+                        : <Text style={cs.saveBtnTxt}>Guardar</Text>}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  <View style={cs.fieldReadRow}>
+                    <Text style={cs.fieldLabel}>Nombre</Text>
+                    <Text style={cs.fieldValue}>{group.name}</Text>
+                  </View>
+                  <View style={[cs.fieldReadRow, cs.fieldRowBorder]}>
+                    <Text style={cs.fieldLabel}>Descripcion</Text>
+                    <Text style={cs.fieldValue}>{group.description || '—'}</Text>
+                  </View>
+                  <View style={[cs.fieldReadRow, cs.fieldRowBorder]}>
+                    <Text style={cs.fieldLabel}>Hashtags</Text>
+                    {group.hashtags?.length > 0
+                      ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
+                          {group.hashtags.map((t, i) => {
+                            const c = ['#2979ff', '#f472b6', '#facc15', '#22d3ee', '#4ade80', '#f97316'][i % 6];
+                            return (
+                              <View key={t} style={[cs.hashtagPill, { borderColor: c + '55', backgroundColor: c + '18' }]}>
+                                <Text style={[cs.hashtagPillTxt, { color: c }]}>#{t}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      : <Text style={cs.fieldValue}>—</Text>}
+                  </View>
+                  {canManage && (
+                    <TouchableOpacity style={cs.editSectionBtn} onPress={() => setEditing(true)} activeOpacity={0.7}>
+                      <Text style={cs.editSectionBtnTxt}>Editar</Text>
                     </TouchableOpacity>
                   )}
-                  {canKickThis && (
+                  {canManage && (
                     <TouchableOpacity
-                      style={{ padding: 6, marginLeft: 4 }}
-                      onPress={() => kickMember(memberId, memberUser?.username)}>
-                      <Ionicons name="remove-circle-outline" size={20} color="rgba(239,68,68,0.75)" />
+                      style={cs.editSectionBtn}
+                      onPress={shareCircle}
+                      disabled={sharingCircle}
+                      activeOpacity={0.7}>
+                      {sharingCircle
+                        ? <ActivityIndicator size="small" color={colors.c1} />
+                        : <>
+                            <Ionicons name="share-outline" size={14} color={colors.c1} style={{ marginRight: 6 }} />
+                            <Text style={cs.editSectionBtnTxt}>Compartir fiesta</Text>
+                          </>}
                     </TouchableOpacity>
                   )}
                 </View>
-              );
-            })}
-            {canManage && (
-              <TouchableOpacity style={cs.editSectionBtn} onPress={openAddMembers}>
-                <Ionicons name="person-add-outline" size={14} color={colors.c1} style={{ marginRight: 6 }} />
-                <Text style={cs.editSectionBtnTxt}>Agregar miembro</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              )}
+            </View>
+          </Animated.View>
 
-          {/* ── FONDO DEL GRUPO ───────────────────────────────────────────── */}
+          {/* ── CARD: ANUNCIO ───────────────────────────────────────────── */}
+          <Animated.View style={{ opacity: fadeAnuncio }}>
+            <View style={cs.card}>
+              <View style={cs.cardHeader}>
+                <Image
+                  source={require('../../assets/chats/menu/ic_icon_anno_empty_bg_1.png')}
+                  style={{ width: 18, height: 18 }}
+                />
+                <Text style={cs.cardTitle}>ANUNCIO</Text>
+              </View>
+              {canManage ? (
+                <View style={{ padding: 16, gap: 10 }}>
+                  <TextInput
+                    style={cs.fieldInput}
+                    value={editAnnouncement}
+                    onChangeText={setEditAnnouncement}
+                    placeholder="Escribe un anuncio para tus miembros..."
+                    placeholderTextColor={colors.textDim}
+                    maxLength={300}
+                  />
+                  {!!group.announcementBanner && (
+                    <View style={cs.announcementPreview}>
+                      <Ionicons name="megaphone-outline" size={12} color={colors.c1} />
+                      <Text style={cs.announcementPreviewTxt} numberOfLines={2}>{group.announcementBanner}</Text>
+                    </View>
+                  )}
+                  <View style={cs.charCountRow}>
+                    <Text style={cs.charCount}>{300 - editAnnouncement.length} restantes</Text>
+                    <TouchableOpacity
+                      style={[cs.inlineSaveBtn, savingAnnouncement && { opacity: 0.6 }]}
+                      onPress={saveAnnouncement}
+                      disabled={savingAnnouncement}
+                      activeOpacity={0.7}>
+                      {savingAnnouncement
+                        ? <ActivityIndicator size="small" color={colors.black} />
+                        : <Text style={cs.inlineSaveBtnTxt}>Guardar</Text>}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ padding: 16 }}>
+                  {group.announcementBanner
+                    ? <Text style={{ color: colors.textMid, fontSize: 13, lineHeight: 19 }}>{group.announcementBanner}</Text>
+                    : <Text style={{ color: colors.textDim, fontSize: 13 }}>Sin anuncio activo.</Text>}
+                </View>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* ── CARD: BIENVENIDA ────────────────────────────────────────── */}
+          <Animated.View style={{ opacity: fadeBienvenida }}>
+            <View style={cs.card}>
+              <View style={cs.cardHeader}>
+                <Ionicons name="chatbubble-outline" size={16} color={colors.textDim} />
+                <Text style={cs.cardTitle}>BIENVENIDA</Text>
+              </View>
+              {canManage ? (
+                <View style={{ padding: 16, gap: 10 }}>
+                  <TextInput
+                    style={[cs.fieldInput, { minHeight: 80, textAlignVertical: 'top' }]}
+                    value={editWelcomeMsg}
+                    onChangeText={setEditWelcomeMsg}
+                    placeholder="Mensaje que veran los usuarios al unirse..."
+                    placeholderTextColor={colors.textDim}
+                    multiline
+                    maxLength={500}
+                  />
+                  <View style={cs.charCountRow}>
+                    <Text style={cs.charCount}>{500 - editWelcomeMsg.length} restantes</Text>
+                    <TouchableOpacity
+                      style={[cs.inlineSaveBtn, savingWelcome && { opacity: 0.6 }]}
+                      onPress={saveWelcomeMsg}
+                      disabled={savingWelcome}
+                      activeOpacity={0.7}>
+                      {savingWelcome
+                        ? <ActivityIndicator size="small" color={colors.black} />
+                        : <Text style={cs.inlineSaveBtnTxt}>Guardar</Text>}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ padding: 16 }}>
+                  {group.welcomeMessage
+                    ? <Text style={{ color: colors.textMid, fontSize: 13, lineHeight: 19 }}>{group.welcomeMessage}</Text>
+                    : <Text style={{ color: colors.textDim, fontSize: 13 }}>Sin mensaje de bienvenida.</Text>}
+                </View>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* ── CARD: MIEMBROS ──────────────────────────────────────────── */}
+          <Animated.View style={{ opacity: fadeMiembros }}>
+            <View style={cs.card}>
+              <View style={cs.cardHeader}>
+                <Ionicons name="people-outline" size={16} color={colors.textDim} />
+                <Text style={cs.cardTitle}>MIEMBROS ({memberCount})</Text>
+              </View>
+              {group.members?.map((m, i) => {
+                const memberId   = (m.user?._id || m.user)?.toString();
+                const isMe       = memberId === user?._id?.toString();
+                const memberUser = typeof m.user === 'object' ? m.user : null;
+                const canKickThis = canManage && !isMe && m.role !== 'admin' &&
+                                    !(m.role === 'co-admin' && !isAdmin);
+                return (
+                  <View key={memberId || i} style={[cs.memberInlineRow, i > 0 && cs.fieldRowBorder]}>
+                    <AvatarWithFrame
+                      size={38}
+                      avatarUrl={memberUser?.avatarUrl}
+                      username={memberUser?.username || '?'}
+                      profileFrame={memberUser?.profileFrame}
+                      frameUrl={memberUser?.profileFrameUrl}
+                    />
+                    <View style={{ flex: 1, marginLeft: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={s.memberName} numberOfLines={1}>{memberUser?.username || 'Usuario'}</Text>
+                      {m.role !== 'member' && (
+                        <View style={m.role === 'admin' ? s.adminBadge : s.coAdminBadge}>
+                          <Text style={m.role === 'admin' ? s.adminBadgeTxt : s.coAdminBadgeTxt}>
+                            {m.role === 'admin' ? 'Admin' : 'Co-admin'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {isAdmin && !isMe && m.role !== 'admin' && (
+                      <TouchableOpacity
+                        style={cs.coAdminBtn}
+                        onPress={() => toggleCoAdmin(memberId, m.role)}
+                        disabled={settingRole === memberId}
+                        activeOpacity={0.7}>
+                        {settingRole === memberId
+                          ? <ActivityIndicator size="small" color={colors.c1} />
+                          : <Text style={cs.coAdminBtnTxt}>
+                              {m.role === 'co-admin' ? 'Quitar' : 'Co-admin'}
+                            </Text>}
+                      </TouchableOpacity>
+                    )}
+                    {canKickThis && (
+                      <TouchableOpacity
+                        style={{ padding: 6, marginLeft: 4 }}
+                        onPress={() => kickMember(memberId, memberUser?.username)}
+                        activeOpacity={0.7}>
+                        <Ionicons name="remove-circle-outline" size={20} color="rgba(239,68,68,0.75)" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
+              {canManage && (
+                <TouchableOpacity style={cs.editSectionBtn} onPress={openAddMembers} activeOpacity={0.7}>
+                  <Ionicons name="person-add-outline" size={14} color={colors.c1} style={{ marginRight: 6 }} />
+                  <Text style={cs.editSectionBtnTxt}>Agregar miembro</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* ── CARD: REGLAS ────────────────────────────────────────────── */}
+          <Animated.View style={{ opacity: fadeReglas }}>
+            <View style={cs.card}>
+              <View style={cs.cardHeader}>
+                <Ionicons name="list-outline" size={16} color={colors.textDim} />
+                <Text style={cs.cardTitle}>REGLAS</Text>
+              </View>
+              {editingRules && canManage ? (
+                <View style={{ padding: 16, gap: 10 }}>
+                  {editRules.map((rule, i) => (
+                    <View key={i} style={cs.ruleEditRow}>
+                      <Text style={cs.ruleNum}>{i + 1}.</Text>
+                      <TextInput
+                        style={cs.ruleInput}
+                        value={rule}
+                        onChangeText={t => updateRule(i, t)}
+                        placeholder="Escribe la regla..."
+                        placeholderTextColor={colors.textDim}
+                        maxLength={200}
+                      />
+                      <TouchableOpacity onPress={() => removeRule(i)} style={{ padding: 4 }}>
+                        <Ionicons name="close-circle" size={20} color="rgba(239,68,68,0.7)" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {editRules.length < 10 && (
+                    <TouchableOpacity style={cs.addRuleBtn} onPress={addRule} activeOpacity={0.7}>
+                      <Ionicons name="add-circle-outline" size={16} color={colors.c1} />
+                      <Text style={cs.addRuleTxt}>Agregar regla</Text>
+                    </TouchableOpacity>
+                  )}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                    <TouchableOpacity
+                      style={cs.cancelBtn}
+                      onPress={() => { setEditingRules(false); setEditRules([...rules]); }}
+                      activeOpacity={0.7}>
+                      <Text style={cs.cancelBtnTxt}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[cs.saveBtn, { flex: 2 }]} onPress={saveRules} disabled={savingRules} activeOpacity={0.7}>
+                      {savingRules
+                        ? <ActivityIndicator size="small" color={colors.black} />
+                        : <Text style={cs.saveBtnTxt}>Guardar</Text>}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  {rules.length === 0 ? (
+                    <Text style={[s.emptyTxt, { margin: 16, marginTop: 14 }]}>
+                      {canManage ? 'Sin reglas. Agrega hasta 10.' : 'Sin reglas definidas.'}
+                    </Text>
+                  ) : (
+                    rules.map((rule, i) => (
+                      <View key={i} style={[cs.ruleReadRow, i > 0 && cs.fieldRowBorder]}>
+                        <Text style={cs.ruleNum}>{i + 1}.</Text>
+                        <Text style={cs.ruleTxt}>{rule}</Text>
+                      </View>
+                    ))
+                  )}
+                  {canManage && (
+                    <TouchableOpacity
+                      style={cs.editSectionBtn}
+                      onPress={() => { setEditRules([...rules]); setEditingRules(true); }}
+                      activeOpacity={0.7}>
+                      <Text style={cs.editSectionBtnTxt}>Editar reglas</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* ── CARD: FONDO (canManage only) ────────────────────────────── */}
           {canManage && (
-            <>
-              <Text style={cs.sectionLabel}>FONDO</Text>
-              <View style={s.card}>
-                <View style={s.cardHeader}>
-                  <Text style={s.cardLabel}>FONDO DE LA FIESTA</Text>
-                  {savingBg && <ActivityIndicator size="small" color={colors.c1} />}
+            <Animated.View style={{ opacity: fadeFondo }}>
+              <View style={cs.card}>
+                <View style={cs.cardHeader}>
+                  <Ionicons name="image-outline" size={16} color={colors.textDim} />
+                  <Text style={cs.cardTitle}>FONDO</Text>
+                  {savingBg && <ActivityIndicator size="small" color={colors.c1} style={{ marginLeft: 'auto' }} />}
                 </View>
                 {group.backgroundUrl?.startsWith('http') && (
                   <Image source={{ uri: group.backgroundUrl }} style={{ width: '100%', height: 80, marginBottom: 2 }} resizeMode="cover" />
@@ -903,6 +1087,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
                       key={p.id}
                       onPress={() => applyGroupBgPreset(p.id)}
                       disabled={savingBg}
+                      activeOpacity={0.7}
                       style={[
                         { width: 36, height: 36, borderRadius: 10, backgroundColor: p.color, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
                         group.backgroundUrl === p.id ? { borderColor: colors.c1 } : { borderColor: 'rgba(255,255,255,0.12)' },
@@ -915,6 +1100,7 @@ export default function GroupSettingsScreen({ route, navigation }) {
                   <TouchableOpacity
                     onPress={pickGroupBackground}
                     disabled={savingBg}
+                    activeOpacity={0.7}
                     style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)', alignItems: 'center' }}>
                     <Text style={{ color: colors.c1, fontSize: 13, fontWeight: '600' }}>
                       {savingBg ? 'Subiendo...' : 'Fondo propio'}
@@ -924,52 +1110,58 @@ export default function GroupSettingsScreen({ route, navigation }) {
                     <TouchableOpacity
                       onPress={() => applyGroupBgPreset(null)}
                       disabled={savingBg}
+                      activeOpacity={0.7}
                       style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(239,68,68,0.07)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)', alignItems: 'center' }}>
                       <Text style={{ color: 'rgba(239,68,68,0.8)', fontSize: 13, fontWeight: '600' }}>Quitar</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               </View>
-            </>
+            </Animated.View>
           )}
 
-          {/* ── ZONA DE PELIGRO (solo admin) ──────────────────────────────── */}
+          {/* ── CARD: ZONA DE PELIGRO (isAdmin only) ────────────────────── */}
           {isAdmin && (
-            <>
-              <Text style={[cs.sectionLabel, { color: 'rgba(239,68,68,0.55)' }]}>ZONA DE PELIGRO</Text>
-              <View style={s.card}>
-                <TouchableOpacity style={[cs.dangerRow]} onPress={openBanned}>
+            <Animated.View style={{ opacity: fadeDanger }}>
+              <View style={[cs.card, cs.cardDanger]}>
+                <View style={cs.cardHeader}>
+                  <Ionicons name="warning-outline" size={16} color="rgba(239,68,68,0.7)" />
+                  <Text style={[cs.cardTitle, { color: 'rgba(239,68,68,0.7)' }]}>ZONA DE PELIGRO</Text>
+                </View>
+                <TouchableOpacity style={cs.dangerRow} onPress={openBanned} activeOpacity={0.7}>
                   <Text style={cs.dangerRowTxt}>Miembros baneados</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={s.cardAction}>{group.bannedUsers?.length || 0}</Text>
                     <Ionicons name="chevron-forward" size={14} color={colors.c1} />
                   </View>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[cs.dangerRow, cs.dangerRowBorder]}
+                  onPress={() => { setTransferSent(false); setShowTransfer(true); }}
+                  activeOpacity={0.7}>
+                  <Text style={[cs.dangerRowTxt, { color: 'rgba(239,68,68,0.6)' }]}>Ceder administracion</Text>
+                  <Ionicons name="chevron-forward" size={14} color="rgba(239,68,68,0.5)" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[cs.dangerRow, cs.dangerRowBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert(
+                    'Eliminar fiesta',
+                    'Esta accion no se puede deshacer.',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { text: 'Continuar', style: 'destructive', onPress: () => { setDeleteText(''); setShowDeleteConfirm(true); } },
+                    ]
+                  )}>
+                  <Text style={[cs.dangerRowTxt, { color: 'rgba(239,68,68,0.9)' }]}>Eliminar fiesta</Text>
+                  <Ionicons name="chevron-forward" size={14} color="rgba(239,68,68,0.7)" />
+                </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                style={s.transferBtn}
-                onPress={() => { setTransferSent(false); setShowTransfer(true); }}>
-                <Text style={s.transferBtnTxt}>Ceder administracion</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={s.deleteBtn}
-                onPress={() => Alert.alert(
-                  '¿Eliminar fiesta?',
-                  '¿Estas seguro? Esta accion no se puede deshacer.',
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    { text: 'Continuar', style: 'destructive', onPress: () => { setDeleteText(''); setShowDeleteConfirm(true); } },
-                  ]
-                )}>
-                <Text style={s.deleteBtnTxt}>Eliminar fiesta</Text>
-              </TouchableOpacity>
-            </>
+            </Animated.View>
           )}
 
           {/* Salir */}
-          <TouchableOpacity style={[s.leaveBtn, { marginTop: 8 }]} onPress={leaveGroup}>
+          <TouchableOpacity style={[s.leaveBtn, { marginTop: 8 }]} onPress={leaveGroup} activeOpacity={0.7}>
             <Text style={s.leaveBtnTxt}>Salir de la fiesta</Text>
           </TouchableOpacity>
 
@@ -1382,61 +1574,81 @@ const s = StyleSheet.create({
 
 // ── Estilos exclusivos del layout isCircle ───────────────────────────────────
 const cs = StyleSheet.create({
-  scroll: { paddingHorizontal: 16, paddingTop: 0, gap: 12, paddingBottom: 16 },
+  scroll: { paddingHorizontal: 16, paddingTop: 0, gap: 16, paddingBottom: 16 },
 
-  hero: { width: '100%', height: 200, marginBottom: 8, position: 'relative', justifyContent: 'flex-end' },
+  // Hero
+  hero:        { width: '100%', height: 180, marginBottom: 0, position: 'relative', justifyContent: 'flex-end', borderBottomLeftRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden' },
   heroContent: { padding: 14, gap: 6 },
-  heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: 0.2 },
+  heroTitle:   { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: 0.2 },
 
-  activeBadge:    { alignSelf: 'flex-start', backgroundColor: 'rgba(0,229,204,0.2)', borderRadius: 6, borderWidth: 1, borderColor: 'rgba(0,229,204,0.5)', paddingHorizontal: 8, paddingVertical: 3 },
-  inactiveBadge:  { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)' },
-  activeBadgeTxt: { color: colors.c1, fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
-  inactiveBadgeTxt: { color: colors.textMid },
+  activeBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', backgroundColor: 'rgba(0,229,204,0.18)', borderRadius: 6, borderWidth: 1, borderColor: 'rgba(0,229,204,0.45)', paddingHorizontal: 8, paddingVertical: 3 },
+  inactiveBadge:   { backgroundColor: 'rgba(255,255,255,0.07)', borderColor: 'rgba(255,255,255,0.14)' },
+  activeBadgeTxt:  { color: colors.c1, fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
+  inactiveBadgeTxt:{ color: colors.textMid },
+  activeDot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.c1 },
+  inactiveDot:     { backgroundColor: 'rgba(239,68,68,0.7)' },
 
-  editImgBtn: { position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-
-  toggleBtn:    { position: 'absolute', bottom: 14, right: 14, width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  // camera: bottom-left; power: top-right
+  editImgBtn: { position: 'absolute', bottom: 14, left: 14, width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  toggleBtn:    { position: 'absolute', top: 12, right: 12, width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   toggleBtnOn:  { backgroundColor: 'rgba(239,68,68,0.18)', borderColor: 'rgba(239,68,68,0.45)' },
   toggleBtnOff: { backgroundColor: 'rgba(0,229,204,0.12)', borderColor: 'rgba(0,229,204,0.4)' },
 
-  sectionLabel: { color: colors.textDim, fontSize: 9, fontWeight: '800', letterSpacing: 3, marginBottom: -4, marginLeft: 4 },
+  // Cards
+  card:       { backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' },
+  cardDanger: { borderColor: 'rgba(239,68,68,0.22)' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  cardTitle:  { color: colors.textDim, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
 
+  // Fields
   fieldReadRow:  { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 13, justifyContent: 'space-between', gap: 12 },
-  fieldRowBorder:{ borderTopWidth: 1, borderTopColor: colors.border },
+  fieldRowBorder:{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)' },
   fieldLabel:    { color: colors.textDim, fontSize: 12, fontWeight: '600', minWidth: 90 },
   fieldValue:    { color: colors.textHi, fontSize: 13, flex: 1, textAlign: 'right' },
+  fieldInput:    { backgroundColor: colors.black, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: colors.textHi, fontSize: 14 },
 
-  fieldInput:  { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderC, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: colors.textHi, fontSize: 14 },
+  // Inline save (ANUNCIO / BIENVENIDA)
+  charCountRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  charCount:         { color: colors.textDim, fontSize: 11, fontWeight: '600' },
+  inlineSaveBtn:     { backgroundColor: colors.c1, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 7 },
+  inlineSaveBtnTxt:  { color: colors.black, fontSize: 13, fontWeight: '800' },
+  announcementPreview:    { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: 'rgba(0,229,204,0.06)', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: 'rgba(0,229,204,0.15)' },
+  announcementPreviewTxt: { color: colors.c1, fontSize: 12, lineHeight: 17, flex: 1 },
 
-  hashtagsWrap:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  hashtagPill:    { backgroundColor: 'rgba(0,229,204,0.08)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)', paddingHorizontal: 8, paddingVertical: 4 },
-  hashtagPillTxt: { color: colors.c1, fontSize: 11, fontWeight: '600' },
-  hashtagPillEdit:{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,229,204,0.1)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,229,204,0.35)', paddingHorizontal: 8, paddingVertical: 4 },
-  hashtagPillEditTxt: { color: colors.c1, fontSize: 11, fontWeight: '600' },
-  hashtagAddRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  hashtagInput:   { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, color: colors.textHi, fontSize: 12, minWidth: 80 },
-  hashtagAddBtn:  { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)', alignItems: 'center', justifyContent: 'center' },
+  // Hashtags
+  hashtagsWrap:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  hashtagPill:        { borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
+  hashtagPillTxt:     { fontSize: 11, fontWeight: '600' },
+  hashtagPillEdit:    { flexDirection: 'row', alignItems: 'center', borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
+  hashtagPillEditTxt: { fontSize: 11, fontWeight: '600' },
+  hashtagAddRow:      { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hashtagInput:       { backgroundColor: colors.black, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, color: colors.textHi, fontSize: 12, minWidth: 80 },
+  hashtagAddBtn:      { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(0,229,204,0.1)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.3)', alignItems: 'center', justifyContent: 'center' },
 
-  saveBtn:    { flex: 1, backgroundColor: colors.c1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  saveBtnTxt: { color: colors.black, fontSize: 14, fontWeight: '800' },
-  cancelBtn:  { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  cancelBtnTxt: { color: colors.textDim, fontSize: 14, fontWeight: '600' },
-
-  editSectionBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderTopWidth: 1, borderTopColor: colors.border },
+  // Buttons
+  saveBtn:           { flex: 1, backgroundColor: colors.c1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  saveBtnTxt:        { color: colors.black, fontSize: 14, fontWeight: '800' },
+  cancelBtn:         { flex: 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  cancelBtnTxt:      { color: colors.textDim, fontSize: 14, fontWeight: '600' },
+  editSectionBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   editSectionBtnTxt: { color: colors.c1, fontSize: 12, fontWeight: '700' },
 
-  ruleEditRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ruleReadRow:  { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-  ruleNum:      { color: colors.textDim, fontSize: 12, fontWeight: '700', minWidth: 20 },
-  ruleInput:    { flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: colors.textHi, fontSize: 13 },
-  ruleTxt:      { color: colors.textMid, fontSize: 13, flex: 1, lineHeight: 19 },
-  addRuleBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  addRuleTxt:   { color: colors.c1, fontSize: 13, fontWeight: '600' },
+  // Reglas
+  ruleEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ruleReadRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  ruleNum:     { color: colors.textDim, fontSize: 12, fontWeight: '700', minWidth: 20 },
+  ruleInput:   { flex: 1, backgroundColor: colors.black, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: colors.textHi, fontSize: 13 },
+  ruleTxt:     { color: colors.textMid, fontSize: 13, flex: 1, lineHeight: 19 },
+  addRuleBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  addRuleTxt:  { color: colors.c1, fontSize: 13, fontWeight: '600' },
 
+  // Miembros inline
   memberInlineRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
   coAdminBtn:      { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(0,229,204,0.08)', borderWidth: 1, borderColor: 'rgba(0,229,204,0.25)', marginLeft: 6 },
   coAdminBtnTxt:   { color: colors.c1, fontSize: 10, fontWeight: '700' },
 
-  dangerRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
-  dangerRowTxt: { color: colors.textMid, fontSize: 13, fontWeight: '600' },
+  // Zona de peligro
+  dangerRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
+  dangerRowBorder: { borderTopWidth: 1, borderTopColor: 'rgba(239,68,68,0.1)' },
+  dangerRowTxt:    { color: colors.textMid, fontSize: 13, fontWeight: '600' },
 });

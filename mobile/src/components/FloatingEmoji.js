@@ -1,28 +1,74 @@
 import React, { useRef, useEffect } from 'react';
-import { Animated, Text, View, StyleSheet } from 'react-native';
+import { Animated, Text, StyleSheet } from 'react-native';
 
 export default function FloatingEmoji({ emoji, onDone }) {
-  const translateY = useRef(new Animated.Value(0)).current;
-  const opacity    = useRef(new Animated.Value(1)).current;
+  const emojiScale   = useRef(new Animated.Value(0.5)).current;
+  const emojiOpacity = useRef(new Animated.Value(1)).current;
+  const waveScale    = useRef(new Animated.Value(0)).current;
+  const waveOpacity  = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
-    console.log('[FLOAT] mounting', emoji);
     Animated.parallel([
-      Animated.timing(translateY, { toValue: -80, duration: 800, useNativeDriver: true }),
-      Animated.timing(opacity,    { toValue: 0,   duration: 800, useNativeDriver: true }),
+      Animated.spring(emojiScale, {
+        toValue:         1.0,
+        tension:         120,
+        friction:        6,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(300),
+        Animated.timing(emojiOpacity, {
+          toValue:         0,
+          duration:        200,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(waveScale, {
+        toValue:         2.5,
+        duration:        500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(waveOpacity, {
+        toValue:         0,
+        duration:        500,
+        useNativeDriver: true,
+      }),
     ]).start(({ finished }) => { if (finished) onDone(); });
   }, []);
 
   return (
-    <View style={s.wrap} pointerEvents="none">
-      <Animated.Text style={[s.emoji, { transform: [{ translateY }], opacity }]}>
+    <>
+      <Animated.View
+        pointerEvents="none"
+        style={[s.wave, { transform: [{ scale: waveScale }], opacity: waveOpacity }]}
+      />
+      <Animated.Text
+        pointerEvents="none"
+        style={[s.emoji, { transform: [{ scale: emojiScale }], opacity: emojiOpacity }]}
+      >
         {emoji}
       </Animated.Text>
-    </View>
+    </>
   );
 }
 
 const s = StyleSheet.create({
-  wrap:  { position:'absolute', left:0, right:0, bottom:30, alignItems:'center', zIndex:99, elevation:8 },
-  emoji: { fontSize:34 },
+  wave: {
+    position:        'absolute',
+    width:           60,
+    height:          60,
+    borderRadius:    999,
+    backgroundColor: 'rgba(0,229,204,0.4)',
+    alignSelf:       'center',
+    top:             '50%',
+    marginTop:       -30,
+  },
+  emoji: {
+    position:  'absolute',
+    alignSelf: 'center',
+    top:       '50%',
+    marginTop: -20,
+    fontSize:  34,
+    zIndex:    1,
+  },
 });
