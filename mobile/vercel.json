@@ -21,6 +21,7 @@
     { "source": "/verify-email",          "destination": "/verify-email.html" },
     { "source": "/confirm-email-change", "destination": "/confirm-email-change.html" },
     { "source": "/download",             "destination": "/download.html" },
+    { "source": "/beta",                 "destination": "/beta.html" },
     { "source": "/(.*)",                 "destination": "/index.html" }
   ],
   "buildCommand": "bash deploy.sh",
