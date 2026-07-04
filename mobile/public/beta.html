@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Abyss — Beta Exclusiva</title>
-  <meta name="description" content="Únete a la beta de Abyss Social. La red social que te conecta de verdad. Cupos limitados.">
+  <meta name="description" content="Descarga Abyss Social o únete a la beta con tu cuenta de Google. Cupos limitados.">
   <style>
     :root {
       --bg:        #020509;
@@ -30,25 +30,24 @@
     button { font-family: inherit; }
     section { padding: 0 20px; }
 
-    /* ── HERO ─────────────────────────────────────────────── */
+    /* ── HERO (minimalista) ───────────────────────────────── */
     .hero {
       position: relative;
-      min-height: 78vh;
+      min-height: 92vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 100px 20px 64px;
-      background-image: url('https://res.cloudinary.com/dlpdzgkeg/image/upload/v1782839084/ChatGPT_Image_30_jun_2026_10_53_31_a.m._irdi9m.png');
-      background-size: cover;
-      background-position: center;
+      padding: 64px 20px;
       overflow: hidden;
     }
-    .hero-overlay {
+    .hero-glow {
       position: absolute;
-      inset: 0;
-      background: rgba(2,5,9,0.7);
+      pointer-events: none;
+      width: 560px; height: 560px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,229,204,0.14) 0%, transparent 70%);
+      top: 50%; left: 50%; transform: translate(-50%, -55%);
     }
     .hero-content {
       position: relative;
@@ -56,34 +55,162 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
-      max-width: 620px;
+      gap: 10px;
+      width: 100%;
+      max-width: 380px;
     }
     .hero-wordmark {
-      font-size: clamp(48px, 12vw, 84px);
+      font-size: clamp(38px, 10vw, 56px);
       font-weight: 900;
       letter-spacing: 0.14em;
       color: var(--teal);
       text-shadow: 0 0 40px rgba(0,229,204,0.45);
       line-height: 1;
-    }
-    .hero-subtitle {
-      font-size: clamp(15px, 3.2vw, 19px);
-      color: rgba(255,255,255,0.85);
-      font-weight: 500;
-      max-width: 40ch;
+      margin-bottom: 6px;
     }
     .badge {
-      margin-top: 10px;
       display: inline-block;
       background: var(--teal);
       color: #001a18;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 800;
       letter-spacing: 0.12em;
-      padding: 8px 18px;
+      padding: 7px 16px;
       border-radius: 999px;
+      margin-bottom: 28px;
     }
+
+    /* Botón Play Store — ahora es la acción principal */
+    .play-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 14px;
+      padding: 16px 20px;
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color .2s, transform .15s;
+    }
+    .play-btn:hover  { border-color: rgba(255,255,255,0.4); transform: translateY(-1px); }
+    .play-btn:active { transform: translateY(0); }
+    .play-btn .play-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+    .play-btn .play-text small { font-size: 10px; color: rgba(255,255,255,0.6); letter-spacing: 0.04em; }
+    .play-btn .play-text strong { font-size: 17px; font-weight: 600; }
+
+    .divider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      margin: 22px 0 18px;
+    }
+    .divider-row::before, .divider-row::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,0.1);
+    }
+    .divider-row span { font-size: 12px; color: var(--text-faint); white-space: nowrap; }
+
+    .google-caption {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    #googleBtnContainer { display: flex; justify-content: center; min-height: 44px; }
+
+    .google-status {
+      margin-top: 12px;
+      font-size: 12.5px;
+      color: var(--text-faint);
+      text-align: center;
+    }
+    .google-status.error { color: #ff6b5e; }
+
+    .fine-print {
+      margin-top: 18px;
+      font-size: 11.5px;
+      color: var(--text-faint);
+      text-align: center;
+    }
+
+    /* ── SUCCESS VIEW (dentro del hero) ──────────────────── */
+    #successView { text-align: center; width: 100%; }
+    #successView[hidden] { display: none; }
+    .fade-in { animation: fadeIn .5s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .check-circle-wrap { display: flex; justify-content: center; margin-bottom: 18px; }
+    .check-circle { width: 72px; height: 72px; }
+    .check-circle .circle {
+      stroke: var(--teal);
+      fill: none;
+      stroke-width: 3;
+      stroke-dasharray: 220;
+      stroke-dashoffset: 220;
+      animation: drawCircle .6s ease forwards;
+    }
+    .check-circle .tick {
+      stroke: var(--teal);
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 40;
+      stroke-dashoffset: 40;
+      animation: drawTick .35s ease forwards .55s;
+    }
+    @keyframes drawCircle { to { stroke-dashoffset: 0; } }
+    @keyframes drawTick   { to { stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .check-circle .circle, .check-circle .tick { animation: none; stroke-dashoffset: 0; }
+      .fade-in { animation: none; }
+    }
+
+    #successView h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    #successView > p.success-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; }
+    #successView .play-btn { margin-bottom: 18px; }
+
+    .discord-card {
+      background: rgba(88,101,242,0.08);
+      border: 1px solid rgba(88,101,242,0.25);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+      text-align: center;
+    }
+    .discord-card p { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
+    .discord-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #5865F2;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 11px 20px;
+      border-radius: 10px;
+      transition: opacity .2s;
+    }
+    .discord-btn:hover { opacity: .88; }
+
+    .btn-secondary {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.18);
+      color: var(--text-dim);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 11px 22px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-secondary:hover { border-color: var(--teal); color: var(--text); }
 
     /* ── FEATURES ─────────────────────────────────────────── */
     .features {
@@ -122,202 +249,6 @@
     .feature-card h3 { font-size: 17px; font-weight: 800; }
     .feature-card p { font-size: 13.5px; color: var(--text-dim); max-width: 26ch; }
 
-    /* ── SIGNUP ───────────────────────────────────────────── */
-    .signup-section {
-      display: flex;
-      justify-content: center;
-      padding: 24px 20px 64px;
-    }
-    .signup-card {
-      position: relative;
-      width: 100%;
-      max-width: 420px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 32px;
-      overflow: hidden;
-    }
-    .signup-card::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, var(--teal), transparent);
-    }
-    .signup-card h2 {
-      font-size: 22px;
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 6px;
-    }
-    .signup-subtitle {
-      font-size: 13.5px;
-      color: var(--text-dim);
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .input-wrap {
-      position: relative;
-      display: flex;
-      align-items: center;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
-      padding: 0 14px;
-      transition: border-color .2s;
-    }
-    .input-wrap:focus-within { border-color: var(--teal); }
-    .input-wrap svg { flex-shrink: 0; color: var(--text-faint); }
-    .input-wrap input {
-      flex: 1;
-      background: none;
-      border: none;
-      outline: none;
-      color: var(--text);
-      font-size: 15px;
-      padding: 14px 10px;
-      min-width: 0;
-    }
-    .input-wrap input::placeholder { color: var(--text-faint); }
-
-    .submit-btn {
-      width: 100%;
-      margin-top: 14px;
-      background: var(--teal);
-      color: #020509;
-      border: none;
-      border-radius: 12px;
-      padding: 15px;
-      font-size: 15px;
-      font-weight: 800;
-      letter-spacing: 0.01em;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: opacity .2s, transform .15s;
-    }
-    .submit-btn:hover:not(:disabled)  { opacity: .88; transform: translateY(-1px); }
-    .submit-btn:active:not(:disabled) { opacity: .75; transform: translateY(0); }
-    .submit-btn:disabled { opacity: .65; cursor: default; }
-
-    .spinner {
-      width: 16px; height: 16px;
-      border: 2px solid rgba(2,5,9,0.25);
-      border-top-color: #020509;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .form-error {
-      margin-top: 10px;
-      font-size: 12.5px;
-      color: #ff6b5e;
-      text-align: center;
-    }
-
-    .fine-print {
-      margin-top: 14px;
-      font-size: 11.5px;
-      color: var(--text-faint);
-      text-align: center;
-    }
-
-    /* ── PLAY STORE BUTTON ────────────────────────────────── */
-    .play-btn {
-      margin-top: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      background: #000000;
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 12px;
-      padding: 11px 16px;
-      text-decoration: none;
-      color: var(--text);
-      transition: border-color .2s, transform .15s;
-    }
-    .play-btn:hover { border-color: rgba(255,255,255,0.4); transform: translateY(-1px); }
-    .play-btn .play-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
-    .play-btn .play-text small { font-size: 9.5px; color: rgba(255,255,255,0.6); letter-spacing: 0.04em; }
-    .play-btn .play-text strong { font-size: 16px; font-weight: 600; }
-
-    /* ── SUCCESS VIEW ─────────────────────────────────────── */
-    #successView { text-align: center; }
-    #successView[hidden] { display: none; }
-    .fade-in { animation: fadeIn .5s ease both; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-    .check-circle-wrap { display: flex; justify-content: center; margin-bottom: 18px; }
-    .check-circle { width: 72px; height: 72px; }
-    .check-circle .circle {
-      stroke: var(--teal);
-      fill: none;
-      stroke-width: 3;
-      stroke-dasharray: 220;
-      stroke-dashoffset: 220;
-      animation: drawCircle .6s ease forwards;
-    }
-    .check-circle .tick {
-      stroke: var(--teal);
-      fill: none;
-      stroke-width: 4;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      stroke-dasharray: 40;
-      stroke-dashoffset: 40;
-      animation: drawTick .35s ease forwards .55s;
-    }
-    @keyframes drawCircle { to { stroke-dashoffset: 0; } }
-    @keyframes drawTick   { to { stroke-dashoffset: 0; } }
-    @media (prefers-reduced-motion: reduce) {
-      .check-circle .circle, .check-circle .tick { animation: none; stroke-dashoffset: 0; }
-      .fade-in { animation: none; }
-    }
-
-    #successView h2 { font-size: 21px; font-weight: 800; margin-bottom: 10px; }
-    #successView > p { font-size: 14px; color: var(--text-dim); margin-bottom: 22px; }
-
-    .discord-card {
-      background: rgba(88,101,242,0.08);
-      border: 1px solid rgba(88,101,242,0.25);
-      border-radius: 14px;
-      padding: 18px;
-      margin-bottom: 18px;
-    }
-    .discord-card p { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
-    .discord-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: #5865F2;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 700;
-      text-decoration: none;
-      padding: 11px 20px;
-      border-radius: 10px;
-      transition: opacity .2s;
-    }
-    .discord-btn:hover { opacity: .88; }
-
-    .btn-secondary {
-      background: none;
-      border: 1px solid rgba(255,255,255,0.18);
-      color: var(--text-dim);
-      font-size: 13.5px;
-      font-weight: 600;
-      padding: 11px 22px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: border-color .2s, color .2s;
-    }
-    .btn-secondary:hover { border-color: var(--teal); color: var(--text); }
-
     /* ── SOCIAL ───────────────────────────────────────────── */
     .social-section { padding: 12px 20px 56px; display: flex; justify-content: center; }
     .social-row { display: flex; align-items: center; gap: 22px; }
@@ -343,17 +274,78 @@
 </head>
 <body>
 
-  <!-- 1. HERO -->
+  <!-- 1+2+4+6. HERO: descarga directa + Google Sign-In + éxito -->
   <section class="hero">
-    <div class="hero-overlay"></div>
+    <div class="hero-glow"></div>
     <div class="hero-content">
-      <p class="hero-wordmark">ABYSS</p>
-      <p class="hero-subtitle">La red social que te conecta de verdad</p>
-      <span class="badge">BETA EXCLUSIVA</span>
+
+      <div id="formView" style="width:100%;">
+        <p class="hero-wordmark">ABYSS</p>
+        <span class="badge">BETA EXCLUSIVA</span>
+
+        <a class="play-btn" id="downloadBtn" href="https://play.google.com/apps/internaltest/4701377691744254634" target="_blank" rel="noopener">
+          <svg width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
+            <path fill="#00d2ff" d="M99.6 20.5c-6 3.1-10.7 8.1-13.5 14.4L262 240 348 154 113.1 20.9c-4.4-2.5-9.4-3.8-14.4-3.8-3.8 0-7 .5-9.1 1.4z" transform="translate(0 16)"/>
+            <path fill="#00f076" d="M262 240 86.1 34.9C83.9 39.6 82.7 44.8 82.7 50.2v411.6c0 5.9 1.4 11.4 3.9 16.3L262 272z" transform="translate(0 -16)"/>
+            <path fill="#ffdd55" d="M348 154l58.7-33.9c9.4-5.4 15.1-15.3 15.1-26.1s-5.7-20.7-15.1-26.1L348 34 262 120z" transform="translate(0 136)"/>
+            <path fill="#ff3d54" d="M86.6 477.1c3 5.4 7.6 9.7 13.1 12.5 6.9 3.5 15.1 3.9 22.4-.3L406.7 358l-58.7-33.9L262 240z" transform="translate(0 -16)"/>
+          </svg>
+          <span class="play-text">
+            <small>DESCARGAR EN</small>
+            <strong>Abyss Social</strong>
+          </span>
+        </a>
+
+        <div class="divider-row"><span>¿No tienes acceso aún?</span></div>
+
+        <p class="google-caption">Regístrate como tester con tu cuenta de Google</p>
+        <div id="googleBtnContainer"></div>
+        <p class="google-status" id="googleStatus" hidden></p>
+
+        <p class="fine-print">Cupos limitados a la beta exclusiva</p>
+      </div>
+
+      <!-- SUCCESS VIEW -->
+      <div id="successView" hidden>
+        <div class="check-circle-wrap">
+          <svg class="check-circle" viewBox="0 0 80 80">
+            <circle class="circle" cx="40" cy="40" r="35"/>
+            <polyline class="tick" points="24,42 35,52 57,28"/>
+          </svg>
+        </div>
+        <h2>¡Ya eres beta tester!</h2>
+        <p class="success-sub" id="successEmailText">Ya tienes acceso a la beta. Descarga Abyss Social ahora.</p>
+
+        <a class="play-btn" href="https://play.google.com/apps/internaltest/4701377691744254634" target="_blank" rel="noopener">
+          <svg width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
+            <path fill="#00d2ff" d="M99.6 20.5c-6 3.1-10.7 8.1-13.5 14.4L262 240 348 154 113.1 20.9c-4.4-2.5-9.4-3.8-14.4-3.8-3.8 0-7 .5-9.1 1.4z" transform="translate(0 16)"/>
+            <path fill="#00f076" d="M262 240 86.1 34.9C83.9 39.6 82.7 44.8 82.7 50.2v411.6c0 5.9 1.4 11.4 3.9 16.3L262 272z" transform="translate(0 -16)"/>
+            <path fill="#ffdd55" d="M348 154l58.7-33.9c9.4-5.4 15.1-15.3 15.1-26.1s-5.7-20.7-15.1-26.1L348 34 262 120z" transform="translate(0 136)"/>
+            <path fill="#ff3d54" d="M86.6 477.1c3 5.4 7.6 9.7 13.1 12.5 6.9 3.5 15.1 3.9 22.4-.3L406.7 358l-58.7-33.9L262 240z" transform="translate(0 -16)"/>
+          </svg>
+          <span class="play-text">
+            <small>DESCARGAR EN</small>
+            <strong>Abyss Social</strong>
+          </span>
+        </a>
+
+        <div class="discord-card">
+          <p>Únete a nuestra comunidad para recibir actualizaciones y reportar bugs</p>
+          <a class="discord-btn" href="https://discord.gg/F5Yhm7x5t" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.3 5.4A18 18 0 0 0 15.6 4l-.3.5a12.6 12.6 0 0 1 4 1.6 15.9 15.9 0 0 0-13.6 0 12.6 12.6 0 0 1 4-1.6L9.4 4a18 18 0 0 0-4.7 1.4C1.7 9.6 1 13.7 1.3 17.7a17.9 17.9 0 0 0 5.5 2.8l.9-1.4a11.6 11.6 0 0 1-1.9-.9l.5-.4a13 13 0 0 0 11.4 0l.5.4a11.6 11.6 0 0 1-1.9.9l.9 1.4a17.8 17.8 0 0 0 5.5-2.8c.4-4.6-.8-8.7-2.4-12.3ZM8.8 15.2c-.9 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.7.9 1.7 1.9-.8 1.9-1.7 1.9Zm6.4 0c-.9 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.7.9 1.7 1.9-.7 1.9-1.7 1.9Z"/>
+            </svg>
+            Entrar al Discord
+          </a>
+        </div>
+
+        <button class="btn-secondary" id="backBtn">Volver al inicio</button>
+      </div>
+
     </div>
   </section>
 
-  <!-- 2. FEATURES -->
+  <!-- 3. FEATURES (debajo del hero) -->
   <section class="features">
     <div class="feature-card">
       <div class="feature-icon">
@@ -389,75 +381,7 @@
     </div>
   </section>
 
-  <!-- 3 + 4 + 6. FORM / DOWNLOAD / SUCCESS -->
-  <section class="signup-section">
-    <div class="signup-card">
-
-      <div id="formView">
-        <h2>Únete a la beta</h2>
-        <p class="signup-subtitle">Accede antes que nadie. Cupos limitados.</p>
-
-        <form id="betaForm" novalidate>
-          <div class="input-wrap">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>
-            </svg>
-            <input type="email" id="emailInput" placeholder="tu@email.com" autocomplete="email" required>
-          </div>
-
-          <button type="submit" class="submit-btn" id="submitBtn">
-            <span id="submitLabel">Unirme a la beta</span>
-            <span class="spinner" id="submitSpinner" hidden></span>
-          </button>
-
-          <p class="form-error" id="formError" hidden></p>
-        </form>
-
-        <p class="fine-print">Recibirás un link de Google Play Store en tu correo</p>
-
-        <!-- 4. DOWNLOAD BUTTON -->
-        <a class="play-btn" href="https://play.google.com/store/apps/details?id=com.abyss.social" target="_blank" rel="noopener">
-          <svg width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
-            <path fill="#00d2ff" d="M99.6 20.5c-6 3.1-10.7 8.1-13.5 14.4L262 240 348 154 113.1 20.9c-4.4-2.5-9.4-3.8-14.4-3.8-3.8 0-7 .5-9.1 1.4z" transform="translate(0 16)"/>
-            <path fill="#00f076" d="M262 240 86.1 34.9C83.9 39.6 82.7 44.8 82.7 50.2v411.6c0 5.9 1.4 11.4 3.9 16.3L262 272z" transform="translate(0 -16)"/>
-            <path fill="#ffdd55" d="M348 154l58.7-33.9c9.4-5.4 15.1-15.3 15.1-26.1s-5.7-20.7-15.1-26.1L348 34 262 120z" transform="translate(0 136)"/>
-            <path fill="#ff3d54" d="M86.6 477.1c3 5.4 7.6 9.7 13.1 12.5 6.9 3.5 15.1 3.9 22.4-.3L406.7 358l-58.7-33.9L262 240z" transform="translate(0 -16)"/>
-          </svg>
-          <span class="play-text">
-            <small>DISPONIBLE EN</small>
-            <strong>Google Play</strong>
-          </span>
-        </a>
-      </div>
-
-      <!-- 6. SUCCESS VIEW -->
-      <div id="successView" hidden>
-        <div class="check-circle-wrap">
-          <svg class="check-circle" viewBox="0 0 80 80">
-            <circle class="circle" cx="40" cy="40" r="35"/>
-            <polyline class="tick" points="24,42 35,52 57,28"/>
-          </svg>
-        </div>
-        <h2>¡Ya eres beta tester!</h2>
-        <p>Revisa tu correo — te llegará un link de Google Play para descargar Abyss Social. Puede tardar unos minutos.</p>
-
-        <div class="discord-card">
-          <p>Únete a nuestra comunidad para recibir actualizaciones y reportar bugs</p>
-          <a class="discord-btn" href="https://discord.gg/F5Yhm7x5t" target="_blank" rel="noopener">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M20.3 5.4A18 18 0 0 0 15.6 4l-.3.5a12.6 12.6 0 0 1 4 1.6 15.9 15.9 0 0 0-13.6 0 12.6 12.6 0 0 1 4-1.6L9.4 4a18 18 0 0 0-4.7 1.4C1.7 9.6 1 13.7 1.3 17.7a17.9 17.9 0 0 0 5.5 2.8l.9-1.4a11.6 11.6 0 0 1-1.9-.9l.5-.4a13 13 0 0 0 11.4 0l.5.4a11.6 11.6 0 0 1-1.9.9l.9 1.4a17.8 17.8 0 0 0 5.5-2.8c.4-4.6-.8-8.7-2.4-12.3ZM8.8 15.2c-.9 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.7.9 1.7 1.9-.8 1.9-1.7 1.9Zm6.4 0c-.9 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.7.9 1.7 1.9-.7 1.9-1.7 1.9Z"/>
-            </svg>
-            Entrar al Discord
-          </a>
-        </div>
-
-        <button class="btn-secondary" id="backBtn">Volver al inicio</button>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- 5. SOCIAL -->
+  <!-- 3. SOCIAL (debajo del hero) -->
   <section class="social-section">
     <div class="social-row">
       <a href="https://www.instagram.com/abysssocial/" target="_blank" rel="noopener" aria-label="Instagram">
@@ -488,68 +412,71 @@
     &nbsp;·&nbsp; <a href="https://abyss.social/terminos">Términos</a>
   </footer>
 
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
-    const API = 'https://abyss-production-7171.up.railway.app/api';
+    const API             = 'https://abyss-production-7171.up.railway.app/api';
+    const GOOGLE_CLIENT_ID = '841197288611-3uhrf7lv42jdae4703unshffp0rfralj.apps.googleusercontent.com';
 
-    const form         = document.getElementById('betaForm');
-    const emailInput   = document.getElementById('emailInput');
-    const submitBtn    = document.getElementById('submitBtn');
-    const submitLabel  = document.getElementById('submitLabel');
-    const submitSpinner= document.getElementById('submitSpinner');
-    const formError    = document.getElementById('formError');
-    const formView     = document.getElementById('formView');
-    const successView  = document.getElementById('successView');
-    const backBtn      = document.getElementById('backBtn');
+    const formView        = document.getElementById('formView');
+    const successView     = document.getElementById('successView');
+    const successEmailText= document.getElementById('successEmailText');
+    const googleStatus    = document.getElementById('googleStatus');
+    const backBtn         = document.getElementById('backBtn');
 
-    function setLoading(loading) {
-      submitBtn.disabled = loading;
-      submitSpinner.hidden = !loading;
-      submitLabel.textContent = loading ? 'Enviando...' : 'Unirme a la beta';
+    function setGoogleStatus(message, isError) {
+      if (!message) { googleStatus.hidden = true; return; }
+      googleStatus.textContent = message;
+      googleStatus.classList.toggle('error', !!isError);
+      googleStatus.hidden = false;
     }
 
-    function showError(message) {
-      formError.textContent = message;
-      formError.hidden = false;
+    function showSuccess(email) {
+      successEmailText.textContent = email
+        ? `Registrado como ${email}. Descarga Abyss Social ahora.`
+        : 'Ya tienes acceso a la beta. Descarga Abyss Social ahora.';
+      formView.hidden = true;
+      successView.hidden = false;
+      successView.classList.add('fade-in');
     }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      formError.hidden = true;
-
-      const email = emailInput.value.trim();
-      if (!email) return showError('Ingresa un correo válido.');
-
-      setLoading(true);
+    async function handleGoogleCredential(response) {
+      setGoogleStatus('Conectando con Google...', false);
       try {
-        const res = await fetch(`${API}/beta/register`, {
-          method: 'POST',
+        const res  = await fetch(`${API}/beta/register`, {
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body:    JSON.stringify({ googleToken: response.credential }),
         });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'request-failed');
 
-        if (res.status === 409) {
-          showError('Este email ya está registrado');
-          setLoading(false);
-          return;
-        }
-        if (!res.ok) throw new Error('request-failed');
-
-        formView.hidden = true;
-        successView.hidden = false;
-        successView.classList.add('fade-in');
+        setGoogleStatus('');
+        showSuccess(data.email);
       } catch (err) {
-        showError('Algo salió mal, intenta de nuevo');
-        setLoading(false);
+        setGoogleStatus('Algo salió mal, intenta de nuevo', true);
       }
+    }
+
+    window.addEventListener('load', () => {
+      if (!window.google?.accounts?.id) {
+        setGoogleStatus('No se pudo cargar Google Sign-In. Recarga la página.', true);
+        return;
+      }
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback:  handleGoogleCredential,
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('googleBtnContainer'),
+        { theme: 'filled_black', size: 'large', text: 'continue_with', shape: 'pill', width: 320 }
+      );
     });
 
     backBtn.addEventListener('click', () => {
       successView.hidden = true;
       successView.classList.remove('fade-in');
       formView.hidden = false;
-      form.reset();
-      formError.hidden = true;
-      setLoading(false);
+      setGoogleStatus('');
     });
   </script>
 
