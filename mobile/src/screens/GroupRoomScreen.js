@@ -25,10 +25,11 @@ import ReportModal from '../components/ReportModal';
 import GenderIcon from '../components/GenderIcon';
 import VerifiedIcon from '../components/VerifiedIcon';
 import { formatCoins } from '../utils/formatCoins';
-import YoutubeIframe from 'react-native-youtube-iframe';
+const YoutubeIframe = Platform.OS !== 'web'
+  ? require('react-native-youtube-iframe').default
+  : () => null;
 import { useCinemaStore } from '../store/cinemaStore';
 import RoleManagerModal from '../components/RoleManagerModal';
-import RoleHexAvatar from '../components/RoleHexAvatar';
 import Svg, { Defs, ClipPath, Polygon, Rect, Image as SvgImage } from 'react-native-svg';
 
 const GROUP_BG_PRESETS = { night: '#020D1A', void: '#050505', purple: '#0D0714', teal: '#030F10' };
@@ -160,6 +161,20 @@ function SharedPostBubble({ sharedPost, navigation, isMe, onPress }) {
   );
 }
 
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function formatActiveTime(totalMinutes) {
+  const mins = totalMinutes || 0;
+  if (mins < 60) return `${mins}m`;
+  return `${(mins / 60).toFixed(1)}h`;
+}
+
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
   msg, prevMsg, isMe, user, group, isAdmin, blockedIds, activeRoles,
@@ -189,7 +204,7 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <>
       <View style={{ marginBottom: 4 }}>
-        {showAvatar && (
+        {showAvatar && !senderRole && (
           <View style={[s.msgSenderRow, isMe && s.msgSenderRowMe]}>
             <Text style={s.msgSenderName}>{displayName}</Text>
             <GenderIcon gender={isMe ? user?.gender : sender?.gender} size={11} />
@@ -207,9 +222,20 @@ const MessageBubble = memo(function MessageBubble({
           </View>
         )}
         {showAvatar && senderRole && (
-          <Text style={[s.roleNameTag, isMe ? s.roleNameTagMe : s.roleNameTagThem, { color: senderRole.borderColor || '#fff' }]}>
-            {senderRole.roleName}
-          </Text>
+          <View style={{
+            alignSelf: isMe ? 'flex-end' : 'flex-start',
+            marginLeft: isMe ? 0 : AVATAR_SLOT + 8,
+            marginRight: isMe ? AVATAR_SLOT + 8 : 0,
+            marginBottom: 4,
+            backgroundColor: hexToRgba(senderRole.borderColor || '#ffffff', 0.85),
+            borderRadius: 10,
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+          }}>
+            <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '700' }}>
+              {senderRole.roleName}
+            </Text>
+          </View>
         )}
 
         <View style={[s.msgRow, isMe && s.msgRowMe]}>
@@ -219,10 +245,10 @@ const MessageBubble = memo(function MessageBubble({
             activeOpacity={isMe ? 1 : 0.7}
           >
             {showAvatar && senderRole && (
-              <RoleHexAvatar
-                avatarUrl={isMe ? user?.avatarUrl : sender?.avatarUrl}
-                size={30}
-                borderColor={senderRole.borderColor}
+              <Image
+                source={{ uri: senderRole.roleImageUrl }}
+                style={{ width: 30, height: 30, borderRadius: 15,
+                  borderWidth: 2, borderColor: senderRole.borderColor || '#fff' }}
               />
             )}
             {showAvatar && !senderRole && (
@@ -296,7 +322,7 @@ const MessageBubble = memo(function MessageBubble({
 const ROLE_HEX_POINTS = '50,2 93,30 93,68 50,98 7,68 7,30'; // matches mask_role_foreground.png outline
 
 // ─── RoleCard ─────────────────────────────────────────────────────────────────
-function RoleCard({ role, myUserId, onTake, onRelease }) {
+function RoleCard({ role, myUserId, onOpenInfo }) {
   const taker      = role.takenBy;
   const takerId    = (taker?._id || taker)?.toString();
   const isMine     = !!takerId && takerId === myUserId?.toString();
@@ -304,34 +330,11 @@ function RoleCard({ role, myUserId, onTake, onRelease }) {
   const avatarOpacity = !isTaken ? 1 : isMine ? 1 : 0.35;
   const clipId = `roleHex-${role._id}`;
 
-  function handlePress() {
-    if (isMine) {
-      Alert.alert(
-        '¿Retirarte el rol?',
-        undefined,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Retirar', style: 'destructive', onPress: () => onRelease(role._id) },
-        ]
-      );
-    } else if (!isTaken) {
-      Alert.alert(
-        '¿Tomar este rol?',
-        undefined,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Tomar', onPress: () => onTake(role._id) },
-        ]
-      );
-    }
-  }
-
   return (
     <TouchableOpacity
       style={s.roleCard}
-      activeOpacity={isTaken && !isMine ? 1 : 0.8}
-      disabled={isTaken && !isMine}
-      onPress={handlePress}
+      activeOpacity={0.8}
+      onPress={() => onOpenInfo(role)}
     >
       <LinearGradient
         colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']}
@@ -388,6 +391,88 @@ function EmptyRoleSlot({ canManage, onPress }) {
         />
       </View>
     </TouchableOpacity>
+  );
+}
+
+// ─── RoleInfoModal ────────────────────────────────────────────────────────────
+function RoleInfoModal({ visible, role, myUserId, myRole, onClose, onTake, onRelease }) {
+  const taker   = role?.takenBy;
+  const takerId = (taker?._id || taker)?.toString();
+  const isTaken = !!takerId;
+  const isMine  = isTaken && takerId === myUserId?.toString();
+  const canTake = !isTaken && !myRole;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <View style={s.roleInfoOverlay}>
+        {role && (
+          <View style={s.roleInfoCard}>
+            <Image
+              source={{ uri: role.imageUrl }}
+              style={[s.roleInfoImage, { borderColor: role.borderColor || '#ffffff' }]}
+            />
+            <Text style={s.roleInfoName} numberOfLines={1}>{role.name}</Text>
+
+            {isTaken ? (
+              <View style={s.roleInfoTakenRow}>
+                {taker?.avatarUrl && <Image source={{ uri: taker.avatarUrl }} style={s.roleInfoTakenAvatar} />}
+                <Text style={s.roleInfoTakenTxt}>Tomado por @{taker?.username}</Text>
+              </View>
+            ) : (
+              <View style={s.roleInfoAvailableBadge}>
+                <Text style={s.roleInfoAvailableTxt}>Disponible</Text>
+              </View>
+            )}
+
+            {!!role.description && (
+              <Text style={s.roleInfoDescription}>{role.description}</Text>
+            )}
+
+            <View style={s.roleInfoStatsRow}>
+              <View style={s.roleInfoStatCard}>
+                <Ionicons name="repeat-outline" size={18} color={colors.textDim} />
+                <Text style={s.roleInfoStatValue}>{role.timesUsed || 0}</Text>
+                <Text style={s.roleInfoStatLabel}>veces usado</Text>
+              </View>
+              <View style={s.roleInfoStatCard}>
+                <Ionicons name="time-outline" size={18} color={colors.textDim} />
+                <Text style={s.roleInfoStatValue}>{formatActiveTime(role.totalActiveMinutes)}</Text>
+                <Text style={s.roleInfoStatLabel}>activo</Text>
+              </View>
+              <View style={s.roleInfoStatCard}>
+                <Ionicons name="person-outline" size={18} color={colors.textDim} />
+                <Text style={s.roleInfoStatValue} numberOfLines={1}>{isTaken ? `@${taker?.username}` : 'Disponible'}</Text>
+                <Text style={s.roleInfoStatLabel}>estado</Text>
+              </View>
+            </View>
+
+            <View style={s.roleInfoBtnRow}>
+              {canTake && (
+                <TouchableOpacity
+                  style={[s.roleInfoActionBtn, { backgroundColor: colors.c1 }]}
+                  activeOpacity={0.85}
+                  onPress={() => { onTake(role._id); onClose(); }}
+                >
+                  <Text style={[s.roleInfoActionBtnTxt, { color: colors.black }]}>Tomar rol</Text>
+                </TouchableOpacity>
+              )}
+              {isMine && (
+                <TouchableOpacity
+                  style={[s.roleInfoActionBtn, { backgroundColor: '#ef4444' }]}
+                  activeOpacity={0.85}
+                  onPress={() => { onRelease(role._id); onClose(); }}
+                >
+                  <Text style={[s.roleInfoActionBtnTxt, { color: '#ffffff' }]}>Soltar rol</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={s.roleInfoCloseBtn} activeOpacity={0.7} onPress={onClose}>
+                <Text style={s.roleInfoCloseBtnTxt}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+    </Modal>
   );
 }
 
@@ -466,6 +551,7 @@ export default function GroupRoomScreen({ route, navigation }) {
   const [myRole,            setMyRole]            = useState(null);
   const [activeRoles,       setActiveRoles]       = useState({}); // { [userId]: {roleId, roleName, roleImageUrl, borderColor} }
   const [showRoleplayPanel, setShowRoleplayPanel] = useState(true);
+  const [selectedRoleInfo,  setSelectedRoleInfo]  = useState(null); // null = cerrado, { role... } = abierto
   const [showRoleManager,   setShowRoleManager]   = useState(false);
 
   const { isProyector, setProyector, clearProyector } = useCinemaStore();
@@ -1665,7 +1751,7 @@ export default function GroupRoomScreen({ route, navigation }) {
                     }}
                   />
                 ) : (
-                  <RoleCard role={item} myUserId={user?._id} onTake={handleTakeRole} onRelease={handleReleaseRole} />
+                  <RoleCard role={item} myUserId={user?._id} onOpenInfo={setSelectedRoleInfo} />
                 )
               )}
             />
@@ -2352,6 +2438,16 @@ export default function GroupRoomScreen({ route, navigation }) {
         onChanged={fetchRoles}
       />
 
+      <RoleInfoModal
+        visible={!!selectedRoleInfo}
+        role={selectedRoleInfo ? (roles.find(r => r._id === selectedRoleInfo._id) || selectedRoleInfo) : null}
+        myUserId={user?._id}
+        myRole={myRole}
+        onClose={() => setSelectedRoleInfo(null)}
+        onTake={handleTakeRole}
+        onRelease={handleReleaseRole}
+      />
+
       {/* ── Menu Sala de Cine ─────────────────────────────────────────────── */}
       <Modal visible={showCinemaMenu} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowCinemaMenu(false)}>
         <Pressable style={s.menuOverlay} onPress={() => setShowCinemaMenu(false)}>
@@ -2438,9 +2534,6 @@ const s = StyleSheet.create({
   msgSenderRow:   { flexDirection:'row', alignItems:'center', gap:6, marginLeft: AVATAR_SLOT + 8, marginBottom:4 },
   msgSenderRowMe: { flexDirection:'row-reverse', marginLeft:0, marginRight: AVATAR_SLOT + 8, marginBottom:4 },
   msgSenderName:  { color:'rgba(255,255,255,0.65)', fontSize:11, fontWeight:'700' },
-  roleNameTag:     { fontSize:10, fontStyle:'italic', marginBottom:4 },
-  roleNameTagThem: { marginLeft: AVATAR_SLOT + 8, textAlign:'left' },
-  roleNameTagMe:   { marginRight: AVATAR_SLOT + 8, textAlign:'right' },
   adminBadge:     { backgroundColor:'rgba(0,200,150,0.15)', borderWidth:1, borderColor:'rgba(0,200,150,0.6)', borderRadius:6, paddingHorizontal:5, paddingVertical:1, marginLeft:5 },
   adminBadgeTxt:  { fontSize:9, color:'#00c896', fontWeight:'700', letterSpacing:0.3 },
   coAdminBadge:   { backgroundColor:'rgba(0,200,150,0.15)', borderWidth:1, borderColor:'rgba(0,200,150,0.6)', borderRadius:6, paddingHorizontal:5, paddingVertical:1, marginLeft:5 },
@@ -2652,6 +2745,26 @@ const s = StyleSheet.create({
   roleAvatarMask:         { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
   roleCardTakerAvatar:    { position: 'absolute', bottom: -3, right: -3, width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.black },
   roleCardName:           { color: 'rgba(255,255,255,0.85)', fontSize: 9, marginTop: 4, textAlign: 'center', alignSelf: 'stretch' },
+
+  roleInfoOverlay:         { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.6)' },
+  roleInfoCard:            { backgroundColor: colors.card, borderRadius: 20, padding: 24, marginHorizontal: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 12 },
+  roleInfoImage:           { width: 80, height: 80, borderRadius: 40, borderWidth: 3, alignSelf: 'center' },
+  roleInfoName:            { fontSize: 20, fontWeight: '800', color: '#ffffff', textAlign: 'center', marginTop: 12 },
+  roleInfoTakenRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 },
+  roleInfoTakenAvatar:     { width: 24, height: 24, borderRadius: 12 },
+  roleInfoTakenTxt:        { color: colors.textDim, fontSize: 12 },
+  roleInfoAvailableBadge:  { alignSelf: 'center', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.5)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3, marginTop: 8 },
+  roleInfoAvailableTxt:    { color: '#22c55e', fontSize: 12, fontWeight: '700' },
+  roleInfoDescription:     { color: colors.textDim, fontSize: 13, textAlign: 'center', marginTop: 8 },
+  roleInfoStatsRow:        { flexDirection: 'row', gap: 8, marginTop: 20 },
+  roleInfoStatCard:        { flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 10, alignItems: 'center' },
+  roleInfoStatValue:       { color: '#ffffff', fontSize: 14, fontWeight: '700', marginTop: 4 },
+  roleInfoStatLabel:       { color: colors.textDim, fontSize: 10, marginTop: 2 },
+  roleInfoBtnRow:          { marginTop: 20, gap: 10 },
+  roleInfoActionBtn:       { borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
+  roleInfoActionBtnTxt:    { fontSize: 14, fontWeight: '800' },
+  roleInfoCloseBtn:        { alignItems: 'center', paddingVertical: 10 },
+  roleInfoCloseBtnTxt:     { color: colors.textDim, fontSize: 13, fontWeight: '600' },
   cinemaMenuSheet:    { backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 12, borderWidth: 1, borderColor: colors.borderC },
   cinemaMenuTitle:    { color: colors.textHi, fontSize: 16, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
   cinemaMenuItem:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },

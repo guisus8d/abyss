@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 npx expo export --platform web
 
 BUNDLE=$(ls dist/_expo/static/js/web/*.js | head -1 | sed 's|dist/||')
