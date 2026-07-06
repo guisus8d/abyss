@@ -256,7 +256,7 @@ export default function StoreScreen({ navigation, route }) {
               style={[s.editBtn, { marginLeft: 'auto' }]}
               onPress={() => navigation.navigate('CreateStore', { store, onCreated: () => loadStore() })}
             >
-              <Image source={require('../../assets/chats/menu/ic_menu_settings_4.png')} style={{ width: 22, height: 22 }} />
+              <Image source={require('../../assets/market/icon_notice.png')} style={{ width: 22, height: 22 }} />
             </TouchableOpacity>
           ) : <View style={{ width: 28, marginLeft: 'auto' }} />}
         </View>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, StatusBar, ScrollView, KeyboardAvoidingView,
+  ActivityIndicator, StatusBar, FlatList, KeyboardAvoidingView,
   Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,34 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import api from '../services/api';
+import CoinIcon from '../components/CoinIcon';
+
+function formatSaleDate(date) {
+  return new Date(date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function SaleRow({ sale }) {
+  const frame = sale.item;
+  const buyer = sale.emisor;
+  return (
+    <View style={s.saleRow}>
+      {frame?.imageUrl
+        ? <Image source={{ uri: frame.imageUrl }} style={s.saleFrameImg} resizeMode="cover" />
+        : <View style={[s.saleFrameImg, s.saleFrameImgPh]}><Ionicons name="sparkles-outline" size={16} color={colors.textDim} /></View>}
+      <View style={{ flex: 1 }}>
+        <Text style={s.saleFrameName} numberOfLines={1}>{frame?.name || 'Marco eliminado'}</Text>
+        <Text style={s.saleBuyer} numberOfLines={1}>@{buyer?.username || 'usuario'}</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <CoinIcon size={10} />
+          <Text style={s.salePrice}>{sale.monto}</Text>
+        </View>
+        <Text style={s.saleDate}>{formatSaleDate(sale.createdAt)}</Text>
+      </View>
+    </View>
+  );
+}
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abyss-production-7171.up.railway.app/api';
 
@@ -100,6 +128,18 @@ export default function CreateStoreScreen({ navigation, route }) {
   const [uploadingLogo,   setUploadingLogo]   = useState(false);
   const [errMsg,      setErrMsg]      = useState('');
 
+  const [sales,        setSales]        = useState([]);
+  const [salesLoading, setSalesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isEdit) return;
+    setSalesLoading(true);
+    api.get('/market/my-sales')
+      .then(({ data }) => setSales(data.sales || []))
+      .catch(() => {})
+      .finally(() => setSalesLoading(false));
+  }, [isEdit]);
+
   async function handlePickBanner() {
     try {
       const uri = await pickImage(null, false);
@@ -169,76 +209,103 @@ export default function CreateStoreScreen({ navigation, route }) {
         </View>
       </SafeAreaView>
 
-      <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-        <View style={s.iconWrap}>
-          <Ionicons name="storefront-outline" size={36} color={colors.c1} />
-        </View>
-        <Text style={s.subhead}>
-          {isEdit ? 'Actualiza la información de tu tienda' : 'Crea tu tienda para vender marcos a la comunidad de Abyss'}
-        </Text>
+      <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={s.body}
+        showsVerticalScrollIndicator={false}
+        data={isEdit ? sales : []}
+        keyExtractor={item => item._id}
+        renderItem={({ item }) => <SaleRow sale={item} />}
+        ListHeaderComponent={() => (
+          <>
+            <View style={s.iconWrap}>
+              <Ionicons name="storefront-outline" size={36} color={colors.c1} />
+            </View>
+            <Text style={s.subhead}>
+              {isEdit ? 'Actualiza la información de tu tienda' : 'Crea tu tienda para vender marcos a la comunidad de Abyss'}
+            </Text>
 
-        <TextField
-          label="Nombre de la tienda *"
-          value={nombre}
-          onChangeText={setNombre}
-          placeholder="Ej: Pixel Arts Studio"
-          maxLength={50}
-        />
-        <TextField
-          label="Descripción"
-          value={descripcion}
-          onChangeText={setDescripcion}
-          placeholder="Describe tu tienda en pocas palabras..."
-          multiline
-          maxLength={300}
-        />
+            <TextField
+              label="Nombre de la tienda *"
+              value={nombre}
+              onChangeText={setNombre}
+              placeholder="Ej: Pixel Arts Studio"
+              maxLength={50}
+            />
+            <TextField
+              label="Descripción"
+              value={descripcion}
+              onChangeText={setDescripcion}
+              placeholder="Describe tu tienda en pocas palabras..."
+              multiline
+              maxLength={300}
+            />
 
-        <View style={s.separator}>
-          <View style={s.sepLine} />
-          <Text style={s.sepTxt}>IMÁGENES</Text>
-          <View style={s.sepLine} />
-        </View>
+            <View style={s.separator}>
+              <View style={s.sepLine} />
+              <Text style={s.sepTxt}>IMÁGENES</Text>
+              <View style={s.sepLine} />
+            </View>
 
-        <ImageField
-          label="Fondo"
-          uri={bannerLocal}
-          onPick={handlePickBanner}
-          uploading={uploadingBanner}
-          hint="Recomendado 1600×500 px"
-          changeText="Cambiar fondo"
-        />
+            <ImageField
+              label="Fondo"
+              uri={bannerLocal}
+              onPick={handlePickBanner}
+              uploading={uploadingBanner}
+              hint="Recomendado 1600×500 px"
+              changeText="Cambiar fondo"
+            />
 
-        <ImageField
-          label="Logo"
-          uri={logoLocal}
-          onPick={handlePickLogo}
-          uploading={uploadingLogo}
-          aspect={[1, 1]}
-          hint="Recomendado cuadrado"
-          changeText="Cambiar logo"
-        />
+            <ImageField
+              label="Logo"
+              uri={logoLocal}
+              onPick={handlePickLogo}
+              uploading={uploadingLogo}
+              aspect={[1, 1]}
+              hint="Recomendado cuadrado"
+              changeText="Cambiar logo"
+            />
 
-        <Text style={s.fallbackNote}>
-          Si no subes banner o logo, se mostrará un fondo degradado automático.
-        </Text>
+            <Text style={s.fallbackNote}>
+              Si no subes banner o logo, se mostrará un fondo degradado automático.
+            </Text>
 
-        {errMsg ? (
-          <View style={s.errBox}>
-            <Ionicons name="alert-circle-outline" size={15} color={colors.c4} />
-            <Text style={s.errTxt}>{errMsg}</Text>
-          </View>
-        ) : null}
+            {errMsg ? (
+              <View style={s.errBox}>
+                <Ionicons name="alert-circle-outline" size={15} color={colors.c4} />
+                <Text style={s.errTxt}>{errMsg}</Text>
+              </View>
+            ) : null}
 
-        <TouchableOpacity
-          style={[s.submitBtn, isUploading && { opacity: 0.6 }]}
-          onPress={submit}
-          disabled={isUploading}
-        >
-          {isUploading
-            ? <><ActivityIndicator size={16} color={colors.black} /><Text style={s.submitTxt}>{uploadLabel}</Text></>
-            : <Text style={s.submitTxt}>{isEdit ? 'Guardar cambios' : 'Crear tienda'}</Text>}
-        </TouchableOpacity>
-      </ScrollView>
+            <TouchableOpacity
+              style={[s.submitBtn, isUploading && { opacity: 0.6 }]}
+              onPress={submit}
+              disabled={isUploading}
+            >
+              {isUploading
+                ? <><ActivityIndicator size={16} color={colors.black} /><Text style={s.submitTxt}>{uploadLabel}</Text></>
+                : <Text style={s.submitTxt}>{isEdit ? 'Guardar cambios' : 'Crear tienda'}</Text>}
+            </TouchableOpacity>
+
+            {isEdit && (
+              <View style={s.separator}>
+                <View style={s.sepLine} />
+                <Text style={s.sepTxt}>HISTORIAL DE VENTAS</Text>
+                <View style={s.sepLine} />
+              </View>
+            )}
+            {isEdit && salesLoading && <ActivityIndicator color={colors.c1} style={{ marginTop: 12 }} />}
+          </>
+        )}
+        ListEmptyComponent={() => (
+          isEdit && !salesLoading ? (
+            <View style={s.emptySales}>
+              <Ionicons name="receipt-outline" size={28} color={colors.textDim} />
+              <Text style={s.emptySalesTxt}>Aún no has vendido ningún marco</Text>
+            </View>
+          ) : null
+        )}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -288,4 +355,20 @@ const s = StyleSheet.create({
 
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.c1, borderRadius: 18, paddingVertical: 16, marginTop: 8 },
   submitTxt: { color: colors.black, fontSize: 15, fontWeight: '800' },
+
+  saleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14,
+    borderWidth: 1, borderColor: colors.border,
+    padding: 10, marginBottom: 10,
+  },
+  saleFrameImg:   { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.surface },
+  saleFrameImgPh: { alignItems: 'center', justifyContent: 'center' },
+  saleFrameName:  { color: colors.textHi, fontSize: 13, fontWeight: '700' },
+  saleBuyer:      { color: colors.textDim, fontSize: 11, marginTop: 2 },
+  salePrice:      { color: 'rgba(251,191,36,1)', fontSize: 13, fontWeight: '800' },
+  saleDate:       { color: colors.textDim, fontSize: 10, marginTop: 3 },
+
+  emptySales:    { alignItems: 'center', gap: 8, paddingVertical: 24 },
+  emptySalesTxt: { color: colors.textDim, fontSize: 12, textAlign: 'center' },
 });
