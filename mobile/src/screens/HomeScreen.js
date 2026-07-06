@@ -492,7 +492,7 @@ export default function HomeScreen({ navigation }) {
           )}
           {currentTab.posts.filter(p => p && p._id).map((p, i) => (
             <View key={`${activeTab}-${p._id}`} style={i > 0 ? s.postGap : null}>
-              <PostCard post={p} currentUserId={user?._id} onReact={handleReact}
+              <PostCard post={p} currentUserId={user?._id} currentUserRole={user?.role} onReact={handleReact}
                 onComment={handleComment} onDelete={handleDelete}
                 navigation={navigation} isGuest={isGuest} />
             </View>

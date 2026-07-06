@@ -82,6 +82,13 @@ export default function RewardedAdSection() {
       return;
     }
 
+    // Código muerto mientras react-native-google-mobile-ads esté desinstalado
+    // (ver package.json) — el require de abajo es un string literal, y Metro
+    // lo resuelve al armar el bundle sin importar el guard de IS_DEV_BUILD de
+    // arriba, así que debe quedar comentado y no solo detrás del if.
+    // Descomentar junto con `npm install react-native-google-mobile-ads`
+    // al reactivar los ads.
+    /*
     setLoading(true);
 
     const { RewardedAd, RewardedAdEventType } = require('react-native-google-mobile-ads');
@@ -131,6 +138,7 @@ export default function RewardedAdSection() {
         Alert.alert('Error', 'No se pudo mostrar el anuncio');
       });
     });
+    */
   }
 
   const isCompleted = progress >= DAILY_LIMIT;

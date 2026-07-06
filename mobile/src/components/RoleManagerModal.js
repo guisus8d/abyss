@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, TextInput,
-  StyleSheet, ActivityIndicator, Image, ScrollView,
+  StyleSheet, ActivityIndicator, ScrollView, Image,
   Platform, Alert, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,19 +10,6 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import api, { postFormData, BASE_URL } from '../services/api';
-
-function MaskedRoleAvatar({ uri, size }) {
-  return (
-    <View style={{ width: size, height: size }}>
-      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      <Image
-        source={require('../../assets/chats/Fiesta/rol/mask_role_foreground.png')}
-        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-        resizeMode="contain"
-      />
-    </View>
-  );
-}
 
 const BORDER_COLORS = [
   { label: 'Blanco',  value: '#ffffff' },
@@ -148,8 +135,16 @@ export default function RoleManagerModal({ visible, onClose, groupId, roles, onC
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}>
               <TouchableOpacity onPress={pickImage} style={s.imagePicker} activeOpacity={0.8}>
-                {imageUri || editingId ? (
-                  <MaskedRoleAvatar uri={imageUri || roles.find(r => r._id === editingId)?.imageUrl} size={88} />
+                {imageUri ? (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 3, borderColor }}
+                  />
+                ) : editingId && roles.find(r => r._id === editingId)?.imageUrl ? (
+                  <Image
+                    source={{ uri: roles.find(r => r._id === editingId)?.imageUrl }}
+                    style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 3, borderColor }}
+                  />
                 ) : (
                   <View style={[s.imagePlaceholder, { borderColor }]}>
                     <Ionicons name="image-outline" size={28} color={colors.textDim} />
@@ -205,7 +200,18 @@ export default function RoleManagerModal({ visible, onClose, groupId, roles, onC
               )}
               {roles.map(role => (
                 <View key={role._id} style={s.roleRow}>
-                  <MaskedRoleAvatar uri={role.imageUrl} size={44} />
+                  {role.imageUrl ? (
+                    <Image
+                      source={{ uri: role.imageUrl }}
+                      style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: role.borderColor || '#fff' }}
+                    />
+                  ) : (
+                    <View style={{ width: 48, height: 48, borderRadius: 8,
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="person-outline" size={24} color={colors.textDim} />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={s.roleName} numberOfLines={1}>{role.name}</Text>
                     <Text style={s.roleStatus} numberOfLines={1}>

@@ -430,6 +430,7 @@ export default function ProfileScreen({ navigation }) {
           <PostCard
             post={item}
             currentUserId={user?._id}
+            currentUserRole={user?.role}
             onReact={handleReact}
             onComment={handleComment}
             onDelete={handleDelete}

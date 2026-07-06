@@ -226,7 +226,7 @@ export default function AppNavigator() {
       </NavigationContainer>
       <ProyectorWidget navigationRef={navigationRef} />
       <WelcomeModal navigationRef={navigationRef} />
-      {/* user && <BugReportBubble navigationRef={navigationRef} /> */}
+      {user && <BugReportBubble navigationRef={navigationRef} />}
       </View>
     </SafeAreaProvider>
   );

@@ -368,7 +368,7 @@ function getPostPreview(post) {
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 const PostCard = memo(function PostCard({
-  post, currentUserId, onReact, onComment, onDelete, navigation, isGuest,
+  post, currentUserId, currentUserRole, onReact, onComment, onDelete, navigation, isGuest,
 }) {
   const goToProfile = useCallback((username) => {
     navigation.navigate('PublicProfile', { username });
@@ -473,6 +473,7 @@ const PostCard = memo(function PostCard({
 
   const isAuthor = post.author?._id?.toString() === currentUserId?.toString() ||
                    post.author?.id?.toString()  === currentUserId?.toString();
+  const canDelete = currentUserRole === 'admin' || currentUserRole === 'mod';
 
   return (
     <View style={s.cardOuter}>
@@ -480,8 +481,8 @@ const PostCard = memo(function PostCard({
 
       <ConfirmModal
         visible={deletePostModal}
-        title="¿Borrar este post?"
-        body="Esta acción no se puede deshacer"
+        title="¿Eliminar esta publicación?"
+        body="Esta acción no se puede deshacer."
         onConfirm={handleDeletePost}
         onCancel={() => setDeletePostModal(false)}
       />
@@ -531,7 +532,7 @@ const PostCard = memo(function PostCard({
           </Text>
         </View>
 
-        {isAuthor && (
+        {(isAuthor || canDelete) && (
           <TouchableOpacity onPress={() => setDeletePostModal(true)} style={s.moreBtn} activeOpacity={0.7}>
             <Ionicons name="ellipsis-horizontal" size={16} color={C.textDim} />
           </TouchableOpacity>

@@ -10,14 +10,14 @@ if (Platform.OS !== 'web') {
   Appearance.setColorScheme('light');
 }
 
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.abyss.app';
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.abyss.social';
 
 function UpdateModal() {
   const insets = useSafeAreaInsets();
 
   function handleUpdate() {
     Linking.openURL(PLAY_STORE_URL).catch(() => {
-      Linking.openURL('market://details?id=com.abyss.app');
+      Linking.openURL('market://details?id=com.abyss.social');
     });
   }
 

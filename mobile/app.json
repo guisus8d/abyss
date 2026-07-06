@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#0A0614"
       },
-      "package": "com.abyss.app",
+      "package": "com.abyss.social",
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "userInterfaceStyle": "light",

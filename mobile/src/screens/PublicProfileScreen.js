@@ -146,6 +146,14 @@ export default function PublicProfileScreen({ route, navigation }) {
     } catch {}
   }
 
+  async function handleDelete(postId) {
+    try {
+      await api.delete(`/posts/${postId}`);
+      setPosts(prev => prev.filter(p => p._id !== postId));
+      setTotalPosts(prev => Math.max(0, prev - 1));
+    } catch {}
+  }
+
   async function handleFollow() {
     setLoadingBtn(true);
     try {
@@ -707,7 +715,7 @@ export default function PublicProfileScreen({ route, navigation }) {
                 <Text style={s.emptyTxt}>Sin publicaciones aún</Text>
               </View>
             ) : posts.map(p => (
-              <PostCard key={p._id} post={p} currentUserId={me?._id} onReact={handleReact} onComment={handleComment} onDelete={() => {}} navigation={navigation} openPickerId={openPickerId} setOpenPickerId={setOpenPickerId} />
+              <PostCard key={p._id} post={p} currentUserId={me?._id} currentUserRole={me?.role} onReact={handleReact} onComment={handleComment} onDelete={handleDelete} navigation={navigation} openPickerId={openPickerId} setOpenPickerId={setOpenPickerId} />
             ))}
             {postsLoadingMore && (
               <ActivityIndicator color={colors.c1} style={{ paddingVertical: 16 }} />
