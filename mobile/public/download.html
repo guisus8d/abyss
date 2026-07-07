@@ -3,215 +3,249 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Descargar Abyss — Beta Android</title>
-  <meta name="description" content="Descarga la beta de Abyss para Android. La red social de las profundidades.">
+  <title>Abyss — Descargar APK</title>
+  <meta name="description" content="Descarga la beta de Abyss Social para Android. La red social que te conecta de verdad.">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      min-height: 100vh;
-      background: #020509;
-      color: #e8f4f8;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    :root {
+      --bg:        #020509;
+      --teal:      #00e5cc;
+      --teal-dim:  rgba(0,229,204,0.5);
+      --text:      #ffffff;
+      --text-dim:  rgba(255,255,255,0.6);
+      --text-faint:rgba(255,255,255,0.35);
+      --card-bg:   rgba(255,255,255,0.04);
+      --card-border: rgba(0,229,204,0.2);
     }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; }
+    section { padding: 0 20px; }
+
+    /* ── HERO ─────────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 62vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 40px 20px;
-      min-height: 100vh;
-    }
-
-    /* Fondo */
-    .glow {
-      position: fixed; pointer-events: none;
-      width: 500px; height: 500px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(0,80,100,0.18) 0%, transparent 70%);
-      top: 50%; left: 50%; transform: translate(-50%, -60%);
-    }
-
-    .card {
-      position: relative;
-      background: rgba(0,15,30,0.85);
-      border: 1px solid rgba(0,229,204,0.12);
-      border-radius: 28px;
-      padding: 52px 40px 44px;
-      width: 100%; max-width: 480px;
       text-align: center;
+      padding: 72px 20px 40px;
       overflow: hidden;
     }
-    .card::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, #00e5cc, #2979ff, transparent);
-    }
-
-    /* Logo */
-    .logo-wrap {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 32px;
-    }
-    .logo-ring {
+    .hero-glow {
       position: absolute;
-      border-radius: 50%;
-      border: 1px solid rgba(0,229,204,0.15);
+      pointer-events: none;
+      width: 560px; height: 560px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,229,204,0.14) 0%, transparent 70%);
+      top: 50%; left: 50%; transform: translate(-50%, -55%);
     }
-    .ring1 { width: 90px;  height: 90px;  }
-    .ring2 { width: 116px; height: 116px; border-color: rgba(41,121,255,0.08); }
-    .ring3 { width: 144px; height: 144px; border-color: rgba(0,229,204,0.05); }
-    .logo-img {
-      width: 68px; height: 68px;
-      border-radius: 18px;
-      position: relative; z-index: 1;
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+    }
+    .hero-wordmark {
+      font-size: clamp(38px, 10vw, 56px);
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      color: var(--teal);
+      text-shadow: 0 0 40px rgba(0,229,204,0.45);
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+    .hero-subtitle {
+      font-size: 15px;
+      color: var(--text-dim);
+      margin-bottom: 40px;
+      max-width: 30ch;
     }
 
-    /* Texto */
-    .wordmark {
-      font-size: 28px; font-weight: 900; letter-spacing: 10px;
-      color: #00e5cc;
-      text-shadow: 0 0 24px rgba(0,229,204,0.35);
-      margin-bottom: 6px;
-    }
-    .subtitle {
-      font-size: 11px; letter-spacing: 3px; font-weight: 700;
-      color: rgba(0,229,204,0.5);
-      margin-bottom: 36px;
-    }
-
-    /* Botón descarga */
-    .btn-download {
+    /* ── DOWNLOAD BUTTON ──────────────────────────────────── */
+    .download-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
       width: 100%;
-      padding: 18px 24px;
+      background: var(--teal);
+      color: #020509;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      padding: 19px 24px;
       border-radius: 16px;
-      background: linear-gradient(90deg, #005c55, #00b4a0, #00e5cc);
-      color: #001a18;
-      font-size: 15px; font-weight: 800; letter-spacing: 1px;
       text-decoration: none;
-      transition: opacity .2s, transform .15s;
-      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,229,204,0.25);
+      transition: transform .15s, box-shadow .2s;
     }
-    .btn-download:hover  { opacity: .88; transform: translateY(-1px); }
-    .btn-download:active { opacity: .75; transform: translateY(0); }
-    .btn-download svg { flex-shrink: 0; }
+    .download-btn:hover  { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(0,229,204,0.35); }
+    .download-btn:active { transform: translateY(0); }
+    .download-btn svg { flex-shrink: 0; }
 
-    /* Requisito */
-    .req {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      background: rgba(0,229,204,0.06);
-      border: 1px solid rgba(0,229,204,0.15);
-      border-radius: 20px;
-      padding: 7px 16px;
-      font-size: 12px; color: rgba(0,229,204,0.7);
-      margin-bottom: 28px;
+    .download-caption {
+      margin-top: 14px;
+      font-size: 12.5px;
+      color: var(--text-faint);
+      text-align: center;
     }
 
-    /* Instrucciones */
-    .instructions {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 14px;
-      padding: 18px 20px;
-      text-align: left;
+    /* ── STEPS ────────────────────────────────────────────── */
+    .steps-section {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 48px 20px 16px;
     }
-    .inst-title {
-      font-size: 9px; letter-spacing: 2.5px; font-weight: 800;
-      color: rgba(232,244,248,0.35);
-      margin-bottom: 12px;
-    }
-    .inst-step {
-      display: flex; align-items: flex-start; gap: 10px;
-      margin-bottom: 10px;
-      font-size: 13px; color: rgba(232,244,248,0.5); line-height: 1.5;
-    }
-    .inst-step:last-child { margin-bottom: 0; }
-    .inst-num {
-      min-width: 20px; height: 20px; border-radius: 50%;
-      background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 700; color: rgba(0,229,204,0.7);
-      flex-shrink: 0; margin-top: 1px;
-    }
-    .inst-step em { color: rgba(232,244,248,0.75); font-style: normal; font-weight: 600; }
-
-    .footer {
-      margin-top: 32px;
-      color: rgba(232,244,248,0.18);
+    .steps-label {
       font-size: 11px;
+      letter-spacing: 0.18em;
+      font-weight: 800;
+      color: var(--text-faint);
+      text-align: center;
+      margin-bottom: 22px;
     }
-    .footer a { color: rgba(0,229,204,0.4); text-decoration: none; }
-    .footer a:hover { color: rgba(0,229,204,0.7); }
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .step-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 20px 22px;
+      transition: border-color .2s, transform .2s;
+    }
+    .step-card:hover { border-color: var(--card-border); transform: translateY(-2px); }
+    .step-num {
+      flex-shrink: 0;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: rgba(0,229,204,0.08);
+      border: 1px solid rgba(0,229,204,0.25);
+      color: var(--teal);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800;
+    }
+    .step-text {
+      font-size: 14.5px;
+      color: var(--text-dim);
+      line-height: 1.55;
+      padding-top: 6px;
+    }
+    .step-text strong { color: var(--text); font-weight: 700; }
 
-    @media (max-width: 520px) {
-      .card { padding: 44px 24px 36px; border-radius: 0; border-left: none; border-right: none; }
+    /* ── SOCIAL ───────────────────────────────────────────── */
+    .social-section { padding: 48px 20px 40px; display: flex; justify-content: center; }
+    .social-row { display: flex; align-items: center; gap: 22px; }
+    .social-row a {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--teal);
+      opacity: .85;
+      transition: opacity .2s, transform .2s;
+    }
+    .social-row a:hover { opacity: 1; transform: translateY(-2px); }
+    .social-row svg { width: 28px; height: 28px; }
+
+    /* ── FOOTER ───────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 12px 20px 40px;
+      font-size: 11.5px;
+      color: var(--text-faint);
     }
   </style>
 </head>
 <body>
-  <div class="glow"></div>
 
-  <div class="card">
-    <!-- Logo -->
-    <div class="logo-wrap">
-      <div class="logo-ring ring3"></div>
-      <div class="logo-ring ring2"></div>
-      <div class="logo-ring ring1"></div>
-      <img src="/Abyss.png" alt="Abyss" class="logo-img" />
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+      <p class="hero-wordmark">ABYSS</p>
+      <p class="hero-subtitle">La red social que te conecta de verdad</p>
+
+      <a class="download-btn" href="https://expo.dev/artifacts/eas/-os6N6VkRHX7O6Zw7eL1fpxcLFKTE0mJ_l7fLnrXBJY.apk" download>
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="7.5" y1="5" x2="6.3" y2="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="16.5" y1="5" x2="17.7" y2="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M6 10a6 6 0 0 1 12 0Z" fill="currentColor"/>
+          <circle cx="9.2" cy="7.6" r="0.9" fill="#00e5cc"/>
+          <circle cx="14.8" cy="7.6" r="0.9" fill="#00e5cc"/>
+          <rect x="6" y="10.5" width="12" height="7" rx="1.5" fill="currentColor"/>
+          <rect x="3.6" y="10.8" width="1.8" height="5.5" rx="0.9" fill="currentColor"/>
+          <rect x="18.6" y="10.8" width="1.8" height="5.5" rx="0.9" fill="currentColor"/>
+          <rect x="9" y="18" width="1.8" height="3.2" rx="0.9" fill="currentColor"/>
+          <rect x="13.2" y="18" width="1.8" height="3.2" rx="0.9" fill="currentColor"/>
+        </svg>
+        Descargar APK
+      </a>
+      <p class="download-caption">Versión beta &middot; Android &middot; 33 MB aprox</p>
     </div>
+  </section>
 
-    <p class="wordmark">ABYSS</p>
-    <p class="subtitle">VERSIÓN BETA · ANDROID</p>
-
-    <!-- Botón descarga -->
-    <a class="btn-download" href="https://expo.dev/artifacts/eas/x8_gnVk58m6agMgapOsFmAac4CnAzWf-l2bk6K0dxPY.apk" download>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Descargar APK
-    </a>
-
-    <!-- Requisito -->
-    <div class="req">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-      Requiere Android 8.0 o superior
-    </div>
-
-    <!-- Instrucciones -->
-    <div class="instructions">
-      <p class="inst-title">CÓMO INSTALAR</p>
-      <div class="inst-step">
-        <div class="inst-num">1</div>
-        <span>Descarga el archivo <em>.apk</em> usando el botón de arriba</span>
+  <!-- STEPS -->
+  <section class="steps-section">
+    <p class="steps-label">CÓMO INSTALAR</p>
+    <div class="steps-list">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <p class="step-text"><strong>Descarga el APK</strong> usando el botón de arriba</p>
       </div>
-      <div class="inst-step">
-        <div class="inst-num">2</div>
-        <span>Ve a <em>Ajustes → Seguridad</em> y habilita <em>Fuentes desconocidas</em> (o "Instalar apps desconocidas")</span>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <p class="step-text">Activa <strong>"Instalar apps desconocidas"</strong> en los ajustes de tu teléfono</p>
       </div>
-      <div class="inst-step">
-        <div class="inst-num">3</div>
-        <span>Abre el archivo descargado desde tu gestor de archivos y sigue las instrucciones de instalación</span>
-      </div>
-      <div class="inst-step">
-        <div class="inst-num">4</div>
-        <span>¡Listo! Abre Abyss y sumérgete</span>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <p class="step-text"><strong>Abre el archivo</strong> descargado e instálalo</p>
       </div>
     </div>
-  </div>
+  </section>
 
-  <p class="footer">
-    © 2025 Abyss · <a href="https://abyss.social">abyss.social</a>
-    &nbsp;·&nbsp; <a href="https://abyss.social/terminos">Términos</a>
-    &nbsp;·&nbsp; <a href="https://abyss.social/privacidad">Privacidad</a>
-  </p>
+  <!-- SOCIAL -->
+  <section class="social-section">
+    <div class="social-row">
+      <a href="https://www.instagram.com/abysssocial/" target="_blank" rel="noopener" aria-label="Instagram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2.5" y="2.5" width="19" height="19" rx="5"/>
+          <circle cx="12" cy="12" r="4.3"/>
+          <circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none"/>
+        </svg>
+      </a>
+      <a href="https://www.youtube.com/@abyss-u5s" target="_blank" rel="noopener" aria-label="YouTube">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M21.6 7.6a3 3 0 0 0-2.1-2.1C17.7 5 12 5 12 5s-5.7 0-7.5.5A3 3 0 0 0 2.4 7.6 31 31 0 0 0 2 12a31 31 0 0 0 .4 4.4 3 3 0 0 0 2.1 2.1C6.3 19 12 19 12 19s5.7 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.4Z"/>
+          <path d="M10 15V9l5.2 3Z" fill="currentColor" stroke="none"/>
+        </svg>
+      </a>
+      <a href="https://discord.gg/F5Yhm7x5t" target="_blank" rel="noopener" aria-label="Discord">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.3 5.4A18 18 0 0 0 15.6 4l-.3.5a12.6 12.6 0 0 1 4 1.6 15.9 15.9 0 0 0-13.6 0 12.6 12.6 0 0 1 4-1.6L9.4 4a18 18 0 0 0-4.7 1.4C1.7 9.6 1 13.7 1.3 17.7a17.9 17.9 0 0 0 5.5 2.8l.9-1.4a11.6 11.6 0 0 1-1.9-.9l.5-.4a13 13 0 0 0 11.4 0l.5.4a11.6 11.6 0 0 1-1.9.9l.9 1.4a17.8 17.8 0 0 0 5.5-2.8c.4-4.6-.8-8.7-2.4-12.3ZM8.8 15.2c-.9 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.7.9 1.7 1.9-.8 1.9-1.7 1.9Zm6.4 0c-.9 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.7.9 1.7 1.9-.7 1.9-1.7 1.9Z"/>
+        </svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2026 Abyss Social
+  </footer>
+
 </body>
 </html>
